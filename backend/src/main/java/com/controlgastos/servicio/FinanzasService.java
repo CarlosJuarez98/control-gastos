@@ -57,17 +57,28 @@ public class FinanzasService {
                 : cuentaRepository.sumaDeudas();
 
         List<Map<String, Object>> porCat = gastoRepository.sumaPorCategoria().stream()
-                .map(row -> {
+                .collect(Collectors.toMap(
+                        row -> CategoriaGastoNormalizer.normalizar((String) row[0]),
+                        row -> toBigDecimal(row[1]),
+                        BigDecimal::add,
+                        LinkedHashMap::new
+                ))
+                .entrySet().stream()
+                .sorted(Map.Entry.<String, BigDecimal>comparingByValue().reversed())
+                .map(e -> {
                     Map<String, Object> m = new LinkedHashMap<>();
-                    m.put("categoria", row[0]);
-                    m.put("total", row[1]);
+                    m.put("categoria", e.getKey());
+                    m.put("total", e.getValue());
                     return m;
                 })
                 .collect(Collectors.toList());
 
         List<Map<String, Object>> topCuentas = cuentaRepository.findAll().stream()
-                .sorted(Comparator.comparing(Cuenta::getSaldoActual).reversed())
-                .limit(8)
+                .filter(c -> c.getSaldoActual() != null
+                        && c.getSaldoActual().compareTo(BigDecimal.ZERO) != 0)
+                .sorted(Comparator.comparing(
+                        c -> c.getNombre() == null ? "" : c.getNombre(),
+                        String.CASE_INSENSITIVE_ORDER))
                 .map(c -> {
                     Map<String, Object> m = new LinkedHashMap<>();
                     m.put("id", c.getId());
@@ -99,6 +110,9 @@ public class FinanzasService {
     }
 
     public Ingreso guardarIngreso(Ingreso ingreso) {
+        if (ingreso.getFecha() != null && ingreso.getFecha().isAfter(LocalDate.now())) {
+            throw new IllegalArgumentException("La fecha no puede ser mayor a hoy");
+        }
         return ingresoRepository.save(ingreso);
     }
 
@@ -114,6 +128,7 @@ public class FinanzasService {
     }
 
     public Gasto guardarGasto(Gasto gasto) {
+        gasto.setCategoria(CategoriaGastoNormalizer.normalizar(gasto.getCategoria()));
         return gastoRepository.save(gasto);
     }
 
@@ -138,7 +153,11 @@ public class FinanzasService {
 
     public List<Cuenta> listarCuentas() {
         return cuentaRepository.findAll().stream()
-                .sorted(Comparator.comparing(Cuenta::getNombre))
+                .sorted(Comparator
+                        .comparing((Cuenta c) -> c.getSaldoActual() == null
+                                || c.getSaldoActual().compareTo(BigDecimal.ZERO) == 0)
+                        .thenComparing(c -> c.getNombre() == null ? "" : c.getNombre(),
+                                String.CASE_INSENSITIVE_ORDER))
                 .collect(Collectors.toList());
     }
 
@@ -191,5 +210,26 @@ public class FinanzasService {
     public List<DenominacionEfectivo> guardarDenominaciones(List<DenominacionEfectivo> items) {
         denominacionRepository.deleteAll();
         return denominacionRepository.saveAll(items);
+    }
+
+    /** Unifica categorías duplicadas ya guardadas (Yo/yo, etc.). */
+    @Transactional
+    public int normalizarCategoriasExistentes() {
+        int cambios = 0;
+        for (Gasto g : gastoRepository.findAll()) {
+            String canonica = CategoriaGastoNormalizer.normalizar(g.getCategoria());
+            if (!canonica.equals(g.getCategoria())) {
+                g.setCategoria(canonica);
+                gastoRepository.save(g);
+                cambios++;
+            }
+        }
+        return cambios;
+    }
+
+    private static BigDecimal toBigDecimal(Object value) {
+        if (value == null) return BigDecimal.ZERO;
+        if (value instanceof BigDecimal bd) return bd;
+        return new BigDecimal(value.toString());
     }
 }

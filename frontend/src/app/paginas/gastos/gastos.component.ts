@@ -19,7 +19,7 @@ export class GastosComponent implements OnInit {
     monto: 0,
     motivo: '',
   };
-  categorias = ['Yo', 'Familia', 'TDC', 'Vehiculos', 'Otro'];
+  categorias = ['Yo', 'Familia', 'TDC', 'Vehiculos', 'Nu credito', 'Didi Card', 'Liverpool', 'Mama', 'Otro'];
   filtro = '';
   error = '';
 

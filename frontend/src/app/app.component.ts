@@ -10,7 +10,7 @@ import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 })
 export class AppComponent {
   links = [
-    { path: '/', label: 'Resumen', exact: true },
+    { path: '/resumen', label: 'Resumen', exact: true },
     { path: '/ingresos', label: 'Ingresos', exact: false },
     { path: '/gastos', label: 'Gastos', exact: false },
     { path: '/mensuales', label: 'Mensuales', exact: false },
