@@ -1,0 +1,37 @@
+services:
+  oracle:
+    image: gvenzl/oracle-xe:21-slim
+    container_name: oracle-control-gastos
+    ports:
+      - "1522:1521"
+      - "5501:5500"
+    environment:
+      ORACLE_PASSWORD: ControlGastos2026
+      APP_USER: controlgastos
+      APP_USER_PASSWORD: ControlGastos2026
+    volumes:
+      - oracle-control-gastos-data:/opt/oracle/oradata
+    healthcheck:
+      test: ["CMD", "healthcheck.sh"]
+      interval: 30s
+      timeout: 10s
+      retries: 30
+      start_period: 180s
+
+  backend:
+    build: ./backend
+    container_name: control-gastos-api
+    ports:
+      - "8081:8081"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:oracle:thin:@oracle:1521/XEPDB1
+      SPRING_DATASOURCE_USERNAME: controlgastos
+      SPRING_DATASOURCE_PASSWORD: ControlGastos2026
+      LOGGING_LEVEL_COM_CONTROLGASTOS: INFO
+    depends_on:
+      oracle:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  oracle-control-gastos-data:

@@ -1,0 +1,22 @@
+.cab { margin-bottom: 1rem; }
+.grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  align-items: start;
+}
+.bloque {
+  background: var(--superficie);
+  border: 1px solid var(--linea);
+  border-radius: 1rem;
+  padding: 1rem;
+  display: grid;
+  gap: 0.65rem;
+}
+.bloque label { display: grid; gap: 0.25rem; font-size: 0.85rem; color: var(--texto-suave); }
+button[type="submit"] { grid-column: 1 / -1; justify-self: start; }
+.error { color: var(--peligro); }
+.ok { color: var(--ok); }
+@media (max-width: 860px) {
+  .grid { grid-template-columns: 1fr; }
+}

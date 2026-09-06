@@ -1,0 +1,42 @@
+<section class="cab">
+  <div>
+    <h1>Saldo y efectivo</h1>
+    <p>Snapshot de liquidez y calculadora de billetes/monedas (como en tu Excel).</p>
+  </div>
+</section>
+
+@if (error) { <p class="error">{{ error }}</p> }
+@if (mensaje) { <p class="ok">{{ mensaje }}</p> }
+
+<form class="grid" (ngSubmit)="guardar()">
+  <div class="bloque">
+    <h2>Disponible</h2>
+    <label>Fecha <input type="date" [(ngModel)]="saldo.fecha" name="fecha" /></label>
+    <label>Saldo total <input type="number" step="0.01" [(ngModel)]="saldo.saldoTotal" name="saldoTotal" /></label>
+    <label>Dinero tarjeta <input type="number" step="0.01" [(ngModel)]="saldo.dineroTarjeta" name="tarjeta" /></label>
+    <label>BBVA <input type="number" step="0.01" [(ngModel)]="saldo.dineroBbva" name="bbva" /></label>
+    <label>Mercado Libre <input type="number" step="0.01" [(ngModel)]="saldo.dineroMercadoLibre" name="ml" /></label>
+    <label>Nu <input type="number" step="0.01" [(ngModel)]="saldo.dineroNu" name="nu" /></label>
+    <label>Didi <input type="number" step="0.01" [(ngModel)]="saldo.dineroDidi" name="didi" /></label>
+    <label>Deuda total <input type="number" step="0.01" [(ngModel)]="saldo.deudaTotal" name="deuda" /></label>
+  </div>
+
+  <div class="bloque">
+    <h2>Calculadora de efectivo</h2>
+    <p>Total físico: <strong class="mono">{{ totalEfectivo | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong></p>
+    <table>
+      <thead><tr><th>Valor</th><th>Cantidad</th><th>Subtotal</th></tr></thead>
+      <tbody>
+        @for (d of denominaciones; track d.valor; let i = $index) {
+          <tr>
+            <td class="mono">{{ d.valor | currency:'MXN':'symbol-narrow':'1.2-2' }}</td>
+            <td><input type="number" [(ngModel)]="d.cantidad" [name]="'cant'+i" min="0" /></td>
+            <td class="mono">{{ d.valor * d.cantidad | currency:'MXN':'symbol-narrow':'1.2-2' }}</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+
+  <button type="submit">Guardar saldo</button>
+</form>

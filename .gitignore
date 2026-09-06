@@ -1,0 +1,12 @@
+**/node_modules/
+**/dist/
+**/target/
+**/.angular/
+**/data/
+*.class
+*.log
+.idea/
+*.iml
+.vscode/
+.DS_Store
+_import/excel-raw.json

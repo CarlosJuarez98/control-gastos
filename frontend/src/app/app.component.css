@@ -1,0 +1,61 @@
+.shell {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 1.25rem 1.25rem 3rem;
+  animation: entrar 0.55s ease both;
+}
+
+.top {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem 1.5rem;
+  align-items: flex-end;
+  justify-content: space-between;
+  margin-bottom: 1.75rem;
+  padding-bottom: 1.1rem;
+  border-bottom: 1px solid var(--linea);
+}
+
+.brand-mark {
+  font-family: var(--fuente-display);
+  font-size: clamp(1.7rem, 3vw, 2.35rem);
+  font-weight: 800;
+  margin: 0;
+  color: var(--texto);
+  letter-spacing: -0.04em;
+}
+
+.brand-sub {
+  margin: 0.2rem 0 0;
+  font-size: 0.92rem;
+}
+
+nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+nav a {
+  padding: 0.45rem 0.8rem;
+  border-radius: 0.55rem;
+  color: var(--texto-suave);
+  font-weight: 600;
+  font-size: 0.92rem;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+nav a:hover { color: var(--texto); background: rgba(255,255,255,0.04); }
+nav a.activo {
+  color: #06241c;
+  background: var(--acento);
+}
+
+@keyframes entrar {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: none; }
+}
+
+@media (max-width: 720px) {
+  .top { align-items: flex-start; }
+}
