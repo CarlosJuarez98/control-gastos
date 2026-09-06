@@ -1,0 +1,70 @@
+<section class="cab">
+  <div>
+    <h1>Deudas y cuentas</h1>
+    <p>Saldo pendiente (sin préstamos otorgados): {{ deudaVisible | currency:'MXN':'symbol-narrow':'1.2-2' }}</p>
+  </div>
+</section>
+
+@if (error) { <p class="error">{{ error }}</p> }
+
+<form class="alta" (ngSubmit)="crearCuenta()">
+  <label>Nombre <input [(ngModel)]="nueva.nombre" name="nombre" required /></label>
+  <label>Tipo
+    <select [(ngModel)]="nueva.tipo" name="tipo">
+      @for (t of tipos; track t) { <option [value]="t">{{ t }}</option> }
+    </select>
+  </label>
+  <label>Saldo <input type="number" step="0.01" [(ngModel)]="nueva.saldoActual" name="saldo" /></label>
+  <button type="submit">Nueva cuenta</button>
+</form>
+
+<div class="layout">
+  <ul class="cuentas">
+    @for (c of cuentas; track c.id) {
+      <li [class.activa]="seleccionada?.id === c.id">
+        <a [routerLink]="['/cuentas', c.id]">
+          <strong>{{ c.nombre }}</strong>
+          <small>{{ c.tipo }}</small>
+          <span class="mono">{{ c.saldoActual | currency:'MXN':'symbol-narrow':'1.2-2' }}</span>
+        </a>
+      </li>
+    }
+  </ul>
+
+  <div class="detalle">
+    @if (seleccionada) {
+      <h2>{{ seleccionada.nombre }}</h2>
+      <p>Saldo actual: <strong class="mono">{{ seleccionada.saldoActual | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong></p>
+
+      <form class="alta" (ngSubmit)="agregarMovimiento()">
+        <label>Fecha <input type="date" [(ngModel)]="mov.fecha" name="mfecha" /></label>
+        <label>Tipo
+          <select [(ngModel)]="mov.tipo" name="mtipo">
+            @for (t of tiposMov; track t) { <option [value]="t">{{ t }}</option> }
+          </select>
+        </label>
+        <label>Monto <input type="number" step="0.01" [(ngModel)]="mov.monto" name="mmonto" /></label>
+        <label>Concepto <input [(ngModel)]="mov.concepto" name="mconcepto" /></label>
+        <button type="submit">Registrar movimiento</button>
+      </form>
+
+      <table>
+        <thead>
+          <tr><th>Fecha</th><th>Tipo</th><th>Concepto</th><th>Monto</th></tr>
+        </thead>
+        <tbody>
+          @for (m of movimientos; track m.id) {
+            <tr>
+              <td>{{ m.fecha | date:'dd/MM/yyyy' }}</td>
+              <td>{{ m.tipo }}</td>
+              <td>{{ m.concepto }}</td>
+              <td class="mono">{{ m.monto | currency:'MXN':'symbol-narrow':'1.2-2' }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    } @else {
+      <p>Elige una cuenta para ver movimientos y registrar abonos.</p>
+    }
+  </div>
+</div>

@@ -1,0 +1,94 @@
+.hero {
+  margin-bottom: 1.5rem;
+  animation: subir 0.6s ease both;
+}
+
+.hero h1 {
+  font-size: clamp(1.6rem, 3.2vw, 2.2rem);
+  max-width: 16ch;
+}
+
+.metricas {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.85rem;
+  margin-bottom: 1.75rem;
+}
+
+.metricas article {
+  padding: 1rem 1.05rem;
+  background: linear-gradient(160deg, var(--superficie) 0%, var(--superficie-2) 100%);
+  border: 1px solid var(--linea);
+  border-radius: 1rem;
+  animation: subir 0.55s ease both;
+}
+
+.metricas article:nth-child(2) { animation-delay: 0.05s; }
+.metricas article:nth-child(3) { animation-delay: 0.1s; }
+.metricas article:nth-child(4) { animation-delay: 0.15s; }
+.metricas article:nth-child(5) { animation-delay: 0.2s; }
+.metricas article:nth-child(6) { animation-delay: 0.25s; }
+
+.metricas span {
+  display: block;
+  color: var(--texto-suave);
+  font-size: 0.82rem;
+  margin-bottom: 0.35rem;
+}
+
+.metricas strong {
+  font-family: var(--fuente-display);
+  font-size: 1.25rem;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: 1.15fr 0.85fr;
+  gap: 1.25rem;
+}
+
+section h2 { font-size: 1.15rem; margin-bottom: 0.85rem; }
+
+.barras { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.75rem; }
+.fila { display: flex; justify-content: space-between; gap: 0.75rem; margin-bottom: 0.3rem; font-size: 0.92rem; }
+.track {
+  height: 0.45rem;
+  background: rgba(255,255,255,0.06);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--acento), color-mix(in srgb, var(--acento) 40%, var(--acento-2)));
+  border-radius: 999px;
+  transition: width 0.7s ease;
+}
+
+.lista { list-style: none; margin: 0; padding: 0; }
+.lista li + li { border-top: 1px solid var(--linea); }
+.lista a {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.75rem 0;
+  align-items: center;
+}
+.lista strong { display: block; }
+.lista small { color: var(--texto-suave); }
+.ver-todas {
+  display: inline-block;
+  margin-top: 0.75rem;
+  color: var(--acento);
+  font-weight: 600;
+}
+.error { color: var(--peligro); }
+
+@keyframes subir {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: none; }
+}
+
+@media (max-width: 860px) {
+  .metricas { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .grid { grid-template-columns: 1fr; }
+}

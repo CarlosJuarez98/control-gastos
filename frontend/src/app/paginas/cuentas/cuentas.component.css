@@ -1,0 +1,23 @@
+.cab { margin-bottom: 1rem; }
+.alta {
+  display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: flex-end;
+  background: var(--superficie); border: 1px solid var(--linea); border-radius: 1rem;
+  padding: 0.9rem; margin-bottom: 1rem;
+}
+.alta label { display: grid; gap: 0.25rem; font-size: 0.82rem; color: var(--texto-suave); flex: 1; min-width: 120px; }
+.layout { display: grid; grid-template-columns: 280px 1fr; gap: 1rem; }
+.cuentas { list-style: none; margin: 0; padding: 0; border: 1px solid var(--linea); border-radius: 1rem; background: var(--superficie); max-height: 70vh; overflow: auto; }
+.cuentas a {
+  display: grid; gap: 0.15rem; padding: 0.8rem 0.9rem; border-bottom: 1px solid var(--linea);
+}
+.cuentas small { color: var(--texto-suave); }
+.cuentas .mono { color: var(--acento-2); }
+.cuentas li.activa a { background: rgba(61, 190, 160, 0.12); }
+.detalle {
+  border: 1px solid var(--linea); border-radius: 1rem; background: var(--superficie);
+  padding: 1rem; min-height: 320px;
+}
+.error { color: var(--peligro); }
+@media (max-width: 860px) {
+  .layout { grid-template-columns: 1fr; }
+}

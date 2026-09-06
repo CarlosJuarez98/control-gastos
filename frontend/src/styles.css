@@ -1,0 +1,101 @@
+@import url('https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=Syne:wght@600;700;800&display=swap');
+
+:root {
+  --fondo: #0f1419;
+  --superficie: #182029;
+  --superficie-2: #1f2a35;
+  --texto: #e8eef4;
+  --texto-suave: #93a4b5;
+  --acento: #3dbea0;
+  --acento-2: #f0a45d;
+  --peligro: #e57373;
+  --linea: rgba(232, 238, 244, 0.12);
+  --ok: #5dce9a;
+  --fuente-display: 'Syne', 'Segoe UI', sans-serif;
+  --fuente-cuerpo: 'Figtree', 'Segoe UI', sans-serif;
+  --sombra: 0 20px 48px rgba(0, 0, 0, 0.35);
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  min-height: 100%;
+  font-family: var(--fuente-cuerpo);
+  color: var(--texto);
+  background:
+    radial-gradient(ellipse 70% 50% at 10% -10%, rgba(61, 190, 160, 0.18), transparent 55%),
+    radial-gradient(ellipse 50% 40% at 100% 0%, rgba(240, 164, 93, 0.12), transparent 50%),
+    linear-gradient(165deg, #0c1116 0%, var(--fondo) 40%, #121a22 100%);
+  background-attachment: fixed;
+}
+
+h1, h2, h3 {
+  font-family: var(--fuente-display);
+  letter-spacing: -0.03em;
+  margin: 0 0 0.5rem;
+}
+
+p { margin: 0 0 1rem; color: var(--texto-suave); line-height: 1.5; }
+
+a { color: inherit; text-decoration: none; }
+
+button, input, select, textarea { font: inherit; color: inherit; }
+
+button {
+  cursor: pointer;
+  border: none;
+  border-radius: 0.65rem;
+  padding: 0.65rem 1.1rem;
+  background: var(--acento);
+  color: #06241c;
+  font-weight: 700;
+  transition: transform 0.18s ease, filter 0.18s ease;
+}
+
+button:hover { filter: brightness(1.08); transform: translateY(-1px); }
+button.secundario {
+  background: transparent;
+  color: var(--texto);
+  border: 1px solid var(--linea);
+}
+button.peligro {
+  background: transparent;
+  color: var(--peligro);
+  border: 1px solid color-mix(in srgb, var(--peligro) 40%, transparent);
+}
+
+input, select, textarea {
+  width: 100%;
+  background: var(--superficie-2);
+  border: 1px solid var(--linea);
+  border-radius: 0.55rem;
+  padding: 0.6rem 0.75rem;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th, td {
+  text-align: left;
+  padding: 0.7rem 0.55rem;
+  border-bottom: 1px solid var(--linea);
+  vertical-align: top;
+}
+
+th {
+  color: var(--texto-suave);
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 600;
+}
+
+.mono {
+  font-variant-numeric: tabular-nums;
+}
+
+.pos { color: var(--ok); }
+.neg { color: var(--peligro); }

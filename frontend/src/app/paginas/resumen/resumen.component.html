@@ -1,0 +1,76 @@
+<section class="hero">
+  <h1>Panorama al día de hoy</h1>
+  <p>Importado desde tu Excel de control de gastos. Sigue registrando ingresos, gastos y abonos aquí.</p>
+</section>
+
+@if (error) {
+  <p class="error">{{ error }}</p>
+}
+
+@if (data) {
+  <div class="metricas">
+    <article>
+      <span>Ingresos</span>
+      <strong class="pos mono">{{ data.totalIngresos | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
+    </article>
+    <article>
+      <span>Gastos</span>
+      <strong class="neg mono">{{ data.totalGastos | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
+    </article>
+    <article>
+      <span>Balance</span>
+      <strong class="mono" [class.pos]="data.balance >= 0" [class.neg]="data.balance < 0">
+        {{ data.balance | currency:'MXN':'symbol-narrow':'1.2-2' }}
+      </strong>
+    </article>
+    <article>
+      <span>Deuda total</span>
+      <strong class="mono">{{ data.deudaTotal | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
+    </article>
+    <article>
+      <span>Saldo disponible</span>
+      <strong class="mono">{{ data.saldoDisponible | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
+    </article>
+    <article>
+      <span>Fijos mensuales</span>
+      <strong class="mono">{{ data.gastosMensuales | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
+    </article>
+  </div>
+
+  <div class="grid">
+    <section>
+      <h2>Gastos por categoría</h2>
+      <ul class="barras">
+        @for (c of data.gastosPorCategoria; track c.categoria) {
+          <li>
+            <div class="fila">
+              <span>{{ c.categoria }}</span>
+              <span class="mono">{{ c.total | currency:'MXN':'symbol-narrow':'1.0-0' }}</span>
+            </div>
+            <div class="track">
+              <div class="fill" [style.width.%]="(c.total / maxCat()) * 100"></div>
+            </div>
+          </li>
+        }
+      </ul>
+    </section>
+
+    <section>
+      <h2>Cuentas / deudas</h2>
+      <ul class="lista">
+        @for (c of data.topCuentas; track c.id) {
+          <li>
+            <a [routerLink]="['/cuentas', c.id]">
+              <div>
+                <strong>{{ c.nombre }}</strong>
+                <small>{{ c.tipo }}</small>
+              </div>
+              <span class="mono">{{ c.saldoActual | currency:'MXN':'symbol-narrow':'1.2-2' }}</span>
+            </a>
+          </li>
+        }
+      </ul>
+      <a class="ver-todas" routerLink="/cuentas">Ver todas las cuentas →</a>
+    </section>
+  </div>
+}
