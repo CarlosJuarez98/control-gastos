@@ -2,6 +2,7 @@ package com.controlgastos.config;
 
 import com.controlgastos.modelo.*;
 import com.controlgastos.repositorio.*;
+import com.controlgastos.servicio.CategoriaGastoNormalizer;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
@@ -10,6 +11,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.core.io.ClassPathResource;
+import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,6 +21,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 @Component
+@Order(1)
 public class SeedDataLoader implements ApplicationRunner {
 
     private static final Logger log = LoggerFactory.getLogger(SeedDataLoader.class);
@@ -98,7 +101,7 @@ public class SeedDataLoader implements ApplicationRunner {
         for (JsonNode n : root.path("gastos")) {
             Gasto g = new Gasto();
             g.setFecha(date(n, "fecha"));
-            g.setCategoria(text(n, "categoria"));
+            g.setCategoria(CategoriaGastoNormalizer.normalizar(text(n, "categoria")));
             g.setMonto(money(n, "monto"));
             g.setMotivo(text(n, "motivo"));
             if (g.getFecha() != null && g.getCategoria() != null) {

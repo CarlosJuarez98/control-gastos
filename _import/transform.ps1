@@ -160,8 +160,8 @@ if ($bb.Count -gt 1) {
   $sTdc = $null; $sP1 = $null; $sP2 = $null
   foreach ($p in $ps) {
     if ($p.Name -match 'Saldo Restante TDC') { $sTdc = Parse-Money $p.Value }
-    elseif ($p.Name -match 'Prestamo 2') { $sP2 = Parse-Money $p.Value }
-    elseif ($p.Name -match 'Saldo Restante Prestamo') { $sP1 = Parse-Money $p.Value }
+    elseif ($p.Name -match 'Saldo.*Prestamo\s*2') { $sP2 = Parse-Money $p.Value }
+    elseif ($p.Name -match 'Saldo.*Prestamo' -and $p.Name -notmatch '2') { $sP1 = Parse-Money $p.Value }
   }
   Add-Account 'BBVA TDC' 'TDC' $sTdc $null
   Add-Account 'BBVA Prestamo 1' 'PRESTAMO' $sP1 $null

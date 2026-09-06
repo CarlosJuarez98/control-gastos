@@ -15,6 +15,49 @@
   justify-content: flex-start;
 }
 .alta label { display: grid; gap: 0.3rem; font-size: 0.85rem; color: var(--texto-suave); min-width: 140px; flex: 1; }
-.tabla-wrap { overflow: auto; border: 1px solid var(--linea); border-radius: 1rem; background: var(--superficie); }
+.monto-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  background: var(--superficie-2);
+  border: 1px solid var(--linea);
+  border-radius: 0.55rem;
+  padding: 0 0.65rem;
+}
+.monto-wrap .simbolo {
+  color: var(--ok);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.monto-wrap input {
+  border: none;
+  background: transparent;
+  padding-left: 0;
+}
+.monto-wrap input:focus { outline: none; }
+
+.mes { margin-bottom: 1.25rem; }
+.mes-cab {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 1rem;
+  margin-bottom: 0.55rem;
+  padding: 0 0.15rem;
+}
+.mes-cab h2 {
+  font-size: 1.05rem;
+  text-transform: capitalize;
+  margin: 0;
+}
+.mes-cab strong { font-size: 1.05rem; }
+
+.tabla-wrap {
+  overflow: auto;
+  border: 1px solid var(--linea);
+  border-radius: 1rem;
+  background: var(--superficie);
+}
 .error { color: var(--peligro); }
+.vacio { color: var(--texto-suave); }
 button.peligro { padding: 0.35rem 0.65rem; font-size: 0.8rem; }

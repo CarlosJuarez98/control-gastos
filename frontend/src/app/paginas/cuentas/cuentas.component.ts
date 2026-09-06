@@ -39,8 +39,24 @@ export class CuentasComponent implements OnInit {
 
   get deudaVisible(): number {
     return this.cuentas
-      .filter((c) => c.tipo !== 'PRESTAMO_OTORGADO')
+      .filter((c) => c.tipo !== 'PRESTAMO_OTORGADO' && Number(c.saldoActual) !== 0)
       .reduce((a, c) => a + Number(c.saldoActual), 0);
+  }
+
+  private porNombre(a: Cuenta, b: Cuenta): number {
+    return (a.nombre || '').localeCompare(b.nombre || '', 'es', { sensitivity: 'base' });
+  }
+
+  get cuentasPendientes(): Cuenta[] {
+    return this.cuentas
+      .filter((c) => Number(c.saldoActual) !== 0)
+      .sort((a, b) => this.porNombre(a, b));
+  }
+
+  get cuentasSaldadas(): Cuenta[] {
+    return this.cuentas
+      .filter((c) => Number(c.saldoActual) === 0)
+      .sort((a, b) => this.porNombre(a, b));
   }
 
   cargarCuentas(): void {

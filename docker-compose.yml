@@ -19,7 +19,9 @@ services:
       start_period: 180s
 
   backend:
-    build: ./backend
+    build:
+      context: .
+      dockerfile: Dockerfile
     container_name: control-gastos-api
     ports:
       - "8081:8081"

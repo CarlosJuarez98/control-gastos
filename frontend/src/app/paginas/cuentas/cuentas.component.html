@@ -19,17 +19,41 @@
 </form>
 
 <div class="layout">
-  <ul class="cuentas">
-    @for (c of cuentas; track c.id) {
-      <li [class.activa]="seleccionada?.id === c.id">
-        <a [routerLink]="['/cuentas', c.id]">
-          <strong>{{ c.nombre }}</strong>
-          <small>{{ c.tipo }}</small>
-          <span class="mono">{{ c.saldoActual | currency:'MXN':'symbol-narrow':'1.2-2' }}</span>
-        </a>
-      </li>
+  <div class="lista-cuentas">
+    <div class="grupo">
+      <h3>Pendientes</h3>
+      <ul class="cuentas">
+        @for (c of cuentasPendientes; track c.id) {
+          <li [class.activa]="seleccionada?.id === c.id">
+            <a [routerLink]="['/cuentas', c.id]">
+              <strong>{{ c.nombre }}</strong>
+              <small>{{ c.tipo }}</small>
+              <span class="mono">{{ c.saldoActual | currency:'MXN':'symbol-narrow':'1.2-2' }}</span>
+            </a>
+          </li>
+        } @empty {
+          <li class="vacio">Sin deudas pendientes</li>
+        }
+      </ul>
+    </div>
+
+    @if (cuentasSaldadas.length) {
+      <div class="grupo saldadas">
+        <h3>Deuda saldada</h3>
+        <ul class="cuentas">
+          @for (c of cuentasSaldadas; track c.id) {
+            <li [class.activa]="seleccionada?.id === c.id" class="saldada">
+              <a [routerLink]="['/cuentas', c.id]">
+                <strong>{{ c.nombre }}</strong>
+                <small>{{ c.tipo }}</small>
+                <span class="mono">{{ c.saldoActual | currency:'MXN':'symbol-narrow':'1.2-2' }}</span>
+              </a>
+            </li>
+          }
+        </ul>
+      </div>
     }
-  </ul>
+  </div>
 
   <div class="detalle">
     @if (seleccionada) {

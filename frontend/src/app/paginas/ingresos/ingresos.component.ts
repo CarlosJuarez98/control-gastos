@@ -4,6 +4,13 @@ import { FormsModule } from '@angular/forms';
 import { ApiService } from '../../api.service';
 import { Ingreso } from '../../modelos';
 
+export interface GrupoMes {
+  clave: string;
+  etiqueta: string;
+  total: number;
+  items: Ingreso[];
+}
+
 @Component({
   selector: 'app-ingresos',
   standalone: true,
@@ -13,13 +20,30 @@ import { Ingreso } from '../../modelos';
 })
 export class IngresosComponent implements OnInit {
   items: Ingreso[] = [];
-  form: Ingreso = { fecha: new Date().toISOString().slice(0, 10), concepto: '', monto: 0 };
+  hoy = this.fechaLocal();
+  form: { fecha: string; concepto: string; monto: number | null } = {
+    fecha: this.hoy,
+    concepto: '',
+    monto: null,
+  };
   filtro = '';
   error = '';
+
+  private readonly meses = [
+    'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
+    'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre',
+  ];
 
   constructor(private api: ApiService) {}
 
   ngOnInit(): void { this.cargar(); }
+
+  private fechaLocal(d = new Date()): string {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  }
 
   cargar(): void {
     this.api.ingresos().subscribe({
@@ -34,15 +58,46 @@ export class IngresosComponent implements OnInit {
     return this.items.filter((i) => i.concepto.toLowerCase().includes(q));
   }
 
-  get total(): number {
-    return this.filtrados.reduce((a, i) => a + Number(i.monto), 0);
+  get porMes(): GrupoMes[] {
+    const map = new Map<string, Ingreso[]>();
+    for (const i of this.filtrados) {
+      const clave = (i.fecha || '').slice(0, 7); // yyyy-MM
+      if (!clave) continue;
+      if (!map.has(clave)) map.set(clave, []);
+      map.get(clave)!.push(i);
+    }
+
+    return [...map.entries()]
+      .sort((a, b) => b[0].localeCompare(a[0]))
+      .map(([clave, items]) => {
+        const [y, m] = clave.split('-').map(Number);
+        const etiqueta = `${this.meses[m - 1]} ${y}`;
+        const total = items.reduce((a, i) => a + Number(i.monto), 0);
+        const ordenados = [...items].sort((a, b) => (b.fecha || '').localeCompare(a.fecha || ''));
+        return { clave, etiqueta, total, items: ordenados };
+      });
   }
 
   guardar(): void {
+    this.error = '';
     if (!this.form.concepto || !this.form.fecha) return;
-    this.api.crearIngreso({ ...this.form, monto: Number(this.form.monto) }).subscribe({
+    if (this.form.fecha > this.hoy) {
+      this.error = 'La fecha no puede ser mayor a hoy';
+      return;
+    }
+    const monto = Number(this.form.monto);
+    if (!this.form.monto || monto <= 0) {
+      this.error = 'El monto debe ser mayor a cero';
+      return;
+    }
+    this.api.crearIngreso({
+      fecha: this.form.fecha,
+      concepto: this.form.concepto,
+      monto,
+    }).subscribe({
       next: () => {
-        this.form = { fecha: new Date().toISOString().slice(0, 10), concepto: '', monto: 0 };
+        this.hoy = this.fechaLocal();
+        this.form = { fecha: this.hoy, concepto: '', monto: null };
         this.cargar();
       },
       error: (e) => (this.error = e?.error?.error || 'No se pudo guardar'),

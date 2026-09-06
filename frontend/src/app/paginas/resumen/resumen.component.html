@@ -1,6 +1,5 @@
 <section class="hero">
-  <h1>Panorama al día de hoy</h1>
-  <p>Importado desde tu Excel de control de gastos. Sigue registrando ingresos, gastos y abonos aquí.</p>
+  <h1>Resumen</h1>
 </section>
 
 @if (error) {
@@ -11,66 +10,100 @@
   <div class="metricas">
     <article>
       <span>Ingresos</span>
-      <strong class="pos mono">{{ data.totalIngresos | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
+      <strong class="pos mono">{{ data.totalIngresos | currency:'MXN':'symbol-narrow':'1.0-0' }}</strong>
     </article>
     <article>
       <span>Gastos</span>
-      <strong class="neg mono">{{ data.totalGastos | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
+      <strong class="neg mono">{{ data.totalGastos | currency:'MXN':'symbol-narrow':'1.0-0' }}</strong>
     </article>
     <article>
       <span>Balance</span>
       <strong class="mono" [class.pos]="data.balance >= 0" [class.neg]="data.balance < 0">
-        {{ data.balance | currency:'MXN':'symbol-narrow':'1.2-2' }}
+        {{ data.balance | currency:'MXN':'symbol-narrow':'1.0-0' }}
       </strong>
     </article>
     <article>
-      <span>Deuda total</span>
-      <strong class="mono">{{ data.deudaTotal | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
+      <span>Deuda</span>
+      <strong class="mono">{{ data.deudaTotal | currency:'MXN':'symbol-narrow':'1.0-0' }}</strong>
     </article>
     <article>
-      <span>Saldo disponible</span>
-      <strong class="mono">{{ data.saldoDisponible | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
+      <span>Disponible</span>
+      <strong class="mono">{{ data.saldoDisponible | currency:'MXN':'symbol-narrow':'1.0-0' }}</strong>
     </article>
     <article>
-      <span>Fijos mensuales</span>
-      <strong class="mono">{{ data.gastosMensuales | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
+      <span>Fijos / mes</span>
+      <strong class="mono">{{ data.gastosMensuales | currency:'MXN':'symbol-narrow':'1.0-0' }}</strong>
     </article>
   </div>
 
-  <div class="grid">
-    <section>
+  <div class="charts">
+    <section class="panel">
+      <h2>Flujo vs deuda</h2>
+      <div class="columnas" role="img" aria-label="Comparación de ingresos, gastos y deuda">
+        <div class="col">
+          <div class="barra-v pista">
+            <div class="barra-v fill ingresos" [style.height.%]="pctFlujo(data.totalIngresos)"></div>
+          </div>
+          <span class="etiqueta">Ingresos</span>
+          <span class="mono valor pos">{{ data.totalIngresos | currency:'MXN':'symbol-narrow':'1.0-0' }}</span>
+        </div>
+        <div class="col">
+          <div class="barra-v pista">
+            <div class="barra-v fill gastos" [style.height.%]="pctFlujo(data.totalGastos)"></div>
+          </div>
+          <span class="etiqueta">Gastos</span>
+          <span class="mono valor neg">{{ data.totalGastos | currency:'MXN':'symbol-narrow':'1.0-0' }}</span>
+        </div>
+        <div class="col">
+          <div class="barra-v pista">
+            <div class="barra-v fill deuda" [style.height.%]="pctFlujo(data.deudaTotal)"></div>
+          </div>
+          <span class="etiqueta">Deuda</span>
+          <span class="mono valor">{{ data.deudaTotal | currency:'MXN':'symbol-narrow':'1.0-0' }}</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
       <h2>Gastos por categoría</h2>
-      <ul class="barras">
-        @for (c of data.gastosPorCategoria; track c.categoria) {
-          <li>
-            <div class="fila">
-              <span>{{ c.categoria }}</span>
-              <span class="mono">{{ c.total | currency:'MXN':'symbol-narrow':'1.0-0' }}</span>
-            </div>
-            <div class="track">
-              <div class="fill" [style.width.%]="(c.total / maxCat()) * 100"></div>
-            </div>
-          </li>
-        }
-      </ul>
-    </section>
-
-    <section>
-      <h2>Cuentas / deudas</h2>
-      <ul class="lista">
-        @for (c of data.topCuentas; track c.id) {
-          <li>
-            <a [routerLink]="['/cuentas', c.id]">
-              <div>
-                <strong>{{ c.nombre }}</strong>
-                <small>{{ c.tipo }}</small>
-              </div>
-              <span class="mono">{{ c.saldoActual | currency:'MXN':'symbol-narrow':'1.2-2' }}</span>
-            </a>
-          </li>
-        }
-      </ul>
-      <a class="ver-todas" routerLink="/cuentas">Ver todas las cuentas →</a>
+      <div class="donut-wrap">
+        <div class="donut" [style.background]="donutBackground()">
+          <div class="donut-hueco">
+            <small>Total</small>
+            <strong class="mono">{{ totalCategorias() | currency:'MXN':'symbol-narrow':'1.0-0' }}</strong>
+          </div>
+        </div>
+        <ul class="leyenda">
+          @for (c of data.gastosPorCategoria; track c.categoria; let i = $index) {
+            <li>
+              <span class="punto" [style.background]="colores[i % colores.length]"></span>
+              <span class="nombre">{{ c.categoria }}</span>
+              <span class="pct mono">{{ pctCat(c.total) | number:'1.0-0' }}%</span>
+              <span class="mono monto">{{ c.total | currency:'MXN':'symbol-narrow':'1.0-0' }}</span>
+            </li>
+          }
+        </ul>
+      </div>
     </section>
   </div>
+
+  <section class="panel panel-wide">
+    <div class="cab-panel">
+      <h2>Deudas principales</h2>
+      <a class="ver-todas" routerLink="/cuentas">Ver todas →</a>
+    </div>
+    <ul class="barras-h">
+      @for (c of data.topCuentas; track c.id) {
+        <li>
+          <div class="fila">
+            <a [routerLink]="['/cuentas', c.id]">{{ c.nombre }}</a>
+            <span class="mono">{{ c.saldoActual | currency:'MXN':'symbol-narrow':'1.0-0' }}</span>
+          </div>
+          <div class="track">
+            <div class="fill" [style.width.%]="(c.saldoActual / maxCuenta()) * 100"></div>
+          </div>
+        </li>
+      }
+    </ul>
+  </section>
 }
