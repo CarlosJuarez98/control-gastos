@@ -1,42 +1,209 @@
 <section class="cab">
-  <div>
-    <h1>Saldo y efectivo</h1>
-    <p>Snapshot de liquidez y calculadora de billetes/monedas (como en tu Excel).</p>
-  </div>
+  <h1>Saldo</h1>
 </section>
 
+<div class="pagina-scroll">
 @if (error) { <p class="error">{{ error }}</p> }
-@if (mensaje) { <p class="ok">{{ mensaje }}</p> }
 
-<form class="grid" (ngSubmit)="guardar()">
+@if (exitoVisible) {
+  <div class="toast-ok" role="status">
+    <span class="toast-check">✓</span>
+    <div>
+      <strong>Guardado completado</strong>
+      <p>El corte quedó en el historial. Los montos se conservan; ajusta solo lo que cambió.</p>
+    </div>
+  </div>
+}
+
+<div class="comparacion" [class.ok-box]="cuadra && !cargandoEsperado" [class.diff-box]="!cuadra && !cargandoEsperado">
+  <article>
+    <span>Debería tener</span>
+    <strong class="mono">{{ esperado | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
+  </article>
+  <article>
+    <span>Tengo (real)</span>
+    <strong class="mono">{{ real | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
+  </article>
+  <article>
+    <span>Diferencia</span>
+    <strong
+      class="mono"
+      [class.diff-demas]="diferencia > 0"
+      [class.diff-falta]="diferencia < 0"
+    >
+      {{ diferencia | currency:'MXN':'symbol-narrow':'1.2-2' }}
+    </strong>
+  </article>
+  <p class="hint">{{ mensajeDiferencia }}</p>
+</div>
+
+<form class="grid" (submit)="$event.preventDefault()">
   <div class="bloque">
-    <h2>Disponible</h2>
-    <label>Fecha <input type="date" [(ngModel)]="saldo.fecha" name="fecha" /></label>
-    <label>Saldo total <input type="number" step="0.01" [(ngModel)]="saldo.saldoTotal" name="saldoTotal" /></label>
-    <label>Dinero tarjeta <input type="number" step="0.01" [(ngModel)]="saldo.dineroTarjeta" name="tarjeta" /></label>
-    <label>BBVA <input type="number" step="0.01" [(ngModel)]="saldo.dineroBbva" name="bbva" /></label>
-    <label>Mercado Libre <input type="number" step="0.01" [(ngModel)]="saldo.dineroMercadoLibre" name="ml" /></label>
-    <label>Nu <input type="number" step="0.01" [(ngModel)]="saldo.dineroNu" name="nu" /></label>
-    <label>Didi <input type="number" step="0.01" [(ngModel)]="saldo.dineroDidi" name="didi" /></label>
-    <label>Deuda total <input type="number" step="0.01" [(ngModel)]="saldo.deudaTotal" name="deuda" /></label>
+    <h2>1. Lo que tengo en apps / bancos</h2>
+
+    @for (c of camposDigital; track c.key) {
+      <label>{{ c.label }}
+        <div class="monto-wrap">
+          <span class="simbolo">$</span>
+          <input
+            class="dinero-input"
+            type="text"
+            inputmode="decimal"
+            autocomplete="off"
+            [name]="c.key"
+            [(ngModel)]="textosDigital[c.key]"
+            (ngModelChange)="alEscribirDinero(c.key)"
+            (blur)="alSalirDinero(c.key)"
+            (keydown)="teclaDinero($event, $index)"
+          />
+        </div>
+      </label>
+    }
+
+    <p class="subtotal">
+      Subtotal digital:
+      <strong class="mono">{{ totalDigital | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
+    </p>
+    <button
+      type="button"
+      class="btn-guardar"
+      (click)="guardar()"
+      [disabled]="guardando || real <= 0"
+    >
+      {{ guardando ? 'Guardando…' : 'Guardar comparación' }}
+    </button>
+    @if (real <= 0) {
+      <p class="ayuda aviso-vacio">Captura al menos un monto real para poder guardar.</p>
+    }
   </div>
 
-  <div class="bloque">
-    <h2>Calculadora de efectivo</h2>
-    <p>Total físico: <strong class="mono">{{ totalEfectivo | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong></p>
-    <table>
-      <thead><tr><th>Valor</th><th>Cantidad</th><th>Subtotal</th></tr></thead>
-      <tbody>
-        @for (d of denominaciones; track d.valor; let i = $index) {
-          <tr>
-            <td class="mono">{{ d.valor | currency:'MXN':'symbol-narrow':'1.2-2' }}</td>
-            <td><input type="number" [(ngModel)]="d.cantidad" [name]="'cant'+i" min="0" /></td>
-            <td class="mono">{{ d.valor * d.cantidad | currency:'MXN':'symbol-narrow':'1.2-2' }}</td>
-          </tr>
-        }
-      </tbody>
-    </table>
+  <div class="bloque bloque-efectivo">
+    <div class="efectivo-cab">
+      <h2>2. Efectivo en mano</h2>
+      <p class="subtotal">
+        Total:
+        <strong class="mono">{{ totalEfectivo | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
+      </p>
+    </div>
+    @if (usandoEfectivoDelCorte) {
+      <p class="ayuda">Efectivo del último corte. Cuenta billetes/monedas si cambió.</p>
+    }
+    <div class="denoms">
+      @for (d of denominaciones; track d.valor; let i = $index) {
+        <label class="denom-row">
+          <span class="mono valor">{{ d.valor | currency:'MXN':'symbol-narrow':'1.2-2' }}</span>
+          <input
+            class="cant-input"
+            type="text"
+            inputmode="numeric"
+            autocomplete="off"
+            [(ngModel)]="d.cantidad"
+            [name]="'cant'+i"
+            [style.width.ch]="anchoCantidad(d.cantidad)"
+            (keydown)="teclaCantidad($event, i)"
+            (input)="alEscribirCantidad(d, $event)"
+            (blur)="normalizarCantidad(d)"
+          />
+          <span class="mono subtotal-denom">{{ d.valor * d.cantidad | currency:'MXN':'symbol-narrow':'1.2-2' }}</span>
+        </label>
+      }
+    </div>
   </div>
-
-  <button type="submit">Guardar saldo</button>
 </form>
+
+@if (historial.length) {
+  <section class="historial">
+    <h2>Historial de cortes</h2>
+    <div class="tabla-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Fecha</th>
+            <th>Debería tener</th>
+            <th>Tuve (real)</th>
+            <th>Diferencia</th>
+            <th>Estado</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (h of historial; track h.id) {
+            <tr [class.fila-falta]="estadoDiff(h) === 'falta'" [class.fila-demas]="estadoDiff(h) === 'demas'">
+              <td>{{ h.fecha | date:'dd/MM/yyyy' }}</td>
+              <td class="mono">{{ h.saldoTotal | currency:'MXN':'symbol-narrow':'1.2-2' }}</td>
+              <td class="mono">{{ realDe(h) | currency:'MXN':'symbol-narrow':'1.2-2' }}</td>
+              <td
+                class="mono"
+                [class.diff-falta]="estadoDiff(h) === 'falta'"
+                [class.diff-demas]="estadoDiff(h) === 'demas'"
+              >
+                {{ diffDe(h) | currency:'MXN':'symbol-narrow':'1.2-2' }}
+              </td>
+              <td>
+                @if (estadoDiff(h) === 'falta') { Faltó }
+                @else if (estadoDiff(h) === 'demas') { De más }
+                @else { Cuadró }
+              </td>
+              <td class="acciones">
+                <button type="button" class="secundario mini" (click)="abrirEditar(h)">Editar</button>
+                <button type="button" class="peligro mini" (click)="eliminarCorte(h)">Eliminar</button>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </section>
+}
+
+</div>
+
+@if (editando) {
+  <div class="overlay" (click)="cancelarEditar()" role="presentation">
+    <div class="dialog" (click)="$event.stopPropagation()" role="dialog" aria-modal="true">
+      <h3>Editar corte</h3>
+      <label>Debería tener
+        <div class="monto-wrap">
+          <span class="simbolo">$</span>
+          <input type="text" inputmode="decimal" [(ngModel)]="editEsperado" name="editEsp"
+            (ngModelChange)="alEscribirEdit('esperado', $event)" (keydown)="soloMonto($event)" />
+        </div>
+      </label>
+      @for (c of camposDigital; track c.key) {
+        <label>{{ c.label }}
+          <div class="monto-wrap">
+            <span class="simbolo">$</span>
+            <input type="text" inputmode="decimal" [(ngModel)]="editTextos[c.key]" [name]="'edit'+c.key"
+              (ngModelChange)="alEscribirEdit(c.key, $event)" (keydown)="soloMonto($event)" />
+          </div>
+        </label>
+      }
+      <label>Efectivo (total)
+        <div class="monto-wrap">
+          <span class="simbolo">$</span>
+          <input type="text" inputmode="decimal" [(ngModel)]="editEfectivo" name="editEfec"
+            (ngModelChange)="alEscribirEdit('efectivo', $event)" (keydown)="soloMonto($event)" />
+        </div>
+      </label>
+      <p class="subtotal">
+        Real: <strong class="mono">{{ realEditando() | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
+        · Diff:
+        <strong
+          class="mono"
+          [class.diff-falta]="diffEditando() < 0"
+          [class.diff-demas]="diffEditando() > 0"
+        >{{ diffEditando() | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
+      </p>
+      <div class="dialog-actions">
+        <button type="button" class="secundario" (click)="cancelarEditar()" [disabled]="guardandoEdit">Cancelar</button>
+        <button
+          type="button"
+          (click)="guardarEdicion()"
+          [disabled]="guardandoEdit || realEditando() <= 0"
+        >
+          {{ guardandoEdit ? 'Guardando…' : 'Guardar cambios' }}
+        </button>
+      </div>
+    </div>
+  </div>
+}

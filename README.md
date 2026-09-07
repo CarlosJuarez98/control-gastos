@@ -2,9 +2,11 @@
 
 App en **español** con **Angular 19** + **Spring Boot 3** + **Oracle XE propio** (Docker separado; no usa Mesa Lista).
 
-Importa tu Excel `Control de gastos.xlsx` al arrancar (ingresos, gastos, fijos mensuales, deudas/cuentas, saldo y efectivo).
+La **fuente de verdad es Oracle**: ingresos, gastos, deudas y saldos viven en la base. No se reimporta Excel al arrancar.
 
 ## Arranque
+
+### Uso normal (todo en Docker)
 
 Doble clic en:
 
@@ -12,20 +14,35 @@ Doble clic en:
 iniciar.bat
 ```
 
-Levanta Oracle, la API (8081), Angular (4201) y abre el navegador.
+Levanta Oracle, la API (8081), Angular embebido y abre el navegador.
 
-| Servicio | Este proyecto | Mesa Lista |
-|----------|---------------|------------|
-| Angular | **4201** | 4200 |
-| API | **8081** | 8080 |
-| Oracle | **1522** | 1521 |
+### Desarrollo del front (BD real + hot-reload)
 
-App: http://127.0.0.1:4201/
+Doble clic en:
+
+```text
+dev.bat
+```
+
+- **Oracle** en Docker (puerto **1522**)
+- **API** local con Maven → **8081** (misma BD)
+- **Angular** con `ng serve` → **4201** (recarga al guardar)
+
+Abre: http://127.0.0.1:4201/
+
+| Servicio | Este proyecto | Otros |
+|----------|---------------|-------|
+| Angular | **4201** | Mesa 4200 · Limpieza 4202 |
+| API | **8081** | Mesa 8080 · Limpieza 8083 |
+| Oracle | **1522** | Mesa 1521 · Limpieza 1551 |
+
+App (Docker): http://127.0.0.1:8081/  
+App (dev): http://127.0.0.1:4201/
 
 ## Desarrollo manual (opcional)
 
 ```powershell
-cd A:\Programas\control-gastos
+cd A:\Programas-java\control-gastos
 docker compose up -d oracle
 
 cd backend
@@ -48,19 +65,15 @@ npm start
 
 Tablas: `CG_INGRESO`, `CG_GASTO`, `CG_GASTO_MENSUAL`, `CG_CUENTA`, `CG_MOVIMIENTO`, `CG_SALDO`, `CG_DENOMINACION`.
 
-La importación del Excel solo corre si las tablas están vacías. Para reimportar, borra las tablas `CG_*` (ver `database/README.md`) o prueba con H2:
-
-```powershell
-java -jar backend\target\control-gastos-1.0.0.jar --spring.profiles.active=h2
-```
+El volumen Docker de Oracle conserva tus datos entre reinicios. No borres el contenedor/volumen si quieres mantener el historial.
 
 ## Estructura
 
 - `backend/` — API REST Spring Boot
 - `frontend/` — Angular
-- `_import/` — JSON generado desde el Excel
 - `docker-compose.yml` — Oracle propio + API
 - `iniciar.bat` — Oracle + API + Angular + navegador
+- `dev.bat` — Oracle + API local + Angular hot-reload
 
 ## API
 
@@ -71,5 +84,4 @@ java -jar backend\target\control-gastos-1.0.0.jar --spring.profiles.active=h2
 | GET/POST | `/api/gastos` | Gastos adicionales |
 | GET/POST | `/api/gastos-mensuales` | Fijos mensuales |
 | GET/POST | `/api/cuentas` | Deudas / cuentas |
-| GET/POST | `/api/cuentas/{id}/movimientos` | Abonos, cargos, intereses |
-| GET/PUT | `/api/saldo` | Snapshot de liquidez |
+| GET/PUT | `/api/saldo` | Cortes de liquidez |

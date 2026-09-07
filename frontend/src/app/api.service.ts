@@ -72,6 +72,10 @@ export class ApiService {
     return this.http.post<Cuenta>(`${this.base}/cuentas`, body);
   }
 
+  actualizarCuenta(id: number, body: Cuenta): Observable<Cuenta> {
+    return this.http.put<Cuenta>(`${this.base}/cuentas/${id}`, body);
+  }
+
   movimientos(cuentaId: number): Observable<Movimiento[]> {
     return this.http.get<Movimiento[]>(`${this.base}/cuentas/${cuentaId}/movimientos`);
   }
@@ -80,12 +84,30 @@ export class ApiService {
     return this.http.post<Movimiento>(`${this.base}/cuentas/${cuentaId}/movimientos`, body);
   }
 
-  saldo(): Observable<{ saldo: SaldoSnapshot; denominaciones: Denominacion[] }> {
-    return this.http.get<{ saldo: SaldoSnapshot; denominaciones: Denominacion[] }>(`${this.base}/saldo`);
+  saldo(): Observable<{
+    saldo: SaldoSnapshot;
+    denominaciones: Denominacion[];
+    historial: SaldoSnapshot[];
+    esperado?: number;
+  }> {
+    return this.http.get<{
+      saldo: SaldoSnapshot;
+      denominaciones: Denominacion[];
+      historial: SaldoSnapshot[];
+      esperado?: number;
+    }>(`${this.base}/saldo`);
   }
 
   guardarSaldo(body: SaldoSnapshot): Observable<SaldoSnapshot> {
     return this.http.put<SaldoSnapshot>(`${this.base}/saldo`, body);
+  }
+
+  actualizarSaldo(id: number, body: SaldoSnapshot): Observable<SaldoSnapshot> {
+    return this.http.put<SaldoSnapshot>(`${this.base}/saldo/${id}`, body);
+  }
+
+  eliminarSaldo(id: number): Observable<void> {
+    return this.http.delete<void>(`${this.base}/saldo/${id}`);
   }
 
   guardarDenominaciones(items: Denominacion[]): Observable<Denominacion[]> {

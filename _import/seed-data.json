@@ -6734,13 +6734,13 @@
                     },
                     {
                         "nombre":  "Deudor Papa",
-                        "tipo":  "PRESTAMO_OTORGADO",
+                        "tipo":  "PRESTAMO",
                         "saldoActual":  2500,
                         "lineaCredito":  null
                     },
                     {
                         "nombre":  "Mercado Libre",
-                        "tipo":  "PRESTAMO",
+                        "tipo":  "TDC",
                         "saldoActual":  8447.56,
                         "lineaCredito":  null
                     },

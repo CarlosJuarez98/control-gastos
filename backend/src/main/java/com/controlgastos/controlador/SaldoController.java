@@ -21,15 +21,27 @@ public class SaldoController {
     @GetMapping
     public Map<String, Object> actual() {
         SaldoSnapshot s = service.saldoActual();
-        return Map.of(
-                "saldo", s == null ? Map.of() : s,
-                "denominaciones", service.listarDenominaciones()
-        );
+        java.util.HashMap<String, Object> out = new java.util.HashMap<>();
+        out.put("saldo", s == null ? Map.of() : s);
+        out.put("denominaciones", service.listarDenominaciones());
+        out.put("historial", service.listarSaldos());
+        out.put("esperado", service.calcularEsperadoActual());
+        return out;
     }
 
     @PutMapping
     public SaldoSnapshot guardar(@RequestBody SaldoSnapshot saldo) {
         return service.guardarSaldo(saldo);
+    }
+
+    @PutMapping("/{id}")
+    public SaldoSnapshot actualizar(@PathVariable Long id, @RequestBody SaldoSnapshot saldo) {
+        return service.actualizarSaldo(id, saldo);
+    }
+
+    @DeleteMapping("/{id}")
+    public void eliminar(@PathVariable Long id) {
+        service.eliminarSaldo(id);
     }
 
     @PutMapping("/denominaciones")

@@ -1,24 +1,29 @@
 .shell {
   max-width: 1120px;
   margin: 0 auto;
-  padding: 1.25rem 1.25rem 3rem;
+  padding: 1rem 1.25rem 1rem;
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
   animation: entrar 0.55s ease both;
 }
 
 .top {
+  flex: 0 0 auto;
   display: flex;
   flex-wrap: wrap;
-  gap: 1rem 1.5rem;
+  gap: 0.75rem 1.5rem;
   align-items: flex-end;
   justify-content: space-between;
-  margin-bottom: 1.75rem;
-  padding-bottom: 1.1rem;
+  margin-bottom: 1rem;
+  padding-bottom: 0.85rem;
   border-bottom: 1px solid var(--linea);
 }
 
 .brand-mark {
   font-family: var(--fuente-display);
-  font-size: clamp(1.7rem, 3vw, 2.35rem);
+  font-size: clamp(1.55rem, 2.8vw, 2.1rem);
   font-weight: 800;
   margin: 0;
   color: var(--texto);
@@ -32,11 +37,11 @@ nav {
 }
 
 nav a {
-  padding: 0.45rem 0.8rem;
+  padding: 0.4rem 0.75rem;
   border-radius: 0.55rem;
   color: var(--texto-suave);
   font-weight: 600;
-  font-size: 0.92rem;
+  font-size: 0.9rem;
   transition: background 0.2s ease, color 0.2s ease;
 }
 
@@ -46,11 +51,29 @@ nav a.activo {
   background: var(--acento);
 }
 
+main {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* La pantalla activa llena el alto disponible */
+main > *:not(router-outlet) {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
 @keyframes entrar {
   from { opacity: 0; transform: translateY(10px); }
   to { opacity: 1; transform: none; }
 }
 
 @media (max-width: 720px) {
+  .shell { height: 100dvh; padding: 0.75rem 0.85rem; }
   .top { align-items: flex-start; }
 }
