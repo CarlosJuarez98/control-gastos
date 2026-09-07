@@ -11,7 +11,7 @@ echo  Control de gastos - modo desarrollo
 echo  Oracle (Docker) + API local + Angular hot-reload
 echo ========================================
 echo.
-echo  Este proyecto (no choca con los otros):
+echo  Este proyecto (puertos FIJOS — no usa otros):
 echo    Front  http://127.0.0.1:4201/
 echo    API    http://127.0.0.1:8081/
 echo    Oracle host 1522
@@ -76,10 +76,10 @@ echo [4/4] Liberando puertos 8081 / 4201 si hay Java/Node local viejo...
 powershell -NoProfile -ExecutionPolicy Bypass -Command "$ErrorActionPreference='SilentlyContinue'; foreach($port in 8081,4201){ foreach($c in @(Get-NetTCPConnection -LocalPort $port -State Listen)){ $p=Get-Process -Id $c.OwningProcess -EA SilentlyContinue; if($p -and $p.ProcessName -match 'java|node'){ Write-Host ('  Cerrando ' + $p.ProcessName + ' PID ' + $p.Id); Stop-Process -Id $p.Id -Force } } }"
 
 echo.
-echo Arrancando API (Spring Boot) en otra ventana...
-start "control-gastos-api" cmd /k "cd /d ""%~dp0backend"" && mvn spring-boot:run"
+echo Arrancando API (Spring Boot :8081) en otra ventana...
+start "control-gastos-api" cmd /k "cd /d ""%~dp0backend"" && mvn spring-boot:run -Dspring-boot.run.arguments=--server.port=8081"
 
-echo Arrancando Angular (hot-reload) en otra ventana...
+echo Arrancando Angular (ng serve :4201 estricto) en otra ventana...
 start "control-gastos-front" cmd /k "cd /d ""%~dp0frontend"" && npm start"
 
 echo Esperando front en 4201 y abriendo navegador...
