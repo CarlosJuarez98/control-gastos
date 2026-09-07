@@ -1,5 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { CurrencyPipe, DecimalPipe } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { ApiService } from '../../api.service';
 import { Resumen } from '../../modelos';
@@ -7,13 +8,18 @@ import { Resumen } from '../../modelos';
 @Component({
   selector: 'app-resumen',
   standalone: true,
-  imports: [CurrencyPipe, DecimalPipe, RouterLink],
+  imports: [FormsModule, CurrencyPipe, DecimalPipe, RouterLink],
   templateUrl: './resumen.component.html',
   styleUrl: './resumen.component.css',
 })
 export class ResumenComponent implements OnInit {
   data?: Resumen;
   error = '';
+  cargando = false;
+
+  /** yyyy-MM */
+  mesSeleccionado = '';
+  mesesOpciones: { valor: string; etiqueta: string }[] = [];
 
   readonly colores = [
     '#3dbea0',
@@ -29,12 +35,66 @@ export class ResumenComponent implements OnInit {
     '#aed581',
   ];
 
+  private readonly nombresMes = [
+    'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+    'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
+  ];
+
   constructor(private api: ApiService) {}
 
   ngOnInit(): void {
-    this.api.resumen().subscribe({
-      next: (r) => (this.data = r),
-      error: (e) => (this.error = e?.error?.error || 'No se pudo cargar el resumen'),
+    this.mesesOpciones = this.generarMeses();
+    this.mesSeleccionado = this.mesActual();
+    this.cargar();
+  }
+
+  get etiquetaMes(): string {
+    const op = this.mesesOpciones.find((m) => m.valor === this.mesSeleccionado);
+    return op?.etiqueta ?? this.mesSeleccionado;
+  }
+
+  get puedeAnterior(): boolean {
+    return this.indiceMes() < this.mesesOpciones.length - 1;
+  }
+
+  get puedeSiguiente(): boolean {
+    return this.indiceMes() > 0;
+  }
+
+  cambiarMes(): void {
+    this.cargar();
+  }
+
+  mesAnterior(): void {
+    if (!this.puedeAnterior) return;
+    this.mesSeleccionado = this.mesesOpciones[this.indiceMes() + 1].valor;
+    this.cargar();
+  }
+
+  mesSiguiente(): void {
+    if (!this.puedeSiguiente) return;
+    this.mesSeleccionado = this.mesesOpciones[this.indiceMes() - 1].valor;
+    this.cargar();
+  }
+
+  cargar(): void {
+    if (!this.mesSeleccionado) return;
+    const [y, m] = this.mesSeleccionado.split('-').map(Number);
+    const desde = `${this.mesSeleccionado}-01`;
+    const ultimoDia = new Date(y, m, 0).getDate();
+    const hasta = `${this.mesSeleccionado}-${String(ultimoDia).padStart(2, '0')}`;
+
+    this.cargando = true;
+    this.error = '';
+    this.api.resumen(desde, hasta).subscribe({
+      next: (r) => {
+        this.data = r;
+        this.cargando = false;
+      },
+      error: (e) => {
+        this.error = e?.error?.error || 'No se pudo cargar el resumen';
+        this.cargando = false;
+      },
     });
   }
 
@@ -89,5 +149,31 @@ export class ResumenComponent implements OnInit {
     const t = this.totalCategorias();
     if (!t) return 0;
     return (Number(total) / t) * 100;
+  }
+
+  private mesActual(): string {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  }
+
+  /** Opciones de mes: más reciente primero (desde ene 2023 hasta el mes actual). */
+  private generarMeses(): { valor: string; etiqueta: string }[] {
+    const fin = new Date();
+    fin.setDate(1);
+    const inicio = new Date(2023, 0, 1);
+    const out: { valor: string; etiqueta: string }[] = [];
+    const cursor = new Date(fin);
+    while (cursor >= inicio) {
+      const y = cursor.getFullYear();
+      const m = cursor.getMonth();
+      const valor = `${y}-${String(m + 1).padStart(2, '0')}`;
+      out.push({ valor, etiqueta: `${this.nombresMes[m]} ${y}` });
+      cursor.setMonth(cursor.getMonth() - 1);
+    }
+    return out;
+  }
+
+  private indiceMes(): number {
+    return this.mesesOpciones.findIndex((m) => m.valor === this.mesSeleccionado);
   }
 }

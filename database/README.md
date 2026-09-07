@@ -4,6 +4,8 @@ Contenedor Docker: `oracle-control-gastos` (puerto host **1522**).
 
 No usa ni modifica el Oracle de Mesa Lista (`oracle-mesa-lista` / puerto 1521).
 
+La **fuente de verdad** es esta base: la app ya no importa Excel ni `seed-data.json` al arrancar.
+
 ## Conexión (SQL Developer / JDBC)
 
 | Campo | Valor |
@@ -17,22 +19,14 @@ No usa ni modifica el Oracle de Mesa Lista (`oracle-mesa-lista` / puerto 1521).
 ## Arrancar solo la base
 
 ```powershell
-cd A:\Programas\control-gastos
+cd A:\Programas-java\control-gastos
 docker compose up -d oracle
 ```
 
-## Reimportar Excel
+## Conservar datos
 
-Con la app detenida, conectado como `controlgastos`:
+El volumen Docker `oracle-control-gastos-data` guarda todo. Usa `docker compose stop` / `start`; no hagas `docker compose down -v` salvo que quieras borrar la BD.
 
-```sql
-DROP TABLE CG_MOVIMIENTO CASCADE CONSTRAINTS;
-DROP TABLE CG_DENOMINACION CASCADE CONSTRAINTS;
-DROP TABLE CG_SALDO CASCADE CONSTRAINTS;
-DROP TABLE CG_GASTO CASCADE CONSTRAINTS;
-DROP TABLE CG_INGRESO CASCADE CONSTRAINTS;
-DROP TABLE CG_GASTO_MENSUAL CASCADE CONSTRAINTS;
-DROP TABLE CG_CUENTA CASCADE CONSTRAINTS;
-```
+## Tablas
 
-Al volver a iniciar la app, vuelve a cargar `seed-data.json`.
+`CG_INGRESO`, `CG_GASTO`, `CG_GASTO_MENSUAL`, `CG_CUENTA`, `CG_MOVIMIENTO`, `CG_SALDO`, `CG_DENOMINACION`.

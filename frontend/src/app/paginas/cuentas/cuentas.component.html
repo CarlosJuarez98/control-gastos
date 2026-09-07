@@ -1,7 +1,12 @@
 <section class="cab">
   <div>
     <h1>Deudas y cuentas</h1>
-    <p>Saldo pendiente (sin préstamos otorgados): {{ deudaVisible | currency:'MXN':'symbol-narrow':'1.2-2' }}</p>
+    <p>
+      Tú debes: <strong class="mono">{{ deudaVisible | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
+      @if (meDebenTotal) {
+        · Te deben: <strong class="mono pos">{{ meDebenTotal | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
+      }
+    </p>
   </div>
 </section>
 
@@ -11,23 +16,37 @@
   <label>Nombre <input [(ngModel)]="nueva.nombre" name="nombre" required /></label>
   <label>Tipo
     <select [(ngModel)]="nueva.tipo" name="tipo">
-      @for (t of tipos; track t) { <option [value]="t">{{ t }}</option> }
+      @for (t of tipos; track t) { <option [value]="t">{{ etiquetaTipo(t) }}</option> }
     </select>
   </label>
-  <label>Saldo <input type="number" step="0.01" [(ngModel)]="nueva.saldoActual" name="saldo" /></label>
+  <label>Saldo
+    <div class="monto-wrap">
+      <span class="simbolo">$</span>
+      <input
+        type="text"
+        inputmode="decimal"
+        autocomplete="off"
+        [(ngModel)]="saldoNueva"
+        name="saldo"
+        placeholder="0.00"
+        (ngModelChange)="alEscribirSaldoNueva($event)"
+        (keydown)="soloMonto($event)"
+      />
+    </div>
+  </label>
   <button type="submit">Nueva cuenta</button>
 </form>
 
 <div class="layout">
   <div class="lista-cuentas">
     <div class="grupo">
-      <h3>Pendientes</h3>
+      <h3>Mis deudas</h3>
       <ul class="cuentas">
-        @for (c of cuentasPendientes; track c.id) {
+        @for (c of misDeudasPendientes; track c.id) {
           <li [class.activa]="seleccionada?.id === c.id">
             <a [routerLink]="['/cuentas', c.id]">
               <strong>{{ c.nombre }}</strong>
-              <small>{{ c.tipo }}</small>
+              <small>{{ etiquetaTipo(c.tipo) }}</small>
               <span class="mono">{{ c.saldoActual | currency:'MXN':'symbol-narrow':'1.2-2' }}</span>
             </a>
           </li>
@@ -37,15 +56,32 @@
       </ul>
     </div>
 
+    @if (meDebenPendientes.length) {
+      <div class="grupo prestamistas">
+        <h3>Te deben (prestamistas)</h3>
+        <ul class="cuentas">
+          @for (c of meDebenPendientes; track c.id) {
+            <li [class.activa]="seleccionada?.id === c.id">
+              <a [routerLink]="['/cuentas', c.id]">
+                <strong>{{ c.nombre }}</strong>
+                <small>{{ etiquetaTipo(c.tipo) }}</small>
+                <span class="mono pos">{{ c.saldoActual | currency:'MXN':'symbol-narrow':'1.2-2' }}</span>
+              </a>
+            </li>
+          }
+        </ul>
+      </div>
+    }
+
     @if (cuentasSaldadas.length) {
       <div class="grupo saldadas">
-        <h3>Deuda saldada</h3>
+        <h3>Saldadas</h3>
         <ul class="cuentas">
           @for (c of cuentasSaldadas; track c.id) {
             <li [class.activa]="seleccionada?.id === c.id" class="saldada">
               <a [routerLink]="['/cuentas', c.id]">
                 <strong>{{ c.nombre }}</strong>
-                <small>{{ c.tipo }}</small>
+                <small>{{ etiquetaTipo(c.tipo) }}</small>
                 <span class="mono">{{ c.saldoActual | currency:'MXN':'symbol-narrow':'1.2-2' }}</span>
               </a>
             </li>
@@ -57,31 +93,89 @@
 
   <div class="detalle">
     @if (seleccionada) {
-      <h2>{{ seleccionada.nombre }}</h2>
-      <p>Saldo actual: <strong class="mono">{{ seleccionada.saldoActual | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong></p>
-
-      <form class="alta" (ngSubmit)="agregarMovimiento()">
-        <label>Fecha <input type="date" [(ngModel)]="mov.fecha" name="mfecha" /></label>
-        <label>Tipo
-          <select [(ngModel)]="mov.tipo" name="mtipo">
-            @for (t of tiposMov; track t) { <option [value]="t">{{ t }}</option> }
+      <div class="detalle-cab">
+        <div>
+          <h2>{{ seleccionada.nombre }}</h2>
+          <p>Saldo actual: <strong class="mono">{{ seleccionada.saldoActual | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong></p>
+        </div>
+        <label class="tipo-cuenta">Categoría
+          <select
+            [ngModel]="seleccionada.tipo"
+            (ngModelChange)="cambiarTipo($event)"
+            name="tipoCuenta"
+          >
+            @for (t of tipos; track t) { <option [value]="t">{{ etiquetaTipo(t) }}</option> }
           </select>
         </label>
-        <label>Monto <input type="number" step="0.01" [(ngModel)]="mov.monto" name="mmonto" /></label>
-        <label>Concepto <input [(ngModel)]="mov.concepto" name="mconcepto" /></label>
+      </div>
+
+      <form class="alta" (ngSubmit)="agregarMovimiento()">
+        <label>Fecha
+          <input type="date" [(ngModel)]="mov.fecha" name="mfecha" [max]="hoy" required />
+        </label>
+        <label>Tipo
+          <select [(ngModel)]="mov.tipo" name="mtipo" (ngModelChange)="onTipoMovChange($event)">
+            @for (t of tiposMov; track t) { <option [value]="t">{{ etiquetaMov(t) }}</option> }
+          </select>
+        </label>
+        @if (mov.tipo === 'INTERES') {
+          <label>Deuda que marca hoy
+            <div class="monto-wrap">
+              <span class="simbolo">$</span>
+              <input
+                type="text"
+                inputmode="decimal"
+                autocomplete="off"
+                [(ngModel)]="montoMov"
+                name="mmonto"
+                required
+                placeholder="0.00"
+                (ngModelChange)="alEscribirMonto($event)"
+                (keydown)="soloMonto($event)"
+              />
+            </div>
+          </label>
+        } @else {
+          <label>Monto
+            <div class="monto-wrap">
+              <span class="simbolo">$</span>
+              <input
+                type="text"
+                inputmode="decimal"
+                autocomplete="off"
+                [(ngModel)]="montoMov"
+                name="mmonto"
+                required
+                placeholder="0.00"
+                (ngModelChange)="alEscribirMonto($event)"
+                (keydown)="soloMonto($event)"
+              />
+            </div>
+          </label>
+        }
         <button type="submit">Registrar movimiento</button>
       </form>
 
+      @if (mov.tipo === 'INTERES' && seleccionada) {
+        <p class="hint-interes">
+          Registrado ahora:
+          <strong class="mono">{{ seleccionada.saldoActual | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
+          · Interés a sumar:
+          <strong class="mono" [class.pos]="interesCalculado > 0">
+            {{ interesCalculado | currency:'MXN':'symbol-narrow':'1.2-2' }}
+          </strong>
+        </p>
+      }
+
       <table>
         <thead>
-          <tr><th>Fecha</th><th>Tipo</th><th>Concepto</th><th>Monto</th></tr>
+          <tr><th>Fecha</th><th>Tipo</th><th>Monto</th></tr>
         </thead>
         <tbody>
           @for (m of movimientos; track m.id) {
             <tr>
               <td>{{ m.fecha | date:'dd/MM/yyyy' }}</td>
-              <td>{{ m.tipo }}</td>
-              <td>{{ m.concepto }}</td>
+              <td>{{ etiquetaMov(m.tipo) }}</td>
               <td class="mono">{{ m.monto | currency:'MXN':'symbol-narrow':'1.2-2' }}</td>
             </tr>
           }

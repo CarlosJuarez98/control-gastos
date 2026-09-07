@@ -273,7 +273,7 @@ if ($de.Count -gt 1) {
   $ps = Props $de[1]
   $s = $null
   foreach ($p in $ps) { if ($p.Name -match 'Saldo Restante') { $s = Parse-Money $p.Value } }
-  Add-Account 'Deudor Papa' 'PRESTAMO_OTORGADO' $s $null
+  Add-Account 'Deudor Papa' 'PRESTAMO' $s $null
   if ($ps.Count -gt 8) {
     Add-Mov 'Deudor Papa' (Parse-Date $ps[5].Value) 'CARGO' (Parse-Money $ps[7].Value) (Str $ps[8].Value)
   }

@@ -2,7 +2,9 @@ import { Component, OnInit } from '@angular/core';
 import { CurrencyPipe, DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ApiService } from '../../api.service';
+import { ConfirmDialogService } from '../../confirm-dialog.service';
 import { Ingreso } from '../../modelos';
+import { formatDineroInput, parseDinero, soloMontoKey } from '../../dinero.util';
 
 export interface GrupoMes {
   clave: string;
@@ -21,10 +23,10 @@ export interface GrupoMes {
 export class IngresosComponent implements OnInit {
   items: Ingreso[] = [];
   hoy = this.fechaLocal();
-  form: { fecha: string; concepto: string; monto: number | null } = {
+  form: { fecha: string; concepto: string; monto: string } = {
     fecha: this.hoy,
     concepto: '',
-    monto: null,
+    monto: '',
   };
   filtro = '';
   error = '';
@@ -34,7 +36,7 @@ export class IngresosComponent implements OnInit {
     'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre',
   ];
 
-  constructor(private api: ApiService) {}
+  constructor(private api: ApiService, private confirmDlg: ConfirmDialogService) {}
 
   ngOnInit(): void { this.cargar(); }
 
@@ -43,6 +45,14 @@ export class IngresosComponent implements OnInit {
     const m = String(d.getMonth() + 1).padStart(2, '0');
     const day = String(d.getDate()).padStart(2, '0');
     return `${y}-${m}-${day}`;
+  }
+
+  soloMonto(ev: KeyboardEvent): void {
+    soloMontoKey(ev);
+  }
+
+  alEscribirMonto(v: string): void {
+    this.form.monto = formatDineroInput(v);
   }
 
   cargar(): void {
@@ -85,8 +95,8 @@ export class IngresosComponent implements OnInit {
       this.error = 'La fecha no puede ser mayor a hoy';
       return;
     }
-    const monto = Number(this.form.monto);
-    if (!this.form.monto || monto <= 0) {
+    const monto = parseDinero(this.form.monto);
+    if (!monto || monto <= 0) {
       this.error = 'El monto debe ser mayor a cero';
       return;
     }
@@ -97,15 +107,17 @@ export class IngresosComponent implements OnInit {
     }).subscribe({
       next: () => {
         this.hoy = this.fechaLocal();
-        this.form = { fecha: this.hoy, concepto: '', monto: null };
+        this.form = { fecha: this.hoy, concepto: '', monto: '' };
         this.cargar();
       },
       error: (e) => (this.error = e?.error?.error || 'No se pudo guardar'),
     });
   }
 
-  eliminar(id?: number): void {
-    if (!id || !confirm('¿Eliminar este ingreso?')) return;
+  async eliminar(id?: number): Promise<void> {
+    if (!id) return;
+    const ok = await this.confirmDlg.ask('¿Eliminar este ingreso?');
+    if (!ok) return;
     this.api.eliminarIngreso(id).subscribe({ next: () => this.cargar() });
   }
 }

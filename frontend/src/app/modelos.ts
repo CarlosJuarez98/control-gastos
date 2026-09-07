@@ -23,6 +23,10 @@ export interface Gasto {
   categoria: string;
   monto: number;
   motivo?: string;
+  formaPago?: 'EFECTIVO' | 'TARJETA' | string;
+  cuentaId?: number | null;
+  cuenta?: Cuenta | null;
+  movimientoId?: number | null;
 }
 
 export interface GastoMensual {
@@ -60,6 +64,9 @@ export interface SaldoSnapshot {
   dineroNu?: number | null;
   dineroDidi?: number | null;
   deudaTotal?: number | null;
+  ultimoIngresoId?: number | null;
+  ultimoGastoId?: number | null;
+  ultimoMovimientoId?: number | null;
 }
 
 export interface Denominacion {

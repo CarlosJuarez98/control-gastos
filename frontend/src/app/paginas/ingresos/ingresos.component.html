@@ -18,19 +18,22 @@
     <div class="monto-wrap">
       <span class="simbolo">$</span>
       <input
-        type="number"
-        step="0.01"
-        min="0.01"
+        type="text"
+        inputmode="decimal"
+        autocomplete="off"
         [(ngModel)]="form.monto"
         name="monto"
         required
         placeholder="0.00"
+        (ngModelChange)="alEscribirMonto($event)"
+        (keydown)="soloMonto($event)"
       />
     </div>
   </label>
   <button type="submit">Agregar ingreso</button>
 </form>
 
+<div class="lista-scroll">
 @for (g of porMes; track g.clave) {
   <section class="mes">
     <header class="mes-cab">
@@ -58,3 +61,4 @@
 } @empty {
   <p class="vacio">No hay ingresos para mostrar.</p>
 }
+</div>

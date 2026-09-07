@@ -16,4 +16,13 @@ public interface IngresoRepository extends JpaRepository<Ingreso, Long> {
 
     @Query("select coalesce(sum(i.monto), 0) from Ingreso i where i.fecha between ?1 and ?2")
     BigDecimal sumaEntre(LocalDate desde, LocalDate hasta);
+
+    @Query("select coalesce(max(i.id), 0) from Ingreso i")
+    Long maxId();
+
+    @Query("select coalesce(max(i.id), 0) from Ingreso i where i.fecha < ?1")
+    Long maxIdAntesDe(LocalDate fecha);
+
+    @Query("select coalesce(sum(i.monto), 0) from Ingreso i where i.id > ?1")
+    BigDecimal sumaDespuesDeId(Long id);
 }

@@ -1,5 +1,6 @@
 package com.controlgastos.modelo;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -24,6 +25,19 @@ public class Gasto {
     @Column(length = 200)
     private String motivo;
 
+    /** EFECTIVO o TARJETA (null = EFECTIVO, datos viejos). */
+    @Column(length = 20)
+    private String formaPago;
+
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "cuenta_id")
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
+    private Cuenta cuenta;
+
+    /** Movimiento CARGO ligado si se pagó con tarjeta. */
+    @Column(name = "movimiento_id")
+    private Long movimientoId;
+
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
     public LocalDate getFecha() { return fecha; }
@@ -34,4 +48,26 @@ public class Gasto {
     public void setMonto(BigDecimal monto) { this.monto = monto; }
     public String getMotivo() { return motivo; }
     public void setMotivo(String motivo) { this.motivo = motivo; }
+    public String getFormaPago() { return formaPago; }
+    public void setFormaPago(String formaPago) { this.formaPago = formaPago; }
+    public Cuenta getCuenta() { return cuenta; }
+    public void setCuenta(Cuenta cuenta) { this.cuenta = cuenta; }
+    public Long getMovimientoId() { return movimientoId; }
+    public void setMovimientoId(Long movimientoId) { this.movimientoId = movimientoId; }
+
+    /** Para JSON de entrada: { "cuentaId": 3 }. */
+    @Transient
+    public Long getCuentaId() {
+        return cuenta != null ? cuenta.getId() : null;
+    }
+
+    public void setCuentaId(Long cuentaId) {
+        if (cuentaId == null) {
+            this.cuenta = null;
+            return;
+        }
+        Cuenta ref = new Cuenta();
+        ref.setId(cuentaId);
+        this.cuenta = ref;
+    }
 }

@@ -39,6 +39,11 @@ public class SaldoSnapshot {
     @Column(precision = 14, scale = 2)
     private BigDecimal deudaTotal;
 
+    /** Marcas: movimientos con id mayor a estos ya no estaban en el corte. */
+    private Long ultimoIngresoId;
+    private Long ultimoGastoId;
+    private Long ultimoMovimientoId;
+
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
     public LocalDate getFecha() { return fecha; }
@@ -59,4 +64,10 @@ public class SaldoSnapshot {
     public void setDineroDidi(BigDecimal dineroDidi) { this.dineroDidi = dineroDidi; }
     public BigDecimal getDeudaTotal() { return deudaTotal; }
     public void setDeudaTotal(BigDecimal deudaTotal) { this.deudaTotal = deudaTotal; }
+    public Long getUltimoIngresoId() { return ultimoIngresoId; }
+    public void setUltimoIngresoId(Long ultimoIngresoId) { this.ultimoIngresoId = ultimoIngresoId; }
+    public Long getUltimoGastoId() { return ultimoGastoId; }
+    public void setUltimoGastoId(Long ultimoGastoId) { this.ultimoGastoId = ultimoGastoId; }
+    public Long getUltimoMovimientoId() { return ultimoMovimientoId; }
+    public void setUltimoMovimientoId(Long ultimoMovimientoId) { this.ultimoMovimientoId = ultimoMovimientoId; }
 }

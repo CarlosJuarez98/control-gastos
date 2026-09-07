@@ -3,25 +3,23 @@ package com.controlgastos.servicio;
 import java.text.Normalizer;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 
 /**
- * Unifica variantes de categoría (Yo/yo, Vehiculo/Vehiculos, Nu credito/NU credito, etc.).
+ * Unifica variantes de categoría. Categorías “de pago” viejas (TDC, Nu…) → Otro.
  */
 public final class CategoriaGastoNormalizer {
+
+    private static final Set<String> CATEGORIAS_PAGO = Set.of(
+            "tdc", "nu credito", "nucredito", "nu", "didi card", "didicard", "didi", "liverpool"
+    );
 
     private static final Map<String, String> CANONICAS = Map.ofEntries(
             Map.entry("yo", "Yo"),
             Map.entry("familia", "Familia"),
-            Map.entry("tdc", "TDC"),
             Map.entry("vehiculo", "Vehiculos"),
             Map.entry("vehiculos", "Vehiculos"),
-            Map.entry("nu credito", "Nu credito"),
-            Map.entry("nucredito", "Nu credito"),
-            Map.entry("nu", "Nu credito"),
-            Map.entry("didi card", "Didi Card"),
-            Map.entry("didicard", "Didi Card"),
-            Map.entry("didi", "Didi Card"),
-            Map.entry("liverpool", "Liverpool"),
+            Map.entry("casa", "Casa"),
             Map.entry("mama", "Mama"),
             Map.entry("otro", "Otro"),
             Map.entry("otros", "Otro"),
@@ -42,12 +40,15 @@ public final class CategoriaGastoNormalizer {
         String limpio = raw.trim().replaceAll("\\s+", " ");
         String clave = sinAcentos(limpio).toLowerCase(Locale.ROOT);
 
+        if (CATEGORIAS_PAGO.contains(clave)) {
+            return "Otro";
+        }
+
         String canonica = CANONICAS.get(clave);
         if (canonica != null) {
             return canonica;
         }
 
-        // Primera letra mayúscula; el resto como vino (sin romper acrónimos cortos)
         if (limpio.length() <= 3 && limpio.equals(limpio.toUpperCase(Locale.ROOT))) {
             return limpio.toUpperCase(Locale.ROOT);
         }
