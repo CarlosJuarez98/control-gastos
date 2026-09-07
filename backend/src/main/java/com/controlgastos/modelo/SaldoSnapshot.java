@@ -22,9 +22,6 @@ public class SaldoSnapshot {
     private BigDecimal totalFisico;
 
     @Column(precision = 14, scale = 2)
-    private BigDecimal dineroTarjeta;
-
-    @Column(precision = 14, scale = 2)
     private BigDecimal dineroBbva;
 
     @Column(precision = 14, scale = 2)
@@ -35,9 +32,6 @@ public class SaldoSnapshot {
 
     @Column(precision = 14, scale = 2)
     private BigDecimal dineroDidi;
-
-    @Column(precision = 14, scale = 2)
-    private BigDecimal deudaTotal;
 
     /** Marcas: movimientos con id mayor a estos ya no estaban en el corte. */
     private Long ultimoIngresoId;
@@ -52,8 +46,6 @@ public class SaldoSnapshot {
     public void setSaldoTotal(BigDecimal saldoTotal) { this.saldoTotal = saldoTotal; }
     public BigDecimal getTotalFisico() { return totalFisico; }
     public void setTotalFisico(BigDecimal totalFisico) { this.totalFisico = totalFisico; }
-    public BigDecimal getDineroTarjeta() { return dineroTarjeta; }
-    public void setDineroTarjeta(BigDecimal dineroTarjeta) { this.dineroTarjeta = dineroTarjeta; }
     public BigDecimal getDineroBbva() { return dineroBbva; }
     public void setDineroBbva(BigDecimal dineroBbva) { this.dineroBbva = dineroBbva; }
     public BigDecimal getDineroMercadoLibre() { return dineroMercadoLibre; }
@@ -62,8 +54,6 @@ public class SaldoSnapshot {
     public void setDineroNu(BigDecimal dineroNu) { this.dineroNu = dineroNu; }
     public BigDecimal getDineroDidi() { return dineroDidi; }
     public void setDineroDidi(BigDecimal dineroDidi) { this.dineroDidi = dineroDidi; }
-    public BigDecimal getDeudaTotal() { return deudaTotal; }
-    public void setDeudaTotal(BigDecimal deudaTotal) { this.deudaTotal = deudaTotal; }
     public Long getUltimoIngresoId() { return ultimoIngresoId; }
     public void setUltimoIngresoId(Long ultimoIngresoId) { this.ultimoIngresoId = ultimoIngresoId; }
     public Long getUltimoGastoId() { return ultimoGastoId; }

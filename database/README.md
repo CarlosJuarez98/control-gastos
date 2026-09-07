@@ -30,3 +30,13 @@ El volumen Docker `oracle-control-gastos-data` guarda todo. Usa `docker compose 
 ## Tablas
 
 `CG_INGRESO`, `CG_GASTO`, `CG_GASTO_MENSUAL`, `CG_CUENTA`, `CG_MOVIMIENTO`, `CG_SALDO`, `CG_DENOMINACION`.
+
+## Limpieza de columnas/datos muertos
+
+Si se retiraron campos del código (p. ej. `LINEA_CREDITO`, `DINERO_TARJETA`, `DEUDA_TOTAL` en saldo), ejecuta:
+
+```text
+database/cleanup-unused.sql
+```
+
+Hibernate `ddl-auto=update` no borra columnas; hace falta el script.

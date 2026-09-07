@@ -20,9 +20,6 @@ public class Cuenta {
     @Column(nullable = false, precision = 14, scale = 2)
     private BigDecimal saldoActual = BigDecimal.ZERO;
 
-    @Column(precision = 14, scale = 2)
-    private BigDecimal lineaCredito;
-
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
     public String getNombre() { return nombre; }
@@ -31,6 +28,4 @@ public class Cuenta {
     public void setTipo(String tipo) { this.tipo = tipo; }
     public BigDecimal getSaldoActual() { return saldoActual; }
     public void setSaldoActual(BigDecimal saldoActual) { this.saldoActual = saldoActual; }
-    public BigDecimal getLineaCredito() { return lineaCredito; }
-    public void setLineaCredito(BigDecimal lineaCredito) { this.lineaCredito = lineaCredito; }
 }

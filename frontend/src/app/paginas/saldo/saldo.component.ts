@@ -368,7 +368,6 @@ export class SaldoComponent implements OnInit {
       fecha: corte,
       saldoTotal: this.esperado,
       totalFisico: efectivoKeep,
-      dineroTarjeta: null,
       dineroBbva: this.dineroONull('dineroBbva'),
       dineroMercadoLibre: this.dineroONull('dineroMercadoLibre'),
       dineroNu: this.dineroONull('dineroNu'),
@@ -458,7 +457,6 @@ export class SaldoComponent implements OnInit {
       fecha: this.editando.fecha,
       saldoTotal: this.redondear(this.n(this.editEsperado)),
       totalFisico: this.editEfectivo.trim() === '' ? null : this.redondear(this.n(this.editEfectivo)),
-      dineroTarjeta: null,
       dineroBbva: this.textoANull(this.editTextos.dineroBbva),
       dineroMercadoLibre: this.textoANull(this.editTextos.dineroMercadoLibre),
       dineroNu: this.textoANull(this.editTextos.dineroNu),
@@ -539,7 +537,6 @@ export class SaldoComponent implements OnInit {
     this.conteoEfectivoActivo = keep.conteo;
     this.saldo = {
       ...this.saldo,
-      dineroTarjeta: null,
       dineroBbva: keep.digital.dineroBbva,
       dineroMercadoLibre: keep.digital.dineroMercadoLibre,
       dineroNu: keep.digital.dineroNu,
@@ -562,7 +559,6 @@ export class SaldoComponent implements OnInit {
   private aplicarRealDesdeCorte(corte: SaldoSnapshot): void {
     this.saldo = {
       ...this.saldo,
-      dineroTarjeta: null,
       dineroBbva: corte.dineroBbva ?? null,
       dineroMercadoLibre: corte.dineroMercadoLibre ?? null,
       dineroNu: corte.dineroNu ?? null,
