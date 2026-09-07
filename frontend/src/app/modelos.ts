@@ -41,7 +41,6 @@ export interface Cuenta {
   nombre: string;
   tipo: string;
   saldoActual: number;
-  lineaCredito?: number | null;
 }
 
 export interface Movimiento {
@@ -58,12 +57,10 @@ export interface SaldoSnapshot {
   fecha: string;
   saldoTotal: number;
   totalFisico?: number | null;
-  dineroTarjeta?: number | null;
   dineroBbva?: number | null;
   dineroMercadoLibre?: number | null;
   dineroNu?: number | null;
   dineroDidi?: number | null;
-  deudaTotal?: number | null;
   ultimoIngresoId?: number | null;
   ultimoGastoId?: number | null;
   ultimoMovimientoId?: number | null;

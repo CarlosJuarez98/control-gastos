@@ -343,12 +343,10 @@ public class FinanzasService {
         existing.setFecha(datos.getFecha());
         existing.setSaldoTotal(datos.getSaldoTotal() != null ? datos.getSaldoTotal() : BigDecimal.ZERO);
         existing.setTotalFisico(datos.getTotalFisico());
-        existing.setDineroTarjeta(datos.getDineroTarjeta());
         existing.setDineroBbva(datos.getDineroBbva());
         existing.setDineroMercadoLibre(datos.getDineroMercadoLibre());
         existing.setDineroNu(datos.getDineroNu());
         existing.setDineroDidi(datos.getDineroDidi());
-        existing.setDeudaTotal(datos.getDeudaTotal());
         return saldoRepository.save(existing);
     }
 
@@ -450,7 +448,6 @@ public class FinanzasService {
 
     private static void validarCorteNoVacio(SaldoSnapshot s) {
         BigDecimal real = nz(s.getTotalFisico())
-                .add(nz(s.getDineroTarjeta()))
                 .add(nz(s.getDineroBbva()))
                 .add(nz(s.getDineroMercadoLibre()))
                 .add(nz(s.getDineroNu()))
