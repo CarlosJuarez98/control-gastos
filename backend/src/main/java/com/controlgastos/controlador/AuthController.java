@@ -12,11 +12,14 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.context.SecurityContextRepository;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.controlgastos.dto.UsuarioDto;
 import com.controlgastos.seguridad.PasswordDigests;
+import com.controlgastos.servicio.UsuarioAdminService;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -29,12 +32,15 @@ public class AuthController {
 
     private final AuthenticationManager authenticationManager;
     private final SecurityContextRepository securityContextRepository;
+    private final UsuarioAdminService usuarioAdminService;
 
     public AuthController(
             AuthenticationManager authenticationManager,
-            SecurityContextRepository securityContextRepository) {
+            SecurityContextRepository securityContextRepository,
+            UsuarioAdminService usuarioAdminService) {
         this.authenticationManager = authenticationManager;
         this.securityContextRepository = securityContextRepository;
+        this.usuarioAdminService = usuarioAdminService;
     }
 
     /**
@@ -44,6 +50,10 @@ public class AuthController {
     public record LoginRequest(
             @NotBlank String usuario,
             @NotBlank String password) {
+    }
+
+    /** Actualiza nombre y/o contraseña del usuario autenticado. */
+    public record PerfilRequest(String usuario, String password) {
     }
 
     @PostMapping("/login")
@@ -79,6 +89,42 @@ public class AuthController {
                 "autenticado", true,
                 "usuario", authentication.getName(),
                 "rol", rolDe(authentication));
+    }
+
+    @PutMapping("/perfil")
+    public ResponseEntity<?> actualizarPerfil(
+            @RequestBody PerfilRequest body,
+            Authentication authentication,
+            HttpServletRequest request,
+            HttpServletResponse response) {
+        if (authentication == null || !authentication.isAuthenticated()
+                || "anonymousUser".equals(authentication.getPrincipal())) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(Map.of("error", "No autenticado"));
+        }
+        try {
+            UsuarioDto dto = usuarioAdminService.actualizarPerfilPropio(
+                    authentication.getName(),
+                    body.usuario(),
+                    body.password());
+            if (!authentication.getName().equalsIgnoreCase(dto.usuario())) {
+                Authentication nueva = new UsernamePasswordAuthenticationToken(
+                        dto.usuario(),
+                        authentication.getCredentials(),
+                        authentication.getAuthorities());
+                SecurityContext context = SecurityContextHolder.createEmptyContext();
+                context.setAuthentication(nueva);
+                SecurityContextHolder.setContext(context);
+                securityContextRepository.saveContext(context, request, response);
+            }
+            return ResponseEntity.ok(Map.of(
+                    "autenticado", true,
+                    "usuario", dto.usuario(),
+                    "rol", dto.rol() != null ? dto.rol() : rolDe(authentication)));
+        } catch (org.springframework.web.server.ResponseStatusException ex) {
+            String msg = ex.getReason() != null ? ex.getReason() : "No se pudo actualizar el perfil";
+            return ResponseEntity.status(ex.getStatusCode()).body(Map.of("error", msg));
+        }
     }
 
     private static String rolDe(Authentication authentication) {

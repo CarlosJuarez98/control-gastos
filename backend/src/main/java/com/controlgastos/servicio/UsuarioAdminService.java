@@ -13,11 +13,27 @@ import com.controlgastos.modelo.UsuarioAcceso;
 import com.controlgastos.repositorio.UsuarioAccesoRepository;
 import com.controlgastos.seguridad.PasswordDigests;
 
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
+
 @Service
 public class UsuarioAdminService {
 
+    private static final String[] TABLAS_PROPIETARIO = {
+            "CG_INGRESO",
+            "CG_GASTO",
+            "CG_GASTO_MENSUAL",
+            "CG_CUENTA",
+            "CG_MOVIMIENTO",
+            "CG_SALDO",
+            "CG_DENOMINACION"
+    };
+
     private final UsuarioAccesoRepository usuarioAccesoRepository;
     private final PasswordEncoder passwordEncoder;
+
+    @PersistenceContext
+    private EntityManager entityManager;
 
     public UsuarioAdminService(
             UsuarioAccesoRepository usuarioAccesoRepository,
@@ -53,6 +69,54 @@ public class UsuarioAdminService {
         UsuarioAcceso entity = buscar(id);
         entity.setPasswordHash(passwordEncoder.encode(normalizarPassword(passwordPresentado)));
         return toDto(usuarioAccesoRepository.save(entity));
+    }
+
+    @Transactional
+    public UsuarioDto cambiarNombre(Long id, String nuevoUsuario) {
+        UsuarioAcceso entity = buscar(id);
+        return renombrar(entity, nuevoUsuario);
+    }
+
+    @Transactional
+    public UsuarioDto actualizarPerfilPropio(String actor, String nuevoUsuario, String passwordPresentado) {
+        UsuarioAcceso entity = usuarioAccesoRepository.findByUsuarioIgnoreCase(actor)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Usuario no encontrado"));
+        boolean cambio = false;
+        if (nuevoUsuario != null && !nuevoUsuario.isBlank()
+                && !entity.getUsuario().equalsIgnoreCase(nuevoUsuario.trim())) {
+            renombrar(entity, nuevoUsuario);
+            cambio = true;
+        }
+        if (passwordPresentado != null && !passwordPresentado.isBlank()) {
+            entity.setPasswordHash(passwordEncoder.encode(normalizarPassword(passwordPresentado)));
+            usuarioAccesoRepository.save(entity);
+            cambio = true;
+        }
+        if (!cambio) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Indica un nombre o contraseña nuevos");
+        }
+        return toDto(entity);
+    }
+
+    private UsuarioDto renombrar(UsuarioAcceso entity, String nuevoUsuario) {
+        String anterior = entity.getUsuario();
+        String nombre = normalizarUsuario(nuevoUsuario);
+        if (anterior.equalsIgnoreCase(nombre)) {
+            return toDto(entity);
+        }
+        if (usuarioAccesoRepository.findByUsuarioIgnoreCase(nombre).isPresent()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Ese usuario ya existe");
+        }
+        entity.setUsuario(nombre);
+        UsuarioAcceso guardado = usuarioAccesoRepository.save(entity);
+        for (String tabla : TABLAS_PROPIETARIO) {
+            entityManager.createNativeQuery(
+                    "UPDATE " + tabla + " SET PROPIETARIO = :nuevo WHERE PROPIETARIO = :anterior")
+                    .setParameter("nuevo", nombre)
+                    .setParameter("anterior", anterior)
+                    .executeUpdate();
+        }
+        return toDto(guardado);
     }
 
     @Transactional

@@ -39,6 +39,11 @@ public class CuentaController {
         return service.guardarCuenta(cuenta);
     }
 
+    @DeleteMapping("/{id}")
+    public void eliminar(@PathVariable Long id) {
+        service.archivarCuenta(id);
+    }
+
     @GetMapping("/{id}/movimientos")
     public List<MovimientoCuenta> movimientos(@PathVariable Long id) {
         return service.movimientosDeCuenta(id);
@@ -47,5 +52,18 @@ public class CuentaController {
     @PostMapping("/{id}/movimientos")
     public MovimientoCuenta agregarMovimiento(@PathVariable Long id, @RequestBody MovimientoCuenta mov) {
         return service.agregarMovimiento(id, mov);
+    }
+
+    @PutMapping("/{id}/movimientos/{movimientoId}")
+    public MovimientoCuenta actualizarMovimiento(
+            @PathVariable Long id,
+            @PathVariable Long movimientoId,
+            @RequestBody MovimientoCuenta mov) {
+        return service.actualizarMovimiento(id, movimientoId, mov);
+    }
+
+    @DeleteMapping("/{id}/movimientos/{movimientoId}")
+    public void eliminarMovimiento(@PathVariable Long id, @PathVariable Long movimientoId) {
+        service.eliminarMovimiento(id, movimientoId);
     }
 }

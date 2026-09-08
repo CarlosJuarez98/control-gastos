@@ -76,12 +76,24 @@ export class ApiService {
     return this.http.put<Cuenta>(`${this.base}/cuentas/${id}`, body);
   }
 
+  eliminarCuenta(id: number): Observable<void> {
+    return this.http.delete<void>(`${this.base}/cuentas/${id}`);
+  }
+
   movimientos(cuentaId: number): Observable<Movimiento[]> {
     return this.http.get<Movimiento[]>(`${this.base}/cuentas/${cuentaId}/movimientos`);
   }
 
   agregarMovimiento(cuentaId: number, body: Movimiento): Observable<Movimiento> {
     return this.http.post<Movimiento>(`${this.base}/cuentas/${cuentaId}/movimientos`, body);
+  }
+
+  actualizarMovimiento(cuentaId: number, movimientoId: number, body: Movimiento): Observable<Movimiento> {
+    return this.http.put<Movimiento>(`${this.base}/cuentas/${cuentaId}/movimientos/${movimientoId}`, body);
+  }
+
+  eliminarMovimiento(cuentaId: number, movimientoId: number): Observable<void> {
+    return this.http.delete<void>(`${this.base}/cuentas/${cuentaId}/movimientos/${movimientoId}`);
   }
 
   saldo(): Observable<{
@@ -124,6 +136,10 @@ export class ApiService {
 
   cambiarPasswordUsuario(id: number, password: string): Observable<UsuarioAcceso> {
     return this.http.put<UsuarioAcceso>(`${this.base}/usuarios/${id}/password`, { password });
+  }
+
+  cambiarNombreUsuario(id: number, usuario: string): Observable<UsuarioAcceso> {
+    return this.http.put<UsuarioAcceso>(`${this.base}/usuarios/${id}/nombre`, { usuario });
   }
 
   cambiarActivoUsuario(id: number, activo: boolean): Observable<UsuarioAcceso> {

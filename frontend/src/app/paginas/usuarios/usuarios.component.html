@@ -45,28 +45,37 @@
             <td>{{ u.activo ? 'Activo' : 'Inactivo' }}</td>
             <td>
               <div class="acciones">
-                <button type="button" class="secundario" (click)="abrirReset(u)">Nueva clave</button>
+                <button type="button" class="secundario" (click)="abrirEdicion(u)">Editar</button>
                 <button type="button" class="secundario" (click)="toggleActivo(u)">
                   {{ u.activo ? 'Desactivar' : 'Activar' }}
                 </button>
               </div>
             </td>
           </tr>
-          @if (resetId === u.id) {
+          @if (editId === u.id) {
             <tr class="reset-row">
               <td colspan="4">
-                <form class="reset" (ngSubmit)="guardarPassword(u)">
-                  <label>Nueva contraseña para {{ u.usuario }}
+                <form class="reset edit" (ngSubmit)="guardarEdicion(u)">
+                  <label>Nombre de usuario
                     <input
-                      type="password"
-                      [(ngModel)]="resetPassword"
-                      name="resetPassword"
+                      type="text"
+                      [(ngModel)]="editUsuario"
+                      name="editUsuario"
                       required
-                      autocomplete="new-password"
+                      autocomplete="off"
                     />
                   </label>
-                  <button type="submit" [disabled]="cargando">Guardar clave</button>
-                  <button type="button" class="secundario" (click)="resetId = null">Cancelar</button>
+                  <label>Nueva contraseña <span class="opcional">(opcional)</span>
+                    <input
+                      type="password"
+                      [(ngModel)]="editPassword"
+                      name="editPassword"
+                      autocomplete="new-password"
+                      placeholder="Dejar vacío para no cambiar"
+                    />
+                  </label>
+                  <button type="submit" [disabled]="cargando">Guardar</button>
+                  <button type="button" class="secundario" (click)="cerrarEdicion()">Cancelar</button>
                 </form>
               </td>
             </tr>

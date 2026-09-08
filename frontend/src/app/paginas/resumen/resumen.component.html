@@ -63,6 +63,10 @@
       <strong class="mono">{{ data.deudaTotal | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
     </article>
     <article>
+      <span>Prestamista</span>
+      <strong class="mono pos">{{ data.meDebenTotal | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
+    </article>
+    <article>
       <span>Disponible</span>
       <strong class="mono">{{ data.saldoDisponible | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
     </article>
@@ -134,19 +138,47 @@
       <h2>Deudas principales</h2>
       <a class="ver-todas" routerLink="/cuentas">Ver todas →</a>
     </div>
-    <ul class="barras-h">
-      @for (c of data.topCuentas; track c.id) {
-        <li>
-          <div class="fila">
-            <a [routerLink]="['/cuentas', c.id]">{{ c.nombre }}</a>
-            <span class="mono">{{ c.saldoActual | currency:'MXN':'symbol-narrow':'1.2-2' }}</span>
-          </div>
-          <div class="track">
-            <div class="fill" [style.width.%]="(c.saldoActual / maxCuenta()) * 100"></div>
-          </div>
-        </li>
-      }
-    </ul>
+    @if (!data.topCuentas?.length) {
+      <p class="vacio">Sin deudas pendientes.</p>
+    } @else {
+      <ul class="barras-h">
+        @for (c of data.topCuentas; track c.id) {
+          <li>
+            <div class="fila">
+              <a [routerLink]="['/cuentas', c.id]">{{ c.nombre }}</a>
+              <span class="mono">{{ c.saldoActual | currency:'MXN':'symbol-narrow':'1.2-2' }}</span>
+            </div>
+            <div class="track">
+              <div class="fill" [style.width.%]="(c.saldoActual / maxCuenta()) * 100"></div>
+            </div>
+          </li>
+        }
+      </ul>
+    }
+  </section>
+
+  <section class="panel panel-wide">
+    <div class="cab-panel">
+      <h2>Prestamista</h2>
+      <a class="ver-todas" routerLink="/cuentas">Ver todas →</a>
+    </div>
+    @if (!data.prestamistas?.length) {
+      <p class="vacio">Nadie te debe por ahora.</p>
+    } @else {
+      <ul class="barras-h">
+        @for (c of data.prestamistas; track c.id) {
+          <li>
+            <div class="fila">
+              <a [routerLink]="['/cuentas', c.id]">{{ c.nombre }}</a>
+              <span class="mono pos">{{ c.saldoActual | currency:'MXN':'symbol-narrow':'1.2-2' }}</span>
+            </div>
+            <div class="track">
+              <div class="fill fill-prestamista" [style.width.%]="(c.saldoActual / maxPrestamista()) * 100"></div>
+            </div>
+          </li>
+        }
+      </ul>
+    }
   </section>
 }
 </div>

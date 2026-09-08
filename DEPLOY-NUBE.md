@@ -79,13 +79,25 @@ docker compose -f docker-compose.cloud-atp.yml ps
 docker logs -f control-gastos-api
 ```
 
-App: `http://TU_IP:8081/`  
+App (HTTPS): `https://163.192.146.143.sslip.io/`  
+App (HTTP directo, opcional): `http://TU_IP:8081/`  
 Login: usuario de `.env.cloud` (por defecto documentado como `admin`).
 
-## 4) HTTPS (recomendado)
+## 4) HTTPS (Caddy + sslip.io, gratis)
 
-1. **Cloudflare Tunnel** (gratis, sin abrir puertos), o
-2. **Caddy** delante de `:8081` con dominio y certificado automático.
+Ya incluido en `docker-compose.cloud-atp.yml` + `Caddyfile`.
+
+1. En la VCN / Security List abre **80** y **443** (entrada).
+2. En `.env.cloud`:
+
+```bash
+APP_CORS_ALLOWED_ORIGINS=https://163.192.146.143.sslip.io,http://163.192.146.143:8081
+SERVER_SERVLET_SESSION_COOKIE_SECURE=true
+```
+
+3. `docker compose -f docker-compose.cloud-atp.yml --env-file .env.cloud up -d --build`
+
+Si cambia la IP pública, edita `Caddyfile` y CORS.
 
 ## 5) Opción amd64 + Oracle XE (opcional)
 

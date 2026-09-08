@@ -7,6 +7,29 @@
   flex-direction: column;
   box-sizing: border-box;
   animation: entrar 0.55s ease both;
+  position: relative;
+  touch-action: pan-y;
+}
+
+.pull-refresh {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  overflow: hidden;
+  margin: -0.35rem 0 0.35rem;
+  color: var(--texto-suave);
+  font-size: 0.82rem;
+  font-weight: 600;
+  transition: color 0.15s ease;
+}
+
+.pull-refresh.listo {
+  color: var(--acento);
+}
+
+.pull-refresh span {
+  padding-bottom: 0.35rem;
 }
 
 .top {
@@ -51,11 +74,110 @@ nav a.activo {
   background: var(--acento);
 }
 
+.sesion {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  align-self: center;
+  margin-left: 0.25rem;
+  padding: 0.35rem 0.65rem;
+  border-radius: 0.55rem;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--linea);
+  font-size: 0.85rem;
+  line-height: 1.2;
+  cursor: pointer;
+  color: inherit;
+  font-family: inherit;
+  transition: background 0.2s ease, border-color 0.2s ease;
+}
+
+.sesion:hover {
+  background: rgba(255, 255, 255, 0.07);
+  border-color: color-mix(in srgb, var(--acento) 40%, var(--linea));
+}
+
+.sesion-usuario {
+  font-weight: 700;
+  color: var(--texto);
+}
+
+.sesion-rol {
+  font-weight: 600;
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--texto-suave);
+}
+
 button.salir {
   padding: 0.4rem 0.75rem;
   font-size: 0.85rem;
   align-self: center;
 }
+
+.perfil-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 40;
+  animation: entrar 0.2s ease both;
+}
+
+.perfil-panel {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 41;
+  width: min(100% - 2rem, 380px);
+  background: color-mix(in srgb, var(--superficie) 96%, transparent);
+  border: 1px solid var(--linea);
+  border-radius: 1rem;
+  padding: 1.15rem 1.2rem 1.25rem;
+  box-shadow: var(--sombra);
+  backdrop-filter: blur(10px);
+  animation: entrar 0.25s ease both;
+}
+
+.perfil-cab {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.35rem;
+}
+
+.perfil-cab h2 {
+  margin: 0;
+  font-size: 1.25rem;
+}
+
+.perfil-hint {
+  margin: 0 0 0.85rem;
+  font-size: 0.9rem;
+  color: var(--texto-suave);
+}
+
+.perfil-form {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.perfil-form label {
+  display: grid;
+  gap: 0.25rem;
+  font-size: 0.85rem;
+  color: var(--texto-suave);
+}
+
+.perfil-form .opcional {
+  font-weight: 500;
+  opacity: 0.75;
+}
+
+.perfil-panel .error { color: var(--peligro); margin: 0 0 0.5rem; }
+.perfil-panel .ok { color: var(--ok); margin: 0 0 0.5rem; }
 
 .shell-login .top { display: none; }
 .shell-login { max-width: none; }

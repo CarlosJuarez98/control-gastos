@@ -73,6 +73,27 @@
   display: grid; gap: 0.15rem; padding: 0.7rem 0.85rem; border-bottom: 1px solid var(--linea);
 }
 .cuentas li:last-child a { border-bottom: none; }
+.fila-cuenta {
+  display: flex;
+  align-items: stretch;
+  border-bottom: 1px solid var(--linea);
+}
+.cuentas li:last-child .fila-cuenta { border-bottom: none; }
+.fila-cuenta a {
+  flex: 1 1 auto;
+  border-bottom: none;
+  min-width: 0;
+}
+.fila-cuenta .mini {
+  flex: 0 0 auto;
+  align-self: center;
+  margin-right: 0.55rem;
+  height: 2rem;
+  padding: 0 0.55rem;
+  font-size: 0.75rem;
+  transform: none;
+}
+.fila-cuenta .mini:hover { transform: none; }
 .cuentas small { color: var(--texto-suave); }
 .cuentas .mono { color: var(--acento-2); }
 .cuentas .mono.pos { color: var(--ok); }
@@ -106,8 +127,33 @@
   align-items: flex-end;
   margin-bottom: 0.75rem;
 }
+.detalle-acciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  align-items: flex-end;
+}
 .detalle-cab h2 { margin: 0 0 0.25rem; }
 .detalle-cab p { margin: 0; color: var(--texto-suave); }
+.saldo-linea {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem 0.65rem;
+}
+.campo-titulo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.55rem;
+}
+.pill-disponible {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--acento-2);
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+}
 .tipo-cuenta {
   display: grid;
   gap: 0.25rem;
@@ -123,8 +169,49 @@
 }
 .hint-interes .pos { color: var(--acento-2); }
 .detalle .alta { margin-bottom: 0.75rem; }
-.detalle table {
-  flex: 1 1 auto;
+.tabla-movs {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+}
+.tabla-movs th,
+.tabla-movs td {
+  vertical-align: middle;
+  padding: 0.65rem 0.55rem;
+  border-bottom: 1px solid var(--linea);
+}
+.tabla-movs tbody tr:last-child td {
+  border-bottom: none;
+}
+.tabla-movs .col-fecha { width: 7.5rem; }
+.tabla-movs .col-tipo { width: 7rem; }
+.tabla-movs .col-monto {
+  width: auto;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.tabla-movs .col-acciones {
+  width: 10.5rem;
+  text-align: right;
+  padding-right: 0.25rem;
+}
+.acciones-mov {
+  display: inline-flex;
+  flex-wrap: nowrap;
+  gap: 0.35rem;
+  align-items: center;
+  justify-content: flex-end;
+}
+.acciones-mov button {
+  height: 2.1rem;
+  padding: 0 0.65rem;
+  font-size: 0.8rem;
+  transform: none;
+  white-space: nowrap;
+}
+.acciones-mov button:hover { transform: none; }
+tr.editando td {
+  background: color-mix(in srgb, var(--acento) 10%, transparent);
 }
 .error { flex: 0 0 auto; color: var(--peligro); margin: 0 0 0.5rem; }
 @media (max-width: 860px) {

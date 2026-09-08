@@ -1,8 +1,9 @@
 import { Component, OnInit } from '@angular/core';
 import { CurrencyPipe, DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { ActivatedRoute, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { ApiService } from '../../api.service';
+import { ConfirmDialogService } from '../../confirm-dialog.service';
 import { Cuenta, Movimiento } from '../../modelos';
 import { formatDineroInput, formatDineroNumero, parseDinero, soloMontoKey } from '../../dinero.util';
 
@@ -24,21 +25,33 @@ export class CuentasComponent implements OnInit {
     tipo: 'ABONO',
   };
   montoMov = '';
+  editMovId: number | null = null;
   tipos = ['TDC', 'PRESTAMO', 'TIENDA', 'TERRENO', 'PRESTAMO_OTORGADO', 'OTRO'];
   tiposMov = ['ABONO', 'CARGO', 'INTERES', 'REEMBOLSO'];
   error = '';
   hoy = this.fechaLocal();
   guardandoTipo = false;
+  saldoDisponible: number | null = null;
 
-  constructor(private api: ApiService, private route: ActivatedRoute) {}
+  constructor(
+    private api: ApiService,
+    private route: ActivatedRoute,
+    private router: Router,
+    private confirmDlg: ConfirmDialogService,
+  ) {}
 
   ngOnInit(): void {
     this.hoy = this.fechaLocal();
     this.mov.fecha = this.hoy;
     this.cargarCuentas();
+    this.cargarSaldoDisponible();
     this.route.paramMap.subscribe((p) => {
       const id = p.get('id');
       if (id) this.abrir(+id);
+      else {
+        this.seleccionada = undefined;
+        this.movimientos = [];
+      }
     });
   }
 
@@ -48,7 +61,7 @@ export class CuentasComponent implements OnInit {
       case 'PRESTAMO': return 'Préstamo';
       case 'TIENDA': return 'Tienda';
       case 'TERRENO': return 'Terreno';
-      case 'PRESTAMO_OTORGADO': return 'Te deben (prestamista)';
+      case 'PRESTAMO_OTORGADO': return 'Prestamista';
       case 'OTRO': return 'Otro';
       default: return t;
     }
@@ -67,6 +80,7 @@ export class CuentasComponent implements OnInit {
   onTipoMovChange(tipo: string): void {
     this.mov.tipo = tipo;
     this.error = '';
+    if (this.editMovId != null) return;
     if (tipo === 'INTERES' && this.seleccionada) {
       const actual = Number(this.seleccionada.saldoActual) || 0;
       this.montoMov = actual > 0 ? formatDineroNumero(actual) : '';
@@ -75,12 +89,20 @@ export class CuentasComponent implements OnInit {
     }
   }
 
-  /** Si tipo=INTERES, montoMov es la deuda nueva → interés = nueva − actual. */
+  /** Si tipo=INTERES y alta nueva, montoMov es la deuda nueva → interés = nueva − actual. */
   get interesCalculado(): number {
-    if (this.mov.tipo !== 'INTERES' || !this.seleccionada) return 0;
+    if (this.editMovId != null || this.mov.tipo !== 'INTERES' || !this.seleccionada) return 0;
     const nueva = parseDinero(this.montoMov);
     const actual = Number(this.seleccionada.saldoActual) || 0;
     return Math.round((nueva - actual) * 100) / 100;
+  }
+
+  get usandoDeudaHoy(): boolean {
+    return this.mov.tipo === 'INTERES' && this.editMovId == null;
+  }
+
+  get puedeEliminarCuenta(): boolean {
+    return !!this.seleccionada?.id && Number(this.seleccionada.saldoActual) === 0;
   }
 
   private fechaLocal(d = new Date()): string {
@@ -96,10 +118,12 @@ export class CuentasComponent implements OnInit {
 
   alEscribirMonto(v: string): void {
     this.montoMov = formatDineroInput(v);
+    this.error = '';
   }
 
   alEscribirSaldoNueva(v: string): void {
     this.saldoNueva = formatDineroInput(v);
+    this.error = '';
   }
 
   get deudaVisible(): number {
@@ -120,14 +144,16 @@ export class CuentasComponent implements OnInit {
     return (c.tipo || '').toUpperCase() === 'PRESTAMO_OTORGADO';
   }
 
-  /** Lo que tú debes (excluye prestamistas). */
+  get seleccionPrestamista(): boolean {
+    return !!this.seleccionada && this.esPrestamista(this.seleccionada);
+  }
+
   get misDeudasPendientes(): Cuenta[] {
     return this.cuentas
       .filter((c) => !this.esPrestamista(c) && Number(c.saldoActual) !== 0)
       .sort((a, b) => this.porNombre(a, b));
   }
 
-  /** Dinero que te deben. */
   get meDebenPendientes(): Cuenta[] {
     return this.cuentas
       .filter((c) => this.esPrestamista(c) && Number(c.saldoActual) !== 0)
@@ -140,6 +166,33 @@ export class CuentasComponent implements OnInit {
       .sort((a, b) => this.porNombre(a, b));
   }
 
+  cargarSaldoDisponible(): void {
+    this.api.saldo().subscribe({
+      next: (r) => {
+        const v = r?.esperado;
+        this.saldoDisponible = v == null || v === undefined ? null : Number(v);
+      },
+      error: () => (this.saldoDisponible = null),
+    });
+  }
+
+  /** Disponible efectivo para un CARGO, deshaciendo el movimiento en edición si aplica. */
+  private disponibleParaCargo(monto: number, movAnterior?: Movimiento | null): boolean {
+    if (this.saldoDisponible == null) return true;
+    let disp = this.saldoDisponible;
+    if (movAnterior && this.seleccionPrestamista) {
+      const t = (movAnterior.tipo || '').toUpperCase();
+      const m = Number(movAnterior.monto) || 0;
+      if (t === 'CARGO') disp += m;
+      else if (t === 'ABONO' || t === 'REEMBOLSO') disp -= m;
+    }
+    return disp + 1e-9 >= monto;
+  }
+
+  private tieneSaldoDisponible(monto: number): boolean {
+    return this.disponibleParaCargo(monto);
+  }
+
   cargarCuentas(): void {
     this.api.cuentas().subscribe({
       next: (r) => (this.cuentas = r),
@@ -148,23 +201,39 @@ export class CuentasComponent implements OnInit {
   }
 
   abrir(id: number): void {
+    this.cancelarEdicionMov();
     this.api.cuenta(id).subscribe({
       next: (c) => {
         this.seleccionada = c;
+        this.error = '';
         this.api.movimientos(id).subscribe({ next: (m) => (this.movimientos = m) });
+      },
+      error: (e) => {
+        this.seleccionada = undefined;
+        this.movimientos = [];
+        this.error = e?.error?.error || 'Cuenta no encontrada';
       },
     });
   }
 
   crearCuenta(): void {
     if (!this.nueva.nombre) return;
+    this.error = '';
     const saldo = parseDinero(this.saldoNueva);
+    if ((this.nueva.tipo || '').toUpperCase() === 'PRESTAMO_OTORGADO' && saldo > 0) {
+      if (!this.tieneSaldoDisponible(saldo)) {
+        this.error = 'Saldo insuficiente';
+        return;
+      }
+    }
     this.api.crearCuenta({ ...this.nueva, saldoActual: saldo }).subscribe({
       next: () => {
         this.nueva = { nombre: '', tipo: 'TDC', saldoActual: 0 };
         this.saldoNueva = '';
         this.cargarCuentas();
+        this.cargarSaldoDisponible();
       },
+      error: (e) => (this.error = e?.error?.error || 'No se pudo crear la cuenta'),
     });
   }
 
@@ -190,6 +259,76 @@ export class CuentasComponent implements OnInit {
     });
   }
 
+  async eliminarCuenta(c?: Cuenta): Promise<void> {
+    const cuenta = c || this.seleccionada;
+    if (!cuenta?.id) return;
+    if (Number(cuenta.saldoActual) !== 0) {
+      this.error = 'Solo puedes eliminar cuentas con saldo en $0';
+      return;
+    }
+    const ok = await this.confirmDlg.ask(
+      `¿Eliminar “${cuenta.nombre}”? Se quita de la lista; el historial de abonos se conserva y no cambia tu disponible.`,
+      { titulo: 'Eliminar cuenta', confirmarTexto: 'Eliminar' },
+    );
+    if (!ok) return;
+    this.error = '';
+    const id = cuenta.id;
+    this.api.eliminarCuenta(id).subscribe({
+      next: () => {
+        if (this.seleccionada?.id === id) {
+          this.seleccionada = undefined;
+          this.movimientos = [];
+          void this.router.navigateByUrl('/cuentas');
+        }
+        this.cargarCuentas();
+        this.cargarSaldoDisponible();
+      },
+      error: (e) => (this.error = e?.error?.error || 'No se pudo eliminar'),
+    });
+  }
+
+  editarMovimiento(m: Movimiento): void {
+    if (!m.id) return;
+    this.error = '';
+    this.editMovId = m.id;
+    this.mov = {
+      fecha: m.fecha,
+      tipo: (m.tipo || 'ABONO').toUpperCase(),
+    };
+    this.montoMov = formatDineroNumero(Number(m.monto) || 0);
+  }
+
+  cancelarEdicionMov(): void {
+    this.editMovId = null;
+    this.hoy = this.fechaLocal();
+    this.mov = { fecha: this.hoy, tipo: 'ABONO' };
+    this.montoMov = '';
+    this.error = '';
+  }
+
+  private resolverMonto(): number | null {
+    if (this.usandoDeudaHoy) {
+      const deudaHoy = parseDinero(this.montoMov);
+      const actual = Number(this.seleccionada?.saldoActual) || 0;
+      if (!deudaHoy || deudaHoy <= 0) {
+        this.error = 'Captura la deuda que marca hoy';
+        return null;
+      }
+      const monto = Math.round((deudaHoy - actual) * 100) / 100;
+      if (monto <= 0) {
+        this.error = 'La deuda de hoy debe ser mayor al saldo registrado para calcular el interés';
+        return null;
+      }
+      return monto;
+    }
+    const monto = parseDinero(this.montoMov);
+    if (!monto || monto <= 0) {
+      this.error = 'El monto debe ser mayor a cero';
+      return null;
+    }
+    return monto;
+  }
+
   agregarMovimiento(): void {
     if (!this.seleccionada?.id) return;
     this.error = '';
@@ -199,23 +338,16 @@ export class CuentasComponent implements OnInit {
       return;
     }
 
-    let monto: number;
-    if (this.mov.tipo === 'INTERES') {
-      const deudaHoy = parseDinero(this.montoMov);
-      const actual = Number(this.seleccionada.saldoActual) || 0;
-      if (!deudaHoy || deudaHoy <= 0) {
-        this.error = 'Captura la deuda que marca hoy';
-        return;
-      }
-      monto = Math.round((deudaHoy - actual) * 100) / 100;
-      if (monto <= 0) {
-        this.error = 'La deuda de hoy debe ser mayor al saldo registrado para calcular el interés';
-        return;
-      }
-    } else {
-      monto = parseDinero(this.montoMov);
-      if (!monto || monto <= 0) {
-        this.error = 'El monto debe ser mayor a cero';
+    const monto = this.resolverMonto();
+    if (monto == null) return;
+
+    const anterior = this.editMovId != null
+      ? this.movimientos.find((x) => x.id === this.editMovId)
+      : null;
+
+    if (this.seleccionPrestamista && this.mov.tipo === 'CARGO') {
+      if (!this.disponibleParaCargo(monto, anterior)) {
+        this.error = 'Saldo insuficiente';
         return;
       }
     }
@@ -225,15 +357,40 @@ export class CuentasComponent implements OnInit {
       tipo: this.mov.tipo,
       monto,
     };
-    this.api.agregarMovimiento(this.seleccionada.id, body).subscribe({
+
+    const cuentaId = this.seleccionada.id;
+    const req = this.editMovId != null
+      ? this.api.actualizarMovimiento(cuentaId, this.editMovId, body)
+      : this.api.agregarMovimiento(cuentaId, body);
+
+    req.subscribe({
       next: () => {
-        this.hoy = this.fechaLocal();
-        this.mov = { fecha: this.hoy, tipo: 'ABONO' };
-        this.montoMov = '';
-        this.abrir(this.seleccionada!.id!);
+        this.cancelarEdicionMov();
+        this.abrir(cuentaId);
         this.cargarCuentas();
+        this.cargarSaldoDisponible();
       },
-      error: (e) => (this.error = e?.error?.error || 'No se pudo registrar'),
+      error: (e) => (this.error = e?.error?.error || 'No se pudo guardar'),
+    });
+  }
+
+  async eliminarMovimiento(m: Movimiento): Promise<void> {
+    if (!this.seleccionada?.id || !m.id) return;
+    const ok = await this.confirmDlg.ask(
+      `¿Eliminar ${this.etiquetaMov(m.tipo)} de ${formatDineroNumero(Number(m.monto) || 0)}?`,
+      { titulo: 'Eliminar movimiento', confirmarTexto: 'Borrar' },
+    );
+    if (!ok) return;
+    this.error = '';
+    const cuentaId = this.seleccionada.id;
+    this.api.eliminarMovimiento(cuentaId, m.id).subscribe({
+      next: () => {
+        if (this.editMovId === m.id) this.cancelarEdicionMov();
+        this.abrir(cuentaId);
+        this.cargarCuentas();
+        this.cargarSaldoDisponible();
+      },
+      error: (e) => (this.error = e?.error?.error || 'No se pudo eliminar'),
     });
   }
 }

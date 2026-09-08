@@ -64,4 +64,40 @@ public interface MovimientoCuentaRepository extends JpaRepository<MovimientoCuen
               and m.id > ?2
             """)
     BigDecimal sumaAbonosDespuesDeId(String propietario, Long id);
+
+    /** Dinero prestado (CARGO en cuentas prestamista). */
+    @Query("""
+            select coalesce(sum(m.monto), 0) from MovimientoCuenta m
+            where m.propietario = ?1
+              and upper(m.tipo) = 'CARGO'
+              and m.cuenta.tipo = 'PRESTAMO_OTORGADO'
+            """)
+    BigDecimal sumaPrestamosOtorgadosTotal(String propietario);
+
+    @Query("""
+            select coalesce(sum(m.monto), 0) from MovimientoCuenta m
+            where m.propietario = ?1
+              and upper(m.tipo) = 'CARGO'
+              and m.cuenta.tipo = 'PRESTAMO_OTORGADO'
+              and m.id > ?2
+            """)
+    BigDecimal sumaPrestamosOtorgadosDespuesDeId(String propietario, Long id);
+
+    /** Cobros de préstamos otorgados (vuelve liquidez). */
+    @Query("""
+            select coalesce(sum(m.monto), 0) from MovimientoCuenta m
+            where m.propietario = ?1
+              and upper(m.tipo) in ('ABONO', 'REEMBOLSO')
+              and m.cuenta.tipo = 'PRESTAMO_OTORGADO'
+            """)
+    BigDecimal sumaCobrosPrestamoOtorgadoTotal(String propietario);
+
+    @Query("""
+            select coalesce(sum(m.monto), 0) from MovimientoCuenta m
+            where m.propietario = ?1
+              and upper(m.tipo) in ('ABONO', 'REEMBOLSO')
+              and m.cuenta.tipo = 'PRESTAMO_OTORGADO'
+              and m.id > ?2
+            """)
+    BigDecimal sumaCobrosPrestamoOtorgadoDespuesDeId(String propietario, Long id);
 }

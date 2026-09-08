@@ -19,7 +19,13 @@
       @for (t of tipos; track t) { <option [value]="t">{{ etiquetaTipo(t) }}</option> }
     </select>
   </label>
-  <label>Saldo
+  <label class="campo-saldo">
+    <span class="campo-titulo">
+      Saldo
+      @if ((nueva.tipo || '').toUpperCase() === 'PRESTAMO_OTORGADO' && saldoDisponible != null) {
+        <span class="pill-disponible">Disponible {{ saldoDisponible | currency:'MXN':'symbol-narrow':'1.2-2' }}</span>
+      }
+    </span>
     <div class="monto-wrap">
       <span class="simbolo">$</span>
       <input
@@ -58,7 +64,7 @@
 
     @if (meDebenPendientes.length) {
       <div class="grupo prestamistas">
-        <h3>Te deben (prestamistas)</h3>
+        <h3>Prestamista</h3>
         <ul class="cuentas">
           @for (c of meDebenPendientes; track c.id) {
             <li [class.activa]="seleccionada?.id === c.id">
@@ -79,11 +85,14 @@
         <ul class="cuentas">
           @for (c of cuentasSaldadas; track c.id) {
             <li [class.activa]="seleccionada?.id === c.id" class="saldada">
-              <a [routerLink]="['/cuentas', c.id]">
-                <strong>{{ c.nombre }}</strong>
-                <small>{{ etiquetaTipo(c.tipo) }}</small>
-                <span class="mono">{{ c.saldoActual | currency:'MXN':'symbol-narrow':'1.2-2' }}</span>
-              </a>
+              <div class="fila-cuenta">
+                <a [routerLink]="['/cuentas', c.id]">
+                  <strong>{{ c.nombre }}</strong>
+                  <small>{{ etiquetaTipo(c.tipo) }}</small>
+                  <span class="mono">{{ c.saldoActual | currency:'MXN':'symbol-narrow':'1.2-2' }}</span>
+                </a>
+                <button type="button" class="peligro mini" (click)="eliminarCuenta(c)" title="Eliminar">Borrar</button>
+              </div>
             </li>
           }
         </ul>
@@ -96,17 +105,28 @@
       <div class="detalle-cab">
         <div>
           <h2>{{ seleccionada.nombre }}</h2>
-          <p>Saldo actual: <strong class="mono">{{ seleccionada.saldoActual | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong></p>
+          <p class="saldo-linea">
+            Saldo actual:
+            <strong class="mono">{{ seleccionada.saldoActual | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
+            @if (seleccionPrestamista && saldoDisponible != null) {
+              <span class="pill-disponible">Disponible {{ saldoDisponible | currency:'MXN':'symbol-narrow':'1.2-2' }}</span>
+            }
+          </p>
         </div>
-        <label class="tipo-cuenta">Categoría
-          <select
-            [ngModel]="seleccionada.tipo"
-            (ngModelChange)="cambiarTipo($event)"
-            name="tipoCuenta"
-          >
-            @for (t of tipos; track t) { <option [value]="t">{{ etiquetaTipo(t) }}</option> }
-          </select>
-        </label>
+        <div class="detalle-acciones">
+          <label class="tipo-cuenta">Categoría
+            <select
+              [ngModel]="seleccionada.tipo"
+              (ngModelChange)="cambiarTipo($event)"
+              name="tipoCuenta"
+            >
+              @for (t of tipos; track t) { <option [value]="t">{{ etiquetaTipo(t) }}</option> }
+            </select>
+          </label>
+          @if (puedeEliminarCuenta) {
+            <button type="button" class="peligro" (click)="eliminarCuenta()">Eliminar cuenta</button>
+          }
+        </div>
       </div>
 
       <form class="alta" (ngSubmit)="agregarMovimiento()">
@@ -118,7 +138,7 @@
             @for (t of tiposMov; track t) { <option [value]="t">{{ etiquetaMov(t) }}</option> }
           </select>
         </label>
-        @if (mov.tipo === 'INTERES') {
+        @if (usandoDeudaHoy) {
           <label>Deuda que marca hoy
             <div class="monto-wrap">
               <span class="simbolo">$</span>
@@ -136,7 +156,13 @@
             </div>
           </label>
         } @else {
-          <label>Monto
+          <label class="campo-saldo">
+            <span class="campo-titulo">
+              Monto
+              @if (seleccionPrestamista && saldoDisponible != null && (mov.tipo === 'CARGO' || mov.tipo === 'ABONO' || mov.tipo === 'REEMBOLSO')) {
+                <span class="pill-disponible">Disponible {{ saldoDisponible | currency:'MXN':'symbol-narrow':'1.2-2' }}</span>
+              }
+            </span>
             <div class="monto-wrap">
               <span class="simbolo">$</span>
               <input
@@ -153,10 +179,13 @@
             </div>
           </label>
         }
-        <button type="submit">Registrar movimiento</button>
+        <button type="submit">{{ editMovId ? 'Guardar cambios' : 'Registrar movimiento' }}</button>
+        @if (editMovId) {
+          <button type="button" class="secundario" (click)="cancelarEdicionMov()">Cancelar</button>
+        }
       </form>
 
-      @if (mov.tipo === 'INTERES' && seleccionada) {
+      @if (usandoDeudaHoy && seleccionada) {
         <p class="hint-interes">
           Registrado ahora:
           <strong class="mono">{{ seleccionada.saldoActual | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
@@ -167,16 +196,27 @@
         </p>
       }
 
-      <table>
+      <table class="tabla-movs">
         <thead>
-          <tr><th>Fecha</th><th>Tipo</th><th>Monto</th></tr>
+          <tr>
+            <th class="col-fecha">Fecha</th>
+            <th class="col-tipo">Tipo</th>
+            <th class="col-monto">Monto</th>
+            <th class="col-acciones"></th>
+          </tr>
         </thead>
         <tbody>
           @for (m of movimientos; track m.id) {
-            <tr>
-              <td>{{ m.fecha | date:'dd/MM/yyyy' }}</td>
-              <td>{{ etiquetaMov(m.tipo) }}</td>
-              <td class="mono">{{ m.monto | currency:'MXN':'symbol-narrow':'1.2-2' }}</td>
+            <tr [class.editando]="editMovId === m.id">
+              <td class="col-fecha">{{ m.fecha | date:'dd/MM/yyyy' }}</td>
+              <td class="col-tipo">{{ etiquetaMov(m.tipo) }}</td>
+              <td class="col-monto mono">{{ m.monto | currency:'MXN':'symbol-narrow':'1.2-2' }}</td>
+              <td class="col-acciones">
+                <div class="acciones-mov">
+                  <button type="button" class="secundario" (click)="editarMovimiento(m)">Editar</button>
+                  <button type="button" class="peligro" (click)="eliminarMovimiento(m)">Borrar</button>
+                </div>
+              </td>
             </tr>
           }
         </tbody>

@@ -88,7 +88,7 @@ public class FinanzasService {
                 })
                 .collect(Collectors.toList());
 
-        List<Map<String, Object>> topCuentas = cuentaRepository.findByPropietarioOrderByNombreAsc(u).stream()
+        List<Map<String, Object>> topCuentas = cuentaRepository.findActivasByPropietario(u).stream()
                 .filter(c -> c.getTipo() == null || !"PRESTAMO_OTORGADO".equalsIgnoreCase(c.getTipo()))
                 .filter(c -> c.getSaldoActual() != null
                         && c.getSaldoActual().compareTo(BigDecimal.ZERO) != 0)
@@ -105,16 +105,37 @@ public class FinanzasService {
                 })
                 .collect(Collectors.toList());
 
+        List<Map<String, Object>> prestamistas = cuentaRepository.findActivasByPropietario(u).stream()
+                .filter(c -> c.getTipo() != null && "PRESTAMO_OTORGADO".equalsIgnoreCase(c.getTipo()))
+                .filter(c -> c.getSaldoActual() != null
+                        && c.getSaldoActual().compareTo(BigDecimal.ZERO) != 0)
+                .sorted(Comparator.comparing(
+                        c -> c.getNombre() == null ? "" : c.getNombre(),
+                        String.CASE_INSENSITIVE_ORDER))
+                .map(c -> {
+                    Map<String, Object> m = new LinkedHashMap<>();
+                    m.put("id", c.getId());
+                    m.put("nombre", c.getNombre());
+                    m.put("tipo", c.getTipo());
+                    m.put("saldoActual", c.getSaldoActual());
+                    return m;
+                })
+                .collect(Collectors.toList());
+
+        BigDecimal meDeben = nullSafe(cuentaRepository.sumaPrestamista(u));
+
         return new ResumenResponse(
                 ingresos,
                 gastos,
                 ingresos.subtract(gastos),
                 mensuales,
                 deuda,
+                meDeben,
                 calcularEsperadoActual(u),
                 saldo != null ? saldo.getTotalFisico() : null,
                 porCat,
-                topCuentas
+                topCuentas,
+                prestamistas
         );
     }
 
@@ -288,7 +309,7 @@ public class FinanzasService {
 
     public List<Cuenta> listarCuentas() {
         String u = Sesion.usuario();
-        return cuentaRepository.findByPropietarioOrderByNombreAsc(u).stream()
+        return cuentaRepository.findActivasByPropietario(u).stream()
                 .sorted(Comparator
                         .comparing((Cuenta c) -> c.getSaldoActual() == null
                                 || c.getSaldoActual().compareTo(BigDecimal.ZERO) == 0)
@@ -302,18 +323,62 @@ public class FinanzasService {
         Cuenta cuenta = cuentaRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Cuenta no encontrada"));
         exigirPropietario(u, cuenta.getPropietario());
+        if (cuenta.isArchivada()) {
+            throw new IllegalArgumentException("Cuenta no encontrada");
+        }
         return cuenta;
     }
 
+    @Transactional
     public Cuenta guardarCuenta(Cuenta cuenta) {
         String u = Sesion.usuario();
-        if (cuenta.getId() != null) {
+        boolean nueva = cuenta.getId() == null;
+        if (!nueva) {
             Cuenta existing = cuentaRepository.findById(cuenta.getId())
                     .orElseThrow(() -> new IllegalArgumentException("Cuenta no encontrada"));
             exigirPropietario(u, existing.getPropietario());
+            if (existing.isArchivada()) {
+                throw new IllegalArgumentException("Cuenta no encontrada");
+            }
+            cuenta.setArchivada(false);
+        } else {
+            cuenta.setArchivada(false);
+        }
+        BigDecimal inicialPrestamo = BigDecimal.ZERO;
+        if (nueva && esPrestamoOtorgado(cuenta.getTipo())) {
+            inicialPrestamo = nullSafe(cuenta.getSaldoActual());
+            if (inicialPrestamo.compareTo(BigDecimal.ZERO) > 0) {
+                exigirSaldoDisponible(u, inicialPrestamo);
+            }
         }
         cuenta.setPropietario(u);
-        return cuentaRepository.save(cuenta);
+        Cuenta saved = cuentaRepository.save(cuenta);
+        if (nueva && inicialPrestamo.compareTo(BigDecimal.ZERO) > 0) {
+            // Registra el desembolso para que reste del saldo disponible.
+            MovimientoCuenta mov = new MovimientoCuenta();
+            mov.setCuenta(saved);
+            mov.setFecha(LocalDate.now());
+            mov.setTipo("CARGO");
+            mov.setMonto(inicialPrestamo);
+            mov.setPropietario(u);
+            movimientoRepository.save(mov);
+        }
+        return saved;
+    }
+
+    /**
+     * Quita de la lista una cuenta en $0. No borra movimientos:
+     * los abonos/cargos siguen contando en el saldo disponible.
+     */
+    @Transactional
+    public void archivarCuenta(Long id) {
+        Cuenta cuenta = obtenerCuenta(id);
+        BigDecimal saldo = nullSafe(cuenta.getSaldoActual());
+        if (saldo.compareTo(BigDecimal.ZERO) != 0) {
+            throw new IllegalArgumentException("Solo puedes eliminar cuentas con saldo en $0");
+        }
+        cuenta.setArchivada(true);
+        cuentaRepository.save(cuenta);
     }
 
     public List<MovimientoCuenta> movimientosDeCuenta(Long cuentaId) {
@@ -325,13 +390,11 @@ public class FinanzasService {
     @Transactional
     public MovimientoCuenta agregarMovimiento(Long cuentaId, MovimientoCuenta mov) {
         String u = Sesion.usuario();
-        if (mov.getFecha() != null && mov.getFecha().isAfter(LocalDate.now())) {
-            throw new IllegalArgumentException("La fecha no puede ser mayor a hoy");
-        }
-        if (mov.getMonto() == null || mov.getMonto().compareTo(BigDecimal.ZERO) <= 0) {
-            throw new IllegalArgumentException("El monto debe ser mayor a cero");
-        }
+        validarMovimientoEntrada(mov);
         Cuenta cuenta = obtenerCuenta(cuentaId);
+        if (esPrestamoOtorgado(cuenta.getTipo()) && esCargoPrestamo(mov.getTipo())) {
+            exigirSaldoDisponible(u, mov.getMonto());
+        }
         mov.setId(null);
         mov.setCuenta(cuenta);
         mov.setPropietario(u);
@@ -344,11 +407,114 @@ public class FinanzasService {
         return saved;
     }
 
+    @Transactional
+    public MovimientoCuenta actualizarMovimiento(Long cuentaId, Long movimientoId, MovimientoCuenta cambios) {
+        String u = Sesion.usuario();
+        validarMovimientoEntrada(cambios);
+        Cuenta cuenta = obtenerCuenta(cuentaId);
+        MovimientoCuenta existing = movimientoRepository.findById(movimientoId)
+                .orElseThrow(() -> new IllegalArgumentException("Movimiento no encontrado"));
+        exigirPropietario(u, existing.getPropietario());
+        if (existing.getCuenta() == null || !cuentaId.equals(existing.getCuenta().getId())) {
+            throw new IllegalArgumentException("El movimiento no pertenece a esta cuenta");
+        }
+
+        if (esPrestamoOtorgado(cuenta.getTipo()) && esCargoPrestamo(cambios.getTipo())) {
+            BigDecimal disponible = nullSafe(calcularEsperadoActual(u))
+                    .subtract(efectoLiquidezPrestamo(existing.getTipo(), existing.getMonto()));
+            if (disponible.compareTo(cambios.getMonto()) < 0) {
+                throw new IllegalArgumentException("Saldo insuficiente");
+            }
+        }
+
+        revertirSaldo(cuenta, existing.getTipo(), existing.getMonto());
+        existing.setFecha(cambios.getFecha());
+        existing.setTipo(cambios.getTipo().trim().toUpperCase(Locale.ROOT));
+        existing.setMonto(cambios.getMonto());
+        if (cambios.getConcepto() == null || cambios.getConcepto().isBlank()) {
+            existing.setConcepto(null);
+        } else {
+            existing.setConcepto(cambios.getConcepto());
+        }
+        MovimientoCuenta saved = movimientoRepository.save(existing);
+        aplicarSaldo(cuenta, saved.getTipo(), saved.getMonto());
+        cuentaRepository.save(cuenta);
+        return saved;
+    }
+
+    @Transactional
+    public void eliminarMovimiento(Long cuentaId, Long movimientoId) {
+        String u = Sesion.usuario();
+        Cuenta cuenta = obtenerCuenta(cuentaId);
+        MovimientoCuenta existing = movimientoRepository.findById(movimientoId)
+                .orElseThrow(() -> new IllegalArgumentException("Movimiento no encontrado"));
+        exigirPropietario(u, existing.getPropietario());
+        if (existing.getCuenta() == null || !cuentaId.equals(existing.getCuenta().getId())) {
+            throw new IllegalArgumentException("El movimiento no pertenece a esta cuenta");
+        }
+        revertirSaldo(cuenta, existing.getTipo(), existing.getMonto());
+        movimientoRepository.delete(existing);
+        cuentaRepository.save(cuenta);
+    }
+
+    private void validarMovimientoEntrada(MovimientoCuenta mov) {
+        if (mov.getFecha() != null && mov.getFecha().isAfter(LocalDate.now())) {
+            throw new IllegalArgumentException("La fecha no puede ser mayor a hoy");
+        }
+        if (mov.getMonto() == null || mov.getMonto().compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException("El monto debe ser mayor a cero");
+        }
+        if (mov.getTipo() == null || mov.getTipo().isBlank()) {
+            throw new IllegalArgumentException("El tipo de movimiento es obligatorio");
+        }
+        String tipo = mov.getTipo().trim().toUpperCase(Locale.ROOT);
+        if (!Set.of("ABONO", "CARGO", "INTERES", "REEMBOLSO").contains(tipo)) {
+            throw new IllegalArgumentException("Tipo de movimiento inválido");
+        }
+        mov.setTipo(tipo);
+    }
+
+    private void exigirSaldoDisponible(String u, BigDecimal monto) {
+        BigDecimal disponible = nullSafe(calcularEsperadoActual(u));
+        if (disponible.compareTo(monto) < 0) {
+            throw new IllegalArgumentException("Saldo insuficiente");
+        }
+    }
+
+    /** Efecto en liquidez de un movimiento prestamista: CARGO negativo, cobro positivo. */
+    private static BigDecimal efectoLiquidezPrestamo(String tipo, BigDecimal monto) {
+        if (tipo == null || monto == null) {
+            return BigDecimal.ZERO;
+        }
+        return switch (tipo.toUpperCase(Locale.ROOT)) {
+            case "CARGO" -> monto.negate();
+            case "ABONO", "REEMBOLSO" -> monto;
+            default -> BigDecimal.ZERO;
+        };
+    }
+
+    private static boolean esPrestamoOtorgado(String tipo) {
+        return tipo != null && "PRESTAMO_OTORGADO".equalsIgnoreCase(tipo.trim());
+    }
+
+    private static boolean esCargoPrestamo(String tipo) {
+        return tipo != null && "CARGO".equalsIgnoreCase(tipo.trim());
+    }
+
     private void aplicarSaldo(Cuenta cuenta, String tipo, BigDecimal monto) {
         if (tipo == null) return;
         switch (tipo.toUpperCase(Locale.ROOT)) {
             case "ABONO", "REEMBOLSO" -> cuenta.setSaldoActual(cuenta.getSaldoActual().subtract(monto));
             case "CARGO", "INTERES" -> cuenta.setSaldoActual(cuenta.getSaldoActual().add(monto));
+            default -> { }
+        }
+    }
+
+    private void revertirSaldo(Cuenta cuenta, String tipo, BigDecimal monto) {
+        if (tipo == null) return;
+        switch (tipo.toUpperCase(Locale.ROOT)) {
+            case "ABONO", "REEMBOLSO" -> cuenta.setSaldoActual(cuenta.getSaldoActual().add(monto));
+            case "CARGO", "INTERES" -> cuenta.setSaldoActual(cuenta.getSaldoActual().subtract(monto));
             default -> { }
         }
     }
@@ -365,7 +531,8 @@ public class FinanzasService {
 
     /**
      * Debería tener = saldo teórico del último corte
-     * + ingresos − gastos líquidos − abonos registrados después de ese corte.
+     * + ingresos − gastos líquidos − abonos a deudas propias
+     * − préstamos otorgados (CARGO prestamista) + cobros (ABONO/REEMBOLSO prestamista).
      */
     @Transactional
     public BigDecimal calcularEsperadoActual() {
@@ -377,7 +544,9 @@ public class FinanzasService {
         if (corte == null) {
             return nullSafe(ingresoRepository.sumaTotal(u))
                     .subtract(nullSafe(gastoRepository.sumaLiquidaTotal(u)))
-                    .subtract(nullSafe(movimientoRepository.sumaAbonosTotal(u)));
+                    .subtract(nullSafe(movimientoRepository.sumaAbonosTotal(u)))
+                    .subtract(nullSafe(movimientoRepository.sumaPrestamosOtorgadosTotal(u)))
+                    .add(nullSafe(movimientoRepository.sumaCobrosPrestamoOtorgadoTotal(u)));
         }
         asegurarMarcasCorte(u, corte);
         long ingId = corte.getUltimoIngresoId() == null ? 0L : corte.getUltimoIngresoId();
@@ -387,7 +556,14 @@ public class FinanzasService {
         BigDecimal ingresos = nullSafe(ingresoRepository.sumaDespuesDeId(u, ingId));
         BigDecimal gastos = nullSafe(gastoRepository.sumaLiquidaDespuesDeId(u, gasId));
         BigDecimal abonos = nullSafe(movimientoRepository.sumaAbonosDespuesDeId(u, movId));
-        return nullSafe(corte.getSaldoTotal()).add(ingresos).subtract(gastos).subtract(abonos);
+        BigDecimal prestamos = nullSafe(movimientoRepository.sumaPrestamosOtorgadosDespuesDeId(u, movId));
+        BigDecimal cobros = nullSafe(movimientoRepository.sumaCobrosPrestamoOtorgadoDespuesDeId(u, movId));
+        return nullSafe(corte.getSaldoTotal())
+                .add(ingresos)
+                .subtract(gastos)
+                .subtract(abonos)
+                .subtract(prestamos)
+                .add(cobros);
     }
 
     /** Cada guardado es un corte nuevo (historial); no sobrescribe el anterior. */
