@@ -1,0 +1,14 @@
+---
+description: Ramas local vs nube — trabajo diario y deploy OCI
+alwaysApply: true
+---
+
+# Ramas `local` y `nube`
+
+- **Rama por defecto de trabajo:** `local` (dev diario: Oracle Docker local, proxy Angular, `iniciar.bat` / `dev.bat`).
+- **Rama de despliegue OCI:** `nube` (compose cloud-atp, `/api` relativo, SpaForward, docs DEPLOY-NUBE).
+- Cuando el usuario diga **"sube a la nube"**:
+  1. Integrar: merge `local` → `nube` (solo lo que falte en `nube`).
+  2. Desplegar / sincronizar desde el estado de la rama `nube`.
+- No hacer cambios solo-nube en `local` salvo configs compartidas (proxy + `/api` relativo).
+- Ver `BRANCHES.md`.
