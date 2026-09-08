@@ -122,6 +122,11 @@ export class ResumenComponent implements OnInit {
     return Math.max(...this.data.topCuentas.map((c) => Number(c.saldoActual) || 0), 1);
   }
 
+  maxPrestamista(): number {
+    if (!this.data?.prestamistas?.length) return 1;
+    return Math.max(...this.data.prestamistas.map((c) => Number(c.saldoActual) || 0), 1);
+  }
+
   totalCategorias(): number {
     if (!this.data?.gastosPorCategoria?.length) return 0;
     return this.data.gastosPorCategoria.reduce((a, c) => a + Number(c.total), 0);

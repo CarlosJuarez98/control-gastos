@@ -310,6 +310,10 @@
   transition: width 0.8s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
+.fill-prestamista {
+  background: linear-gradient(90deg, var(--ok), color-mix(in srgb, var(--ok) 40%, var(--acento-2)));
+}
+
 .ver-todas {
   color: var(--acento);
   font-weight: 600;

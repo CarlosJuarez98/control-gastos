@@ -23,6 +23,13 @@ public class Cuenta {
     @Column(name = "PROPIETARIO", length = 80)
     private String propietario;
 
+    /**
+     * Cuenta quitada de la lista (saldada). Los movimientos se conservan
+     * para no alterar el saldo disponible histórico.
+     */
+    @Column
+    private Boolean archivada = Boolean.FALSE;
+
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
     public String getNombre() { return nombre; }
@@ -33,4 +40,12 @@ public class Cuenta {
     public void setSaldoActual(BigDecimal saldoActual) { this.saldoActual = saldoActual; }
     public String getPropietario() { return propietario; }
     public void setPropietario(String propietario) { this.propietario = propietario; }
+
+    public boolean isArchivada() {
+        return Boolean.TRUE.equals(archivada);
+    }
+
+    public void setArchivada(boolean archivada) {
+        this.archivada = archivada;
+    }
 }

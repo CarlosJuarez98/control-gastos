@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
-import { Observable, catchError, map, of, tap } from 'rxjs';
+import { Observable, catchError, finalize, map, of, shareReplay, tap } from 'rxjs';
 
 export interface AuthMe {
   autenticado: boolean;
@@ -18,6 +18,9 @@ export class AuthService {
   usuario: string | null = null;
   rol: string | null = null;
 
+  /** Evita varias llamadas /me en paralelo al recargar. */
+  private meInflight: Observable<boolean> | null = null;
+
   get autenticado(): boolean {
     return !!this.usuario;
   }
@@ -27,14 +30,25 @@ export class AuthService {
   }
 
   me(): Observable<boolean> {
-    return this.http.get<AuthMe>(`${this.base}/me`, { withCredentials: true }).pipe(
+    if (this.usuario) {
+      return of(true);
+    }
+    if (this.meInflight) {
+      return this.meInflight;
+    }
+    this.meInflight = this.http.get<AuthMe>(`${this.base}/me`, { withCredentials: true }).pipe(
       tap((res) => this.aplicarSesion(res)),
       map((res) => !!res.autenticado),
       catchError(() => {
         this.limpiar();
         return of(false);
       }),
+      finalize(() => {
+        this.meInflight = null;
+      }),
+      shareReplay({ bufferSize: 1, refCount: true }),
     );
+    return this.meInflight;
   }
 
   login(usuario: string, password: string): Observable<AuthMe> {
@@ -45,6 +59,12 @@ export class AuthService {
           this.aplicarSesion({ ...res, autenticado: true, usuario: res.usuario ?? usuario });
         }),
       );
+  }
+
+  actualizarPerfil(body: { usuario?: string; password?: string }): Observable<AuthMe> {
+    return this.http.put<AuthMe>(`${this.base}/perfil`, body, { withCredentials: true }).pipe(
+      tap((res) => this.aplicarSesion(res)),
+    );
   }
 
   logout(): Observable<unknown> {
@@ -61,6 +81,13 @@ export class AuthService {
     );
   }
 
+  /** Limpia estado local (p. ej. 401 / sesión expirada). */
+  limpiar(): void {
+    this.usuario = null;
+    this.rol = null;
+    this.meInflight = null;
+  }
+
   private aplicarSesion(res: AuthMe): void {
     if (!res.autenticado) {
       this.limpiar();
@@ -68,10 +95,5 @@ export class AuthService {
     }
     this.usuario = res.usuario ?? null;
     this.rol = res.rol ?? 'USER';
-  }
-
-  private limpiar(): void {
-    this.usuario = null;
-    this.rol = null;
   }
 }

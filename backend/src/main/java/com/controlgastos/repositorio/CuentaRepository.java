@@ -12,6 +12,27 @@ public interface CuentaRepository extends JpaRepository<Cuenta, Long> {
 
     List<Cuenta> findByPropietarioOrderByNombreAsc(String propietario);
 
-    @Query("select coalesce(sum(c.saldoActual), 0) from Cuenta c where c.propietario = ?1 and c.tipo <> 'PRESTAMO_OTORGADO'")
+    @Query("""
+            select c from Cuenta c
+            where c.propietario = ?1
+              and (c.archivada = false or c.archivada is null)
+            order by c.nombre asc
+            """)
+    List<Cuenta> findActivasByPropietario(String propietario);
+
+    @Query("""
+            select coalesce(sum(c.saldoActual), 0) from Cuenta c
+            where c.propietario = ?1
+              and (c.archivada = false or c.archivada is null)
+              and c.tipo <> 'PRESTAMO_OTORGADO'
+            """)
     BigDecimal sumaDeudas(String propietario);
+
+    @Query("""
+            select coalesce(sum(c.saldoActual), 0) from Cuenta c
+            where c.propietario = ?1
+              and (c.archivada = false or c.archivada is null)
+              and c.tipo = 'PRESTAMO_OTORGADO'
+            """)
+    BigDecimal sumaPrestamista(String propietario);
 }

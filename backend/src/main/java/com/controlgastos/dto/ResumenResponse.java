@@ -10,8 +10,10 @@ public record ResumenResponse(
         BigDecimal balance,
         BigDecimal gastosMensuales,
         BigDecimal deudaTotal,
+        BigDecimal meDebenTotal,
         BigDecimal saldoDisponible,
         BigDecimal totalFisico,
         List<Map<String, Object>> gastosPorCategoria,
-        List<Map<String, Object>> topCuentas
+        List<Map<String, Object>> topCuentas,
+        List<Map<String, Object>> prestamistas
 ) {}

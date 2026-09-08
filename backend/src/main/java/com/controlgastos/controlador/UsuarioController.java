@@ -36,6 +36,9 @@ public class UsuarioController {
     public record PasswordRequest(@NotBlank String password) {
     }
 
+    public record NombreRequest(@NotBlank String usuario) {
+    }
+
     public record ActivoRequest(boolean activo) {
     }
 
@@ -55,6 +58,11 @@ public class UsuarioController {
     @PutMapping("/{id}/password")
     public UsuarioDto cambiarPassword(@PathVariable Long id, @Valid @RequestBody PasswordRequest body) {
         return usuarioAdminService.cambiarPassword(id, body.password());
+    }
+
+    @PutMapping("/{id}/nombre")
+    public UsuarioDto cambiarNombre(@PathVariable Long id, @Valid @RequestBody NombreRequest body) {
+        return usuarioAdminService.cambiarNombre(id, body.usuario());
     }
 
     @PutMapping("/{id}/activo")

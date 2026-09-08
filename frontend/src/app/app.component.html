@@ -1,4 +1,9 @@
 <div class="shell" [class.shell-login]="!mostrarNav">
+  @if (pullVisible) {
+    <div class="pull-refresh" [class.listo]="pullListo" [style.height.px]="pullDistancia">
+      <span>{{ pullListo ? 'Suelta para recargar' : 'Desliza para recargar' }}</span>
+    </div>
+  }
   @if (mostrarNav) {
     <header class="top">
       <div class="brand">
@@ -8,6 +13,14 @@
         @for (l of links; track l.path) {
           <a [routerLink]="l.path" routerLinkActive="activo" [routerLinkActiveOptions]="{ exact: l.exact }">{{ l.label }}</a>
         }
+        @if (auth.usuario) {
+          <button type="button" class="sesion" title="Editar mi cuenta" (click)="abrirPerfil()">
+            <span class="sesion-usuario">{{ auth.usuario }}</span>
+            @if (auth.rol) {
+              <span class="sesion-rol">{{ auth.rol }}</span>
+            }
+          </button>
+        }
         <button type="button" class="secundario salir" (click)="salir()">Salir</button>
       </nav>
     </header>
@@ -16,4 +29,33 @@
     <router-outlet />
   </main>
 </div>
+
+@if (perfilAbierto) {
+  <div class="perfil-backdrop" (click)="cerrarPerfil()"></div>
+  <aside class="perfil-panel" role="dialog" aria-labelledby="perfil-titulo">
+    <div class="perfil-cab">
+      <h2 id="perfil-titulo">Mi cuenta</h2>
+      <button type="button" class="secundario" (click)="cerrarPerfil()">Cerrar</button>
+    </div>
+    <p class="perfil-hint">Cambia tu nombre de usuario o contraseña.</p>
+    @if (perfilError) { <p class="error">{{ perfilError }}</p> }
+    @if (perfilOk) { <p class="ok">{{ perfilOk }}</p> }
+    <form class="perfil-form" (ngSubmit)="guardarPerfil()">
+      <label>Usuario
+        <input [(ngModel)]="perfilUsuario" name="perfilUsuario" required autocomplete="username" />
+      </label>
+      <label>Nueva contraseña <span class="opcional">(opcional)</span>
+        <input
+          type="password"
+          [(ngModel)]="perfilPassword"
+          name="perfilPassword"
+          autocomplete="new-password"
+          placeholder="Dejar vacío para no cambiar"
+        />
+      </label>
+      <button type="submit" [disabled]="perfilCargando">Guardar</button>
+    </form>
+  </aside>
+}
+
 <app-confirm-dialog />

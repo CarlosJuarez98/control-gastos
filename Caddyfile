@@ -1,0 +1,6 @@
+# HTTPS gratis (Let's Encrypt) → proxy a la API Spring.
+# Cambia la IP si la pública de la VM cambia.
+163.192.146.143.sslip.io {
+	encode gzip
+	reverse_proxy backend:8081
+}

@@ -4,10 +4,12 @@ export interface Resumen {
   balance: number;
   gastosMensuales: number;
   deudaTotal: number;
+  meDebenTotal: number;
   saldoDisponible: number;
   totalFisico: number | null;
   gastosPorCategoria: { categoria: string; total: number }[];
   topCuentas: { id: number; nombre: string; tipo: string; saldoActual: number }[];
+  prestamistas: { id: number; nombre: string; tipo: string; saldoActual: number }[];
 }
 
 export interface Ingreso {
