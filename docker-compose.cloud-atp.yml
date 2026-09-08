@@ -1,0 +1,26 @@
+# Despliegue en Oracle Cloud (Ampere/ARM) + Autonomous DB (ATP).
+# Uso: docker compose -f docker-compose.cloud-atp.yml --env-file .env.cloud up -d --build
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: control-gastos-api
+    ports:
+      - "8081:8081"
+    env_file:
+      - .env.cloud
+    environment:
+      SPRING_DATASOURCE_URL: ${SPRING_DATASOURCE_URL}
+      SPRING_DATASOURCE_USERNAME: ${SPRING_DATASOURCE_USERNAME}
+      SPRING_DATASOURCE_PASSWORD: ${SPRING_DATASOURCE_PASSWORD}
+      SPRING_DATASOURCE_DRIVER_CLASS_NAME: oracle.jdbc.OracleDriver
+      APP_AUTH_USERNAME: ${APP_AUTH_USERNAME}
+      APP_AUTH_PASSWORD: ${APP_AUTH_PASSWORD}
+      APP_CORS_ALLOWED_ORIGINS: ${APP_CORS_ALLOWED_ORIGINS}
+      JAVA_OPTS: "-Xms256m -Xmx512m -Dfile.encoding=UTF-8 -Doracle.net.tns_admin=/wallet"
+      LOGGING_LEVEL_COM_CONTROLGASTOS: INFO
+    volumes:
+      - ./wallet:/wallet:ro
+    mem_limit: 768m
+    restart: unless-stopped

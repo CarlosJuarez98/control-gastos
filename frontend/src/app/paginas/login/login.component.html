@@ -1,0 +1,30 @@
+<section class="login">
+  <div class="card">
+    <p class="marca">Control de gastos</p>
+    <h1>Entrar</h1>
+    <p class="hint">Acceso privado para ver y registrar desde cualquier red.</p>
+
+    <form (ngSubmit)="entrar()">
+      <label>
+        Usuario
+        <input name="usuario" [(ngModel)]="usuario" autocomplete="username" required />
+      </label>
+      <label>
+        Contraseña
+        <input
+          name="password"
+          type="password"
+          [(ngModel)]="password"
+          autocomplete="current-password"
+          required
+        />
+      </label>
+      @if (error) {
+        <p class="error">{{ error }}</p>
+      }
+      <button type="submit" [disabled]="cargando">
+        {{ cargando ? 'Entrando…' : 'Entrar' }}
+      </button>
+    </form>
+  </div>
+</section>

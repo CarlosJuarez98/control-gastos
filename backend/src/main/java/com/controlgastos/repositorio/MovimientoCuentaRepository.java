@@ -9,53 +9,59 @@ import java.time.LocalDate;
 import java.util.List;
 
 public interface MovimientoCuentaRepository extends JpaRepository<MovimientoCuenta, Long> {
-    List<MovimientoCuenta> findByCuentaIdOrderByFechaDescIdDesc(Long cuentaId);
-    List<MovimientoCuenta> findAllByOrderByFechaDescIdDesc();
+    List<MovimientoCuenta> findByPropietarioAndCuentaIdOrderByFechaDescIdDesc(String propietario, Long cuentaId);
+
+    List<MovimientoCuenta> findByPropietarioOrderByFechaDescIdDesc(String propietario);
 
     /** Pagos a deudas (abonos) en el periodo; excluye préstamos otorgados. */
     @Query("""
             select coalesce(sum(m.monto), 0) from MovimientoCuenta m
-            where upper(m.tipo) = 'ABONO'
+            where m.propietario = ?1
+              and upper(m.tipo) = 'ABONO'
               and m.cuenta.tipo <> 'PRESTAMO_OTORGADO'
-              and m.fecha between ?1 and ?2
+              and m.fecha between ?2 and ?3
             """)
-    BigDecimal sumaAbonosEntre(LocalDate desde, LocalDate hasta);
+    BigDecimal sumaAbonosEntre(String propietario, LocalDate desde, LocalDate hasta);
 
     @Query("""
             select coalesce(sum(m.monto), 0) from MovimientoCuenta m
-            where upper(m.tipo) = 'ABONO'
+            where m.propietario = ?1
+              and upper(m.tipo) = 'ABONO'
               and m.cuenta.tipo <> 'PRESTAMO_OTORGADO'
             """)
-    BigDecimal sumaAbonosTotal();
+    BigDecimal sumaAbonosTotal(String propietario);
 
     /** Abonos/reembolsos posteriores a una fecha (para reconstruir deuda al cierre). */
     @Query("""
             select coalesce(sum(m.monto), 0) from MovimientoCuenta m
-            where upper(m.tipo) in ('ABONO', 'REEMBOLSO')
+            where m.propietario = ?1
+              and upper(m.tipo) in ('ABONO', 'REEMBOLSO')
               and m.cuenta.tipo <> 'PRESTAMO_OTORGADO'
-              and m.fecha > ?1
+              and m.fecha > ?2
             """)
-    BigDecimal sumaPagosDespues(LocalDate fecha);
+    BigDecimal sumaPagosDespues(String propietario, LocalDate fecha);
 
     @Query("""
             select coalesce(sum(m.monto), 0) from MovimientoCuenta m
-            where upper(m.tipo) in ('CARGO', 'INTERES')
+            where m.propietario = ?1
+              and upper(m.tipo) in ('CARGO', 'INTERES')
               and m.cuenta.tipo <> 'PRESTAMO_OTORGADO'
-              and m.fecha > ?1
+              and m.fecha > ?2
             """)
-    BigDecimal sumaCargosDespues(LocalDate fecha);
+    BigDecimal sumaCargosDespues(String propietario, LocalDate fecha);
 
-    @Query("select coalesce(max(m.id), 0) from MovimientoCuenta m")
-    Long maxId();
+    @Query("select coalesce(max(m.id), 0) from MovimientoCuenta m where m.propietario = ?1")
+    Long maxId(String propietario);
 
-    @Query("select coalesce(max(m.id), 0) from MovimientoCuenta m where m.fecha < ?1")
-    Long maxIdAntesDe(LocalDate fecha);
+    @Query("select coalesce(max(m.id), 0) from MovimientoCuenta m where m.propietario = ?1 and m.fecha < ?2")
+    Long maxIdAntesDe(String propietario, LocalDate fecha);
 
     @Query("""
             select coalesce(sum(m.monto), 0) from MovimientoCuenta m
-            where upper(m.tipo) = 'ABONO'
+            where m.propietario = ?1
+              and upper(m.tipo) = 'ABONO'
               and m.cuenta.tipo <> 'PRESTAMO_OTORGADO'
-              and m.id > ?1
+              and m.id > ?2
             """)
-    BigDecimal sumaAbonosDespuesDeId(Long id);
+    BigDecimal sumaAbonosDespuesDeId(String propietario, Long id);
 }

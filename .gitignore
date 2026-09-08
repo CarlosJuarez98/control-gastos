@@ -9,4 +9,8 @@
 *.iml
 .vscode/
 .DS_Store
+.env.cloud
+wallet/
+_migrate/
+**/Wallet*.zip
 _import/excel-raw.json

@@ -38,6 +38,9 @@ public class Gasto {
     @Column(name = "movimiento_id")
     private Long movimientoId;
 
+    @Column(name = "PROPIETARIO", length = 80)
+    private String propietario;
+
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
     public LocalDate getFecha() { return fecha; }
@@ -54,6 +57,8 @@ public class Gasto {
     public void setCuenta(Cuenta cuenta) { this.cuenta = cuenta; }
     public Long getMovimientoId() { return movimientoId; }
     public void setMovimientoId(Long movimientoId) { this.movimientoId = movimientoId; }
+    public String getPropietario() { return propietario; }
+    public void setPropietario(String propietario) { this.propietario = propietario; }
 
     /** Para JSON de entrada: { "cuentaId": 3 }. */
     @Transient

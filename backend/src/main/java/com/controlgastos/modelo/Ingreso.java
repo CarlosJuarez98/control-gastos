@@ -21,6 +21,9 @@ public class Ingreso {
     @Column(nullable = false, precision = 14, scale = 2)
     private BigDecimal monto;
 
+    @Column(name = "PROPIETARIO", length = 80)
+    private String propietario;
+
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
     public LocalDate getFecha() { return fecha; }
@@ -29,4 +32,6 @@ public class Ingreso {
     public void setConcepto(String concepto) { this.concepto = concepto; }
     public BigDecimal getMonto() { return monto; }
     public void setMonto(BigDecimal monto) { this.monto = monto; }
+    public String getPropietario() { return propietario; }
+    public void setPropietario(String propietario) { this.propietario = propietario; }
 }

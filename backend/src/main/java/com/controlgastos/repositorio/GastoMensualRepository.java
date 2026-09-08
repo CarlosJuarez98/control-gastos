@@ -5,5 +5,5 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.List;
 
 public interface GastoMensualRepository extends JpaRepository<GastoMensual, Long> {
-    List<GastoMensual> findByActivoTrueOrderByMotivoAsc();
+    List<GastoMensual> findByPropietarioAndActivoTrueOrderByMotivoAsc(String propietario);
 }

@@ -1,0 +1,133 @@
+:host {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.cab {
+  flex: 0 0 auto;
+  margin-bottom: 0.85rem;
+}
+
+.alta, .reset {
+  flex: 0 0 auto;
+  display: grid;
+  grid-template-columns: 1.2fr 1.2fr 0.7fr auto;
+  gap: 0.75rem;
+  align-items: end;
+  background: var(--superficie);
+  border: 1px solid var(--linea);
+  border-radius: 1rem;
+  padding: 0.85rem;
+  margin-bottom: 0.85rem;
+}
+
+.alta label, .reset label {
+  display: grid;
+  gap: 0.25rem;
+  font-size: 0.85rem;
+  color: var(--texto-suave);
+  min-width: 0;
+}
+
+.alta input,
+.alta select,
+.reset input {
+  height: 2.55rem;
+}
+
+.alta button,
+.reset button {
+  height: 2.55rem;
+  align-self: end;
+  white-space: nowrap;
+}
+
+.error { color: var(--peligro); }
+.ok { color: var(--ok); }
+
+.lista-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+}
+
+.tabla-wrap {
+  background: var(--superficie);
+  border: 1px solid var(--linea);
+  border-radius: 1rem;
+  overflow: auto;
+}
+
+.tabla-wrap th,
+.tabla-wrap td {
+  vertical-align: middle;
+  padding: 0.65rem 0.55rem;
+}
+
+.tabla-wrap select {
+  width: auto;
+  min-width: 7.5rem;
+  height: 2.35rem;
+  padding: 0.35rem 0.65rem;
+  line-height: 1.2;
+}
+
+.acciones {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 0.4rem;
+  align-items: center;
+}
+
+.acciones button {
+  height: 2.35rem;
+  padding: 0 0.75rem;
+  font-size: 0.85rem;
+  line-height: 1;
+  transform: none;
+}
+
+.acciones button:hover {
+  transform: none;
+}
+
+.reset button {
+  padding: 0.4rem 0.7rem;
+  font-size: 0.85rem;
+}
+
+tr.inactivo td { color: var(--texto-suave); }
+
+.reset-row td {
+  background: var(--superficie-2);
+}
+
+.reset {
+  grid-template-columns: 1fr auto auto;
+}
+
+.vacio {
+  text-align: center;
+  color: var(--texto-suave);
+  padding: 1.2rem;
+}
+
+@media (max-width: 720px) {
+  .alta {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .alta button {
+    grid-column: 1 / -1;
+  }
+
+  .reset {
+    grid-template-columns: 1fr;
+  }
+
+  .acciones {
+    flex-wrap: wrap;
+  }
+}

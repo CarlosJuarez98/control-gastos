@@ -38,6 +38,9 @@ public class SaldoSnapshot {
     private Long ultimoGastoId;
     private Long ultimoMovimientoId;
 
+    @Column(name = "PROPIETARIO", length = 80)
+    private String propietario;
+
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
     public LocalDate getFecha() { return fecha; }
@@ -60,4 +63,6 @@ public class SaldoSnapshot {
     public void setUltimoGastoId(Long ultimoGastoId) { this.ultimoGastoId = ultimoGastoId; }
     public Long getUltimoMovimientoId() { return ultimoMovimientoId; }
     public void setUltimoMovimientoId(Long ultimoMovimientoId) { this.ultimoMovimientoId = ultimoMovimientoId; }
+    public String getPropietario() { return propietario; }
+    public void setPropietario(String propietario) { this.propietario = propietario; }
 }

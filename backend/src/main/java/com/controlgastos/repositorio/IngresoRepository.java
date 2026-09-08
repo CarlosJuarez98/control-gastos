@@ -8,21 +8,23 @@ import java.time.LocalDate;
 import java.util.List;
 
 public interface IngresoRepository extends JpaRepository<Ingreso, Long> {
-    List<Ingreso> findAllByOrderByFechaDescIdDesc();
-    List<Ingreso> findByFechaBetweenOrderByFechaDescIdDesc(LocalDate desde, LocalDate hasta);
+    List<Ingreso> findByPropietarioOrderByFechaDescIdDesc(String propietario);
 
-    @Query("select coalesce(sum(i.monto), 0) from Ingreso i")
-    BigDecimal sumaTotal();
+    List<Ingreso> findByPropietarioAndFechaBetweenOrderByFechaDescIdDesc(
+            String propietario, LocalDate desde, LocalDate hasta);
 
-    @Query("select coalesce(sum(i.monto), 0) from Ingreso i where i.fecha between ?1 and ?2")
-    BigDecimal sumaEntre(LocalDate desde, LocalDate hasta);
+    @Query("select coalesce(sum(i.monto), 0) from Ingreso i where i.propietario = ?1")
+    BigDecimal sumaTotal(String propietario);
 
-    @Query("select coalesce(max(i.id), 0) from Ingreso i")
-    Long maxId();
+    @Query("select coalesce(sum(i.monto), 0) from Ingreso i where i.propietario = ?1 and i.fecha between ?2 and ?3")
+    BigDecimal sumaEntre(String propietario, LocalDate desde, LocalDate hasta);
 
-    @Query("select coalesce(max(i.id), 0) from Ingreso i where i.fecha < ?1")
-    Long maxIdAntesDe(LocalDate fecha);
+    @Query("select coalesce(max(i.id), 0) from Ingreso i where i.propietario = ?1")
+    Long maxId(String propietario);
 
-    @Query("select coalesce(sum(i.monto), 0) from Ingreso i where i.id > ?1")
-    BigDecimal sumaDespuesDeId(Long id);
+    @Query("select coalesce(max(i.id), 0) from Ingreso i where i.propietario = ?1 and i.fecha < ?2")
+    Long maxIdAntesDe(String propietario, LocalDate fecha);
+
+    @Query("select coalesce(sum(i.monto), 0) from Ingreso i where i.propietario = ?1 and i.id > ?2")
+    BigDecimal sumaDespuesDeId(String propietario, Long id);
 }

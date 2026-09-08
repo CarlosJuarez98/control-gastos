@@ -1,5 +1,6 @@
 package com.controlgastos.config;
 
+import com.controlgastos.modelo.Cuenta;
 import com.controlgastos.repositorio.CuentaRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -9,11 +10,13 @@ import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Optional;
+
 /**
  * Ajustes ligeros al arrancar. La fuente de verdad es Oracle: no se importa Excel ni seed.
  */
 @Component
-@Order(1)
+@Order(2)
 public class SeedDataLoader implements ApplicationRunner {
 
     private static final Logger log = LoggerFactory.getLogger(SeedDataLoader.class);
@@ -33,19 +36,28 @@ public class SeedDataLoader implements ApplicationRunner {
 
     /** Idempotente: corrige tipos si quedaron mal de migraciones viejas. */
     private void corregirClasificacionCuentas() {
-        cuentaRepository.findByNombreIgnoreCase("Deudor Papa").ifPresent(c -> {
+        buscarCuentaAdmin("Deudor Papa").ifPresent(c -> {
             if (c.getTipo() != null && "PRESTAMO_OTORGADO".equalsIgnoreCase(c.getTipo())) {
                 c.setTipo("PRESTAMO");
                 cuentaRepository.save(c);
                 log.info("Cuenta 'Deudor Papa' reclasificada a PRESTAMO (deuda propia)");
             }
         });
-        cuentaRepository.findByNombreIgnoreCase("Mercado Libre").ifPresent(c -> {
+        buscarCuentaAdmin("Mercado Libre").ifPresent(c -> {
             if (c.getTipo() == null || !"TDC".equalsIgnoreCase(c.getTipo())) {
                 c.setTipo("TDC");
                 cuentaRepository.save(c);
                 log.info("Cuenta 'Mercado Libre' reclasificada a TDC");
             }
         });
+    }
+
+    private Optional<Cuenta> buscarCuentaAdmin(String nombre) {
+        Optional<Cuenta> admin = cuentaRepository.findByPropietarioAndNombreIgnoreCase("admin", nombre);
+        if (admin.isPresent()) {
+            return admin;
+        }
+        // Por si el migrator aún no corrió o hay filas sin dueño
+        return cuentaRepository.findByPropietarioAndNombreIgnoreCase(null, nombre);
     }
 }

@@ -8,45 +8,58 @@ import java.time.LocalDate;
 import java.util.List;
 
 public interface GastoRepository extends JpaRepository<Gasto, Long> {
-    List<Gasto> findAllByOrderByFechaDescIdDesc();
-    List<Gasto> findByFechaBetweenOrderByFechaDescIdDesc(LocalDate desde, LocalDate hasta);
+    List<Gasto> findByPropietarioOrderByFechaDescIdDesc(String propietario);
 
-    @Query("select coalesce(sum(g.monto), 0) from Gasto g")
-    BigDecimal sumaTotal();
+    List<Gasto> findByPropietarioAndFechaBetweenOrderByFechaDescIdDesc(
+            String propietario, LocalDate desde, LocalDate hasta);
 
-    @Query("select coalesce(sum(g.monto), 0) from Gasto g where g.fecha between ?1 and ?2")
-    BigDecimal sumaEntre(LocalDate desde, LocalDate hasta);
+    @Query("select coalesce(sum(g.monto), 0) from Gasto g where g.propietario = ?1")
+    BigDecimal sumaTotal(String propietario);
+
+    @Query("select coalesce(sum(g.monto), 0) from Gasto g where g.propietario = ?1 and g.fecha between ?2 and ?3")
+    BigDecimal sumaEntre(String propietario, LocalDate desde, LocalDate hasta);
 
     /** Gastos que sí restan de liquidez (efectivo / sin forma = viejos). */
     @Query("""
             select coalesce(sum(g.monto), 0) from Gasto g
-            where g.formaPago is null or upper(g.formaPago) <> 'TARJETA'
-            """)
-    BigDecimal sumaLiquidaTotal();
-
-    @Query("""
-            select coalesce(sum(g.monto), 0) from Gasto g
-            where (g.formaPago is null or upper(g.formaPago) <> 'TARJETA')
-              and g.fecha between ?1 and ?2
-            """)
-    BigDecimal sumaLiquidaEntre(LocalDate desde, LocalDate hasta);
-
-    @Query("select g.categoria, coalesce(sum(g.monto), 0) from Gasto g group by g.categoria order by sum(g.monto) desc")
-    List<Object[]> sumaPorCategoria();
-
-    @Query("select g.categoria, coalesce(sum(g.monto), 0) from Gasto g where g.fecha between ?1 and ?2 group by g.categoria order by sum(g.monto) desc")
-    List<Object[]> sumaPorCategoriaEntre(LocalDate desde, LocalDate hasta);
-
-    @Query("select coalesce(max(g.id), 0) from Gasto g")
-    Long maxId();
-
-    @Query("select coalesce(max(g.id), 0) from Gasto g where g.fecha < ?1")
-    Long maxIdAntesDe(LocalDate fecha);
-
-    @Query("""
-            select coalesce(sum(g.monto), 0) from Gasto g
-            where g.id > ?1
+            where g.propietario = ?1
               and (g.formaPago is null or upper(g.formaPago) <> 'TARJETA')
             """)
-    BigDecimal sumaLiquidaDespuesDeId(Long id);
+    BigDecimal sumaLiquidaTotal(String propietario);
+
+    @Query("""
+            select coalesce(sum(g.monto), 0) from Gasto g
+            where g.propietario = ?1
+              and (g.formaPago is null or upper(g.formaPago) <> 'TARJETA')
+              and g.fecha between ?2 and ?3
+            """)
+    BigDecimal sumaLiquidaEntre(String propietario, LocalDate desde, LocalDate hasta);
+
+    @Query("""
+            select g.categoria, coalesce(sum(g.monto), 0) from Gasto g
+            where g.propietario = ?1
+            group by g.categoria order by sum(g.monto) desc
+            """)
+    List<Object[]> sumaPorCategoria(String propietario);
+
+    @Query("""
+            select g.categoria, coalesce(sum(g.monto), 0) from Gasto g
+            where g.propietario = ?1 and g.fecha between ?2 and ?3
+            group by g.categoria order by sum(g.monto) desc
+            """)
+    List<Object[]> sumaPorCategoriaEntre(String propietario, LocalDate desde, LocalDate hasta);
+
+    @Query("select coalesce(max(g.id), 0) from Gasto g where g.propietario = ?1")
+    Long maxId(String propietario);
+
+    @Query("select coalesce(max(g.id), 0) from Gasto g where g.propietario = ?1 and g.fecha < ?2")
+    Long maxIdAntesDe(String propietario, LocalDate fecha);
+
+    @Query("""
+            select coalesce(sum(g.monto), 0) from Gasto g
+            where g.propietario = ?1
+              and g.id > ?2
+              and (g.formaPago is null or upper(g.formaPago) <> 'TARJETA')
+            """)
+    BigDecimal sumaLiquidaDespuesDeId(String propietario, Long id);
 }

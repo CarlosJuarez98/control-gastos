@@ -1,14 +1,17 @@
-<div class="shell">
-  <header class="top">
-    <div class="brand">
-      <p class="brand-mark">Control de gastos</p>
-    </div>
-    <nav>
-      @for (l of links; track l.path) {
-        <a [routerLink]="l.path" routerLinkActive="activo" [routerLinkActiveOptions]="{ exact: l.exact }">{{ l.label }}</a>
-      }
-    </nav>
-  </header>
+<div class="shell" [class.shell-login]="!mostrarNav">
+  @if (mostrarNav) {
+    <header class="top">
+      <div class="brand">
+        <p class="brand-mark">Control de gastos</p>
+      </div>
+      <nav>
+        @for (l of links; track l.path) {
+          <a [routerLink]="l.path" routerLinkActive="activo" [routerLinkActiveOptions]="{ exact: l.exact }">{{ l.label }}</a>
+        }
+        <button type="button" class="secundario salir" (click)="salir()">Salir</button>
+      </nav>
+    </header>
+  }
   <main>
     <router-outlet />
   </main>

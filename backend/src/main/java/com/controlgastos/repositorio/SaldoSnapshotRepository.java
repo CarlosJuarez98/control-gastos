@@ -7,7 +7,7 @@ import java.util.List;
 import java.util.Optional;
 
 public interface SaldoSnapshotRepository extends JpaRepository<SaldoSnapshot, Long> {
-    Optional<SaldoSnapshot> findFirstByOrderByFechaDescIdDesc();
+    Optional<SaldoSnapshot> findFirstByPropietarioOrderByFechaDescIdDesc(String propietario);
 
-    List<SaldoSnapshot> findAllByOrderByFechaDescIdDesc();
+    List<SaldoSnapshot> findByPropietarioOrderByFechaDescIdDesc(String propietario);
 }
