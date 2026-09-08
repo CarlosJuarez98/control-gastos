@@ -30,6 +30,9 @@ public class MovimientoCuenta {
     @Column(length = 200)
     private String concepto;
 
+    @Column(name = "PROPIETARIO", length = 80)
+    private String propietario;
+
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
     public Cuenta getCuenta() { return cuenta; }
@@ -42,4 +45,6 @@ public class MovimientoCuenta {
     public void setMonto(BigDecimal monto) { this.monto = monto; }
     public String getConcepto() { return concepto; }
     public void setConcepto(String concepto) { this.concepto = concepto; }
+    public String getPropietario() { return propietario; }
+    public void setPropietario(String propietario) { this.propietario = propietario; }
 }

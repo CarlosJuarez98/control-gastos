@@ -1,0 +1,80 @@
+<section class="cab">
+  <h1>Usuarios</h1>
+</section>
+
+@if (error) { <p class="error">{{ error }}</p> }
+@if (ok) { <p class="ok">{{ ok }}</p> }
+
+<form class="alta" (ngSubmit)="crear()">
+  <label>Usuario
+    <input [(ngModel)]="form.usuario" name="usuario" required placeholder="ej. maria" autocomplete="off" />
+  </label>
+  <label>Contraseña
+    <input [(ngModel)]="form.password" name="password" type="password" required autocomplete="new-password" />
+  </label>
+  <label>Rol
+    <select [(ngModel)]="form.rol" name="rol">
+      <option value="USER">USER</option>
+      <option value="ADMIN">ADMIN</option>
+    </select>
+  </label>
+  <button type="submit" [disabled]="cargando">Crear usuario</button>
+</form>
+
+<div class="lista-scroll">
+  <div class="tabla-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Usuario</th>
+          <th>Rol</th>
+          <th>Estado</th>
+          <th>Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (u of items; track u.id) {
+          <tr [class.inactivo]="!u.activo">
+            <td>{{ u.usuario }}</td>
+            <td>
+              <select [ngModel]="u.rol" (ngModelChange)="cambiarRol(u, $event)" [name]="'rol-' + u.id">
+                <option value="USER">USER</option>
+                <option value="ADMIN">ADMIN</option>
+              </select>
+            </td>
+            <td>{{ u.activo ? 'Activo' : 'Inactivo' }}</td>
+            <td>
+              <div class="acciones">
+                <button type="button" class="secundario" (click)="abrirReset(u)">Nueva clave</button>
+                <button type="button" class="secundario" (click)="toggleActivo(u)">
+                  {{ u.activo ? 'Desactivar' : 'Activar' }}
+                </button>
+              </div>
+            </td>
+          </tr>
+          @if (resetId === u.id) {
+            <tr class="reset-row">
+              <td colspan="4">
+                <form class="reset" (ngSubmit)="guardarPassword(u)">
+                  <label>Nueva contraseña para {{ u.usuario }}
+                    <input
+                      type="password"
+                      [(ngModel)]="resetPassword"
+                      name="resetPassword"
+                      required
+                      autocomplete="new-password"
+                    />
+                  </label>
+                  <button type="submit" [disabled]="cargando">Guardar clave</button>
+                  <button type="button" class="secundario" (click)="resetId = null">Cancelar</button>
+                </form>
+              </td>
+            </tr>
+          }
+        } @empty {
+          <tr><td colspan="4" class="vacio">No hay usuarios.</td></tr>
+        }
+      </tbody>
+    </table>
+  </div>
+</div>

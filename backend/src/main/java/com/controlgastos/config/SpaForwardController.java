@@ -8,13 +8,15 @@ public class SpaForwardController {
 
     @GetMapping(value = {
             "/",
+            "/login",
             "/resumen",
             "/ingresos",
             "/gastos",
             "/mensuales",
             "/cuentas",
             "/cuentas/**",
-            "/saldo"
+            "/saldo",
+            "/usuarios"
     })
     public String forwardSpa() {
         return "forward:/index.html";

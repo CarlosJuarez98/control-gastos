@@ -71,3 +71,10 @@ export interface Denominacion {
   valor: number;
   cantidad: number;
 }
+
+export interface UsuarioAcceso {
+  id: number;
+  usuario: string;
+  rol: 'ADMIN' | 'USER' | string;
+  activo: boolean;
+}

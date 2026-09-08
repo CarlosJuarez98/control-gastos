@@ -2,7 +2,7 @@ import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import {
-  Cuenta, Denominacion, Gasto, GastoMensual, Ingreso, Movimiento, Resumen, SaldoSnapshot
+  Cuenta, Denominacion, Gasto, GastoMensual, Ingreso, Movimiento, Resumen, SaldoSnapshot, UsuarioAcceso
 } from './modelos';
 
 @Injectable({ providedIn: 'root' })
@@ -112,5 +112,25 @@ export class ApiService {
 
   guardarDenominaciones(items: Denominacion[]): Observable<Denominacion[]> {
     return this.http.put<Denominacion[]>(`${this.base}/saldo/denominaciones`, items);
+  }
+
+  usuarios(): Observable<UsuarioAcceso[]> {
+    return this.http.get<UsuarioAcceso[]>(`${this.base}/usuarios`);
+  }
+
+  crearUsuario(body: { usuario: string; password: string; rol?: string }): Observable<UsuarioAcceso> {
+    return this.http.post<UsuarioAcceso>(`${this.base}/usuarios`, body);
+  }
+
+  cambiarPasswordUsuario(id: number, password: string): Observable<UsuarioAcceso> {
+    return this.http.put<UsuarioAcceso>(`${this.base}/usuarios/${id}/password`, { password });
+  }
+
+  cambiarActivoUsuario(id: number, activo: boolean): Observable<UsuarioAcceso> {
+    return this.http.put<UsuarioAcceso>(`${this.base}/usuarios/${id}/activo`, { activo });
+  }
+
+  cambiarRolUsuario(id: number, rol: string): Observable<UsuarioAcceso> {
+    return this.http.put<UsuarioAcceso>(`${this.base}/usuarios/${id}/rol`, { rol });
   }
 }

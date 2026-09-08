@@ -17,12 +17,17 @@ public class DenominacionEfectivo {
     @Column(nullable = false)
     private int cantidad;
 
+    @Column(name = "PROPIETARIO", length = 80)
+    private String propietario;
+
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
     public BigDecimal getValor() { return valor; }
     public void setValor(BigDecimal valor) { this.valor = valor; }
     public int getCantidad() { return cantidad; }
     public void setCantidad(int cantidad) { this.cantidad = cantidad; }
+    public String getPropietario() { return propietario; }
+    public void setPropietario(String propietario) { this.propietario = propietario; }
 
     public BigDecimal getSubtotal() {
         return valor.multiply(BigDecimal.valueOf(cantidad));

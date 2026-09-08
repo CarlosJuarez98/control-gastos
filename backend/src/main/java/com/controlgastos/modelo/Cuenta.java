@@ -11,7 +11,7 @@ public class Cuenta {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, unique = true, length = 120)
+    @Column(nullable = false, length = 120)
     private String nombre;
 
     @Column(nullable = false, length = 40)
@@ -19,6 +19,9 @@ public class Cuenta {
 
     @Column(nullable = false, precision = 14, scale = 2)
     private BigDecimal saldoActual = BigDecimal.ZERO;
+
+    @Column(name = "PROPIETARIO", length = 80)
+    private String propietario;
 
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
@@ -28,4 +31,6 @@ public class Cuenta {
     public void setTipo(String tipo) { this.tipo = tipo; }
     public BigDecimal getSaldoActual() { return saldoActual; }
     public void setSaldoActual(BigDecimal saldoActual) { this.saldoActual = saldoActual; }
+    public String getPropietario() { return propietario; }
+    public void setPropietario(String propietario) { this.propietario = propietario; }
 }
