@@ -16,6 +16,14 @@ Opcional: `docker-compose.cloud.yml` (Oracle XE en Docker) solo tiene sentido en
 2. Confirma login y datos multi-usuario.
 3. Prepara un wallet ATP y un `.env.cloud` (nunca lo subas a git).
 
+## Flujo de trabajo (local primero)
+
+1. Trabajas solo en **local**.
+2. Cuando indiques **“sube a la nube”**:
+   - se redespliega código **si cambió**
+   - se sincronizan **solo datos nuevos** (incremental) → ver `SYNC-DATOS.md`
+3. La nube no se toca hasta que lo pidas.
+
 ## Multi-usuario
 
 - Cada usuario ve **solo sus datos** (ingresos, gastos, cuentas, saldos).
