@@ -2,6 +2,15 @@
 
 Objetivo: abrir la app desde cualquier lugar (celular / otra red) sin dejar la PC encendida.
 
+## Ramas git (local / 
+ube)
+
+Ver **`BRANCHES.md`**.
+
+- Desarrollo diario en la rama **`local`**.
+- Deploy a OCI desde la rama **`nube`**.
+- Al decir **"sube a la nube"**: merge `local` → `nube`, luego deploy/sync desde `nube`.
+
 ## Realidad en Ampere (ARM)
 
 Las VMs **Always Free Ampere A1** son **ARM**. La imagen Docker de **Oracle XE** (`gvenzl/oracle-xe`) es **amd64** y **no corre bien** (o no corre) en Ampere.
@@ -79,27 +88,17 @@ docker compose -f docker-compose.cloud-atp.yml ps
 docker logs -f control-gastos-api
 ```
 
-App (HTTPS): `https://163.192.146.143.sslip.io/`  
-App (HTTP directo, opcional): `http://TU_IP:8081/`  
+App: `http://TU_IP:8081/`  
 Login: usuario de `.env.cloud` (por defecto documentado como `admin`).
 
-## 4) HTTPS (Caddy + sslip.io, gratis)
-
-Ya incluido en `docker-compose.cloud-atp.yml` + `Caddyfile`.
-
-1. En la VCN / Security List abre **80** y **443** (entrada).
-2. En `.env.cloud`:
+En `.env.cloud` (HTTP):
 
 ```bash
-APP_CORS_ALLOWED_ORIGINS=https://163.192.146.143.sslip.io,http://163.192.146.143:8081
-SERVER_SERVLET_SESSION_COOKIE_SECURE=true
+APP_CORS_ALLOWED_ORIGINS=http://TU_IP:8081
+SERVER_SERVLET_SESSION_COOKIE_SECURE=false
 ```
 
-3. `docker compose -f docker-compose.cloud-atp.yml --env-file .env.cloud up -d --build`
-
-Si cambia la IP pública, edita `Caddyfile` y CORS.
-
-## 5) Opción amd64 + Oracle XE (opcional)
+## 4) Opción amd64 + Oracle XE (opcional)
 
 Si la VM es **x86_64** y quieres Oracle en Docker:
 
@@ -114,4 +113,3 @@ Ese compose usa variables `ORACLE_*` (ver historial / `.env` local). En Ampere A
 - No subas `.env.cloud`, `wallet/` ni `Wallet*.zip` a git
 - No abras puertos de base de datos a internet
 - Cambia todas las contraseñas antes de producción
-- Usa HTTPS cuanto antes
