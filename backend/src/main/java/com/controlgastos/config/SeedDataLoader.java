@@ -53,11 +53,12 @@ public class SeedDataLoader implements ApplicationRunner {
     }
 
     private Optional<Cuenta> buscarCuentaAdmin(String nombre) {
-        Optional<Cuenta> admin = cuentaRepository.findByPropietarioAndNombreIgnoreCase("admin", nombre);
-        if (admin.isPresent()) {
-            return admin;
+        for (String dueño : new String[] { "Carlos", "admin" }) {
+            Optional<Cuenta> c = cuentaRepository.findByPropietarioAndNombreIgnoreCase(dueño, nombre);
+            if (c.isPresent()) {
+                return c;
+            }
         }
-        // Por si el migrator aún no corrió o hay filas sin dueño
         return cuentaRepository.findByPropietarioAndNombreIgnoreCase(null, nombre);
     }
 }

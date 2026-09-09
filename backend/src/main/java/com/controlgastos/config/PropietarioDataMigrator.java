@@ -10,8 +10,12 @@ import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.controlgastos.modelo.UsuarioAcceso;
+import com.controlgastos.repositorio.UsuarioAccesoRepository;
+
 /**
- * Asigna filas sin propietario al usuario admin (datos previos a multi-usuario).
+ * Dueño de filas sin propietario = primer ADMIN activo de CG_USUARIO (tabla Usuarios).
+ * También remapea el legado {@code admin} → ese ADMIN (p. ej. Carlos) cuando ya no hay login "admin".
  */
 @Component
 @Order(1)
@@ -29,22 +33,60 @@ public class PropietarioDataMigrator implements ApplicationRunner {
             "CG_DENOMINACION"
     };
 
+    private final UsuarioAccesoRepository usuarioAccesoRepository;
+
     @PersistenceContext
     private EntityManager entityManager;
+
+    public PropietarioDataMigrator(UsuarioAccesoRepository usuarioAccesoRepository) {
+        this.usuarioAccesoRepository = usuarioAccesoRepository;
+    }
 
     @Override
     @Transactional
     public void run(ApplicationArguments args) {
-        int total = 0;
+        String dueño = resolverDueñoPorDefecto();
+        if (dueño == null) {
+            return;
+        }
+
+        int sinDueño = 0;
         for (String tabla : TABLAS) {
-            total += entityManager.createNativeQuery(
-                    "UPDATE " + tabla
-                            + " SET PROPIETARIO = 'admin'"
-                            + " WHERE PROPIETARIO IS NULL OR PROPIETARIO = ''")
+            sinDueño += entityManager.createNativeQuery(
+                            "UPDATE " + tabla
+                                    + " SET PROPIETARIO = :p"
+                                    + " WHERE PROPIETARIO IS NULL OR PROPIETARIO = ''")
+                    .setParameter("p", dueño)
                     .executeUpdate();
         }
-        if (total > 0) {
-            log.info("Propietario asignado a admin en {} filas sin dueño", total);
+        if (sinDueño > 0) {
+            log.info("Propietario '{}' asignado a {} filas sin dueño", dueño, sinDueño);
         }
+
+        // admin y Carlos son la misma persona si el login semilla ya se renombró
+        boolean existeLoginAdmin = usuarioAccesoRepository.findByUsuarioIgnoreCase("admin").isPresent();
+        if (!existeLoginAdmin && !"admin".equalsIgnoreCase(dueño)) {
+            int remapeadas = 0;
+            for (String tabla : TABLAS) {
+                remapeadas += entityManager.createNativeQuery(
+                                "UPDATE " + tabla
+                                        + " SET PROPIETARIO = :nuevo"
+                                        + " WHERE PROPIETARIO = 'admin'")
+                        .setParameter("nuevo", dueño)
+                        .executeUpdate();
+            }
+            if (remapeadas > 0) {
+                log.info("Remapeado propietario legado 'admin' → '{}' en {} filas", dueño, remapeadas);
+            }
+        }
+    }
+
+    private String resolverDueñoPorDefecto() {
+        return usuarioAccesoRepository.findAll().stream()
+                .filter(UsuarioAcceso::isActivo)
+                .filter(UsuarioAcceso::esAdmin)
+                .map(UsuarioAcceso::getUsuario)
+                .findFirst()
+                .orElse(null);
     }
 }

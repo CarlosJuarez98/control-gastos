@@ -10,6 +10,14 @@
   margin-bottom: 0.85rem;
 }
 
+.cab .hint {
+  margin: 0.35rem 0 0;
+  color: var(--texto-suave);
+  font-size: 0.9rem;
+  max-width: 40rem;
+  line-height: 1.35;
+}
+
 .alta, .reset {
   flex: 0 0 auto;
   display: grid;

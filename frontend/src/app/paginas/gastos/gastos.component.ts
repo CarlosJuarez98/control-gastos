@@ -61,7 +61,7 @@ export class GastosComponent implements OnInit {
   categorias = ['Yo', 'Familia', 'Vehiculos', 'Casa', 'Mama', 'Otro'];
   filtro = '';
   /** total = todas las quincenas; quincena = solo la actual. */
-  vista: 'total' | 'quincena' = 'total';
+  vista: 'total' | 'quincena' = 'quincena';
   error = '';
   editandoId: number | null = null;
   guardando = false;
