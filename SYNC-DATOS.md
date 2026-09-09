@@ -1,43 +1,44 @@
-# Sync de datos local → nube (rápido)
+# Sync de datos — Control de gastos
 
-## Acuerdo de trabajo
+## Usuarios = dueños de los datos
 
-1. Desarrollas y registras en **local**.
-2. Cuando digas **“sube a la nube”**, se sube:
-   - **código** (solo si cambió; Docker usa caché → más rápido)
-   - **datos nuevos** (incremental, no toda la BD)
+La pantalla **Usuarios** (`CG_USUARIO`) es la lista de logins.
+El **nombre de usuario** (ej. `Carlos`, `Mon`) es el `PROPIETARIO` de gastos/ingresos/deudas.
 
-## Sync incremental (por defecto)
+`admin` era solo la semilla antigua: **Carlos = el mismo dueño**. Al bajar de la nube deben aparecer `Carlos` y `Mon`, no `admin`.
 
-Solo filas con `ID` mayor al máximo que ya existe en la nube (por tabla, dueño `admin`).
+## Direcciones
 
-| Incluye | No incluye (por defecto) |
-|---------|---------------------------|
-| Gastos / ingresos / cuentas nuevos | Edits a filas viejas ya migradas |
-| | Borrados en local |
-| | Usuarios de login (`CG_USUARIO`) |
+| Acción | Script | Dirección |
+|--------|--------|-----------|
+| **Sube a la nube** | `scripts\sync-datos-incremental.ps1` | Local → ATP |
+| **Baja de la nube** | `scripts\sync-datos-desde-nube.ps1` | ATP → Local (+ tabla Usuarios) |
 
-Si editaste registros viejos y quieres reflejarlos: di **“sube datos completos”**.
+Convenio: `A:\Programas-java\SYNC-BIDIRECCIONAL.md`.
 
-## Por qué es rápido
+## Incremental (por defecto)
 
-- ~segundos si solo hay decenas/cientos de filas nuevas
-- No reenvía los ~1000+ gastos históricos cada vez
-- Rebuild Docker solo cuando cambió código
+Solo filas con `ID` mayor al máximo del destino (dueño = `-Propietario`, default `Carlos`).
 
-## Script
+| Incluye | No incluye |
+|---------|------------|
+| Datos nuevos del propietario | Edits a filas ya migradas / borrados |
+| Al bajar: merge de `CG_USUARIO` | |
+
+`-Full` = reexporta desde id 0.
+
+## Comandos
 
 ```powershell
 cd A:\Programas-java\control-gastos
-powershell -ExecutionPolicy Bypass -File .\scripts\sync-datos-incremental.ps1
+# Docker Desktop + oracle-control-gastos healthy
+
+# Subir (Carlos)
+powershell -ExecutionPolicy Bypass -File .\scripts\sync-datos-incremental.ps1 -WalletPassword 'WalletPass2798Aa'
+
+# Bajar (usuarios + datos de Carlos)
+powershell -ExecutionPolicy Bypass -File .\scripts\sync-datos-desde-nube.ps1 -WalletPassword 'WalletPass2798Aa'
+
+# Otro usuario
+powershell -ExecutionPolicy Bypass -File .\scripts\sync-datos-desde-nube.ps1 -WalletPassword 'WalletPass2798Aa' -Propietario Mon
 ```
-
-Modo completo:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\sync-datos-incremental.ps1 -Full
-```
-
-Requisitos: Docker local (`oracle-control-gastos`), SSH a la VM, wallet ATP en `~/control-gastos/wallet`.
-
-Estado local del último sync: `_migrate/sync-state.json` (no va a git).

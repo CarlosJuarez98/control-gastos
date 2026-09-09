@@ -46,7 +46,7 @@ export class IngresosComponent implements OnInit {
     monto: '',
   };
   filtro = '';
-  vista: 'total' | 'quincena' = 'total';
+  vista: 'total' | 'quincena' = 'quincena';
   error = '';
   editandoId: number | null = null;
   guardando = false;
