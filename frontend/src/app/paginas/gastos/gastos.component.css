@@ -136,6 +136,12 @@ button.total-btn.activo {
   font-size: 0.88rem;
   color: var(--texto-suave);
 }
+.alta-acciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
 .error { flex: 0 0 auto; color: var(--peligro); margin: 0 0 0.5rem; }
 
 .lista-scroll {
@@ -241,6 +247,10 @@ button.quincena-cab:hover {
   border-bottom: none;
 }
 
+.items-lista > li.editando {
+  background: color-mix(in srgb, var(--acento) 10%, transparent);
+}
+
 .item-meta {
   display: flex;
   justify-content: space-between;
@@ -288,8 +298,15 @@ button.quincena-cab:hover {
 }
 
 .acciones {
-  text-align: right;
+  display: flex;
+  gap: 0.25rem;
+  justify-content: flex-end;
   white-space: nowrap;
+  flex-shrink: 0;
+}
+
+tr.editando td {
+  background: color-mix(in srgb, var(--acento) 8%, transparent);
 }
 
 .vacio {
@@ -357,7 +374,8 @@ button:disabled { opacity: 0.65; cursor: not-allowed; transform: none; filter: n
     box-sizing: border-box;
   }
   .alta label { min-width: 0; width: 100%; }
-  .alta > button { width: 100%; }
+  .alta-acciones { width: 100%; }
+  .alta-acciones button { flex: 1 1 auto; width: 100%; }
   .buscar { max-width: none; width: 100%; }
   .quincena-tit {
     flex-direction: column;
@@ -396,7 +414,8 @@ button:disabled { opacity: 0.65; cursor: not-allowed; transform: none; filter: n
   .cab, .alta { margin-bottom: 0.45rem; gap: 0.45rem; }
   .alta { padding: 0.55rem 0.7rem; flex-direction: column; align-items: stretch; }
   .alta label { min-width: 0; width: 100%; }
-  .alta > button { width: 100%; }
+  .alta-acciones { width: 100%; }
+  .alta-acciones button { width: 100%; }
   .totales .total-btn { padding: 0.4rem 0.65rem; }
   .totales strong {
     font-size: clamp(0.75rem, 2.8vw, 0.95rem);
