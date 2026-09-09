@@ -1,14 +1,17 @@
 .shell {
   max-width: 1120px;
   margin: 0 auto;
-  padding: 1rem 1.25rem 1rem;
+  padding:
+    max(1rem, env(safe-area-inset-top))
+    max(1.25rem, env(safe-area-inset-right))
+    max(1rem, env(safe-area-inset-bottom))
+    max(1.25rem, env(safe-area-inset-left));
   height: 100dvh;
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
-  animation: entrar 0.55s ease both;
+  animation: entrar var(--dur-lenta) var(--ease-out) both;
   position: relative;
-  touch-action: pan-y;
 }
 
 .pull-refresh {
@@ -22,6 +25,8 @@
   font-size: 0.82rem;
   font-weight: 600;
   transition: color 0.15s ease;
+  position: relative;
+  z-index: 5;
 }
 
 .pull-refresh.listo {
@@ -34,53 +39,83 @@
 
 .top {
   flex: 0 0 auto;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.75rem 1.5rem;
-  align-items: flex-end;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-areas:
+    "brand acciones"
+    "nav nav";
+  gap: 0.65rem 1rem;
+  align-items: center;
   margin-bottom: 1rem;
   padding-bottom: 0.85rem;
   border-bottom: 1px solid var(--linea);
+  animation: entrar var(--dur-media) var(--ease-out) 0.06s both;
 }
+
+.brand { grid-area: brand; min-width: 0; }
+.acciones { grid-area: acciones; }
+nav { grid-area: nav; }
 
 .brand-mark {
   font-family: var(--fuente-display);
-  font-size: clamp(1.55rem, 2.8vw, 2.1rem);
+  font-size: clamp(1.35rem, 2.8vw, 2.1rem);
   font-weight: 800;
   margin: 0;
   color: var(--texto);
   letter-spacing: -0.04em;
 }
 
-nav {
+.acciones {
   display: flex;
   flex-wrap: wrap;
+  gap: 0.4rem;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+nav {
+  display: flex;
+  flex-wrap: nowrap;
   gap: 0.35rem;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  padding-bottom: 0.1rem;
+  margin: 0 -0.15rem;
+  padding-inline: 0.15rem;
+}
+
+nav::-webkit-scrollbar {
+  display: none;
 }
 
 nav a {
-  padding: 0.4rem 0.75rem;
+  flex: 0 0 auto;
+  padding: 0.45rem 0.8rem;
   border-radius: 0.55rem;
   color: var(--texto-suave);
   font-weight: 600;
   font-size: 0.9rem;
-  transition: background 0.2s ease, color 0.2s ease;
+  white-space: nowrap;
+  transition:
+    background var(--dur-rapida) ease,
+    color var(--dur-rapida) ease,
+    transform var(--dur-rapida) var(--ease-out),
+    box-shadow var(--dur-rapida) ease;
 }
 
 nav a:hover { color: var(--texto); background: rgba(255,255,255,0.04); }
 nav a.activo {
   color: #06241c;
   background: var(--acento);
+  box-shadow: 0 6px 18px color-mix(in srgb, var(--acento) 28%, transparent);
 }
 
 .sesion {
   display: inline-flex;
   align-items: baseline;
   gap: 0.4rem;
-  align-self: center;
-  margin-left: 0.25rem;
-  padding: 0.35rem 0.65rem;
+  padding: 0.4rem 0.65rem;
   border-radius: 0.55rem;
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid var(--linea);
@@ -113,7 +148,6 @@ nav a.activo {
 button.salir {
   padding: 0.4rem 0.75rem;
   font-size: 0.85rem;
-  align-self: center;
 }
 
 .perfil-backdrop {
@@ -121,7 +155,7 @@ button.salir {
   inset: 0;
   background: rgba(0, 0, 0, 0.45);
   z-index: 40;
-  animation: entrar 0.2s ease both;
+  animation: fade-in 0.22s ease both;
 }
 
 .perfil-panel {
@@ -137,7 +171,7 @@ button.salir {
   padding: 1.15rem 1.2rem 1.25rem;
   box-shadow: var(--sombra);
   backdrop-filter: blur(10px);
-  animation: entrar 0.25s ease both;
+  animation: panel-pop 0.3s var(--ease-out) both;
 }
 
 .perfil-cab {
@@ -180,7 +214,18 @@ button.salir {
 .perfil-panel .ok { color: var(--ok); margin: 0 0 0.5rem; }
 
 .shell-login .top { display: none; }
-.shell-login { max-width: none; }
+.shell-login {
+  max-width: none;
+  padding:
+    max(0.35rem, env(safe-area-inset-top))
+    0
+    0
+    0;
+}
+
+.shell-login .pull-refresh {
+  margin: 0 0 0.15rem;
+}
 
 main {
   flex: 1 1 auto;
@@ -197,6 +242,12 @@ main > *:not(router-outlet) {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  animation: pagina-entrar var(--dur-lenta) var(--ease-out) both;
+}
+
+@keyframes pagina-entrar {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: none; }
 }
 
 @keyframes entrar {
@@ -204,7 +255,141 @@ main > *:not(router-outlet) {
   to { opacity: 1; transform: none; }
 }
 
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes panel-pop {
+  from { opacity: 0; transform: translate(-50%, -46%) scale(0.96); }
+  to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+
+@media (min-width: 900px) {
+  .top {
+    grid-template-columns: auto 1fr auto;
+    grid-template-areas: "brand nav acciones";
+    align-items: flex-end;
+    gap: 0.75rem 1.25rem;
+  }
+
+  nav {
+    justify-content: flex-end;
+    overflow: visible;
+    flex-wrap: wrap;
+    margin: 0;
+    padding-inline: 0;
+  }
+}
+
 @media (max-width: 720px) {
-  .shell { height: 100dvh; padding: 0.75rem 0.85rem; }
-  .top { align-items: flex-start; }
+  .shell {
+    height: 100dvh;
+    padding:
+      max(0.65rem, env(safe-area-inset-top))
+      max(0.75rem, env(safe-area-inset-right))
+      max(0.65rem, env(safe-area-inset-bottom))
+      max(0.75rem, env(safe-area-inset-left));
+  }
+
+  .top {
+    gap: 0.45rem 0.75rem;
+    margin-bottom: 0.65rem;
+    padding-bottom: 0.55rem;
+  }
+
+  .brand-mark {
+    font-size: 1.15rem;
+  }
+
+  nav a {
+    padding: 0.5rem 0.75rem;
+    min-height: 2.4rem;
+    display: inline-flex;
+    align-items: center;
+  }
+
+  .sesion,
+  button.salir {
+    min-height: 2.4rem;
+  }
+
+  .perfil-panel {
+    top: auto;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    transform: none;
+    width: 100%;
+    max-width: none;
+    border-radius: 1.1rem 1.1rem 0 0;
+    padding-bottom: max(1.25rem, env(safe-area-inset-bottom));
+    animation: subir-panel 0.28s ease both;
+  }
+}
+
+/* Teléfono en horizontal: cabecera compacta para ganar alto útil */
+@media (orientation: landscape) and (max-height: 520px) {
+  .shell {
+    padding:
+      max(0.35rem, env(safe-area-inset-top))
+      max(0.75rem, env(safe-area-inset-right))
+      max(0.35rem, env(safe-area-inset-bottom))
+      max(0.75rem, env(safe-area-inset-left));
+  }
+
+  .top {
+    grid-template-columns: auto 1fr auto;
+    grid-template-areas: "brand nav acciones";
+    align-items: center;
+    gap: 0.35rem 0.65rem;
+    margin-bottom: 0.4rem;
+    padding-bottom: 0.4rem;
+  }
+
+  .brand-mark {
+    font-size: 1rem;
+  }
+
+  nav {
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+  }
+
+  nav a {
+    padding: 0.35rem 0.6rem;
+    min-height: 2rem;
+    font-size: 0.82rem;
+  }
+
+  .sesion,
+  button.salir {
+    min-height: 2rem;
+    padding: 0.3rem 0.55rem;
+    font-size: 0.78rem;
+  }
+
+  .sesion-rol {
+    display: none;
+  }
+
+  .perfil-panel {
+    top: 50%;
+    bottom: auto;
+    left: 50%;
+    right: auto;
+    transform: translate(-50%, -50%);
+    width: min(100% - 1.5rem, 420px);
+    max-height: calc(100dvh - 1rem);
+    overflow: auto;
+    border-radius: 1rem;
+    padding-bottom: 1.15rem;
+    animation: entrar 0.25s ease both;
+  }
+}
+
+@keyframes subir-panel {
+  from { opacity: 0; transform: translateY(24px); }
+  to { opacity: 1; transform: none; }
 }

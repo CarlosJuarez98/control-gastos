@@ -132,12 +132,6 @@
   margin-bottom: 0.35rem;
 }
 
-.nota-panel {
-  margin: 0 0 1rem;
-  font-size: 0.8rem;
-  color: var(--texto-suave);
-}
-
 .cab-panel {
   display: flex;
   justify-content: space-between;
@@ -178,23 +172,20 @@
   border: 1px solid var(--linea);
 }
 
-.barra-v.fill {
+.barra-v.fill-v {
   width: 100%;
   min-height: 4px;
   border-radius: 0.75rem 0.75rem 0.25rem 0.25rem;
   transition: height 0.85s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-.barra-v.fill.ingresos {
-  background: linear-gradient(180deg, #5dce9a, #3dbea0 70%, #2a8f78);
+.barra-v.fill-v.ingresos {
+  background: var(--ok);
 }
 
-.barra-v.fill.gastos {
-  background: linear-gradient(180deg, #f0a45d, #e57373 80%);
-}
-
-.barra-v.fill.deuda {
-  background: linear-gradient(180deg, #6ea8fe, #4a7fd4 80%);
+.barra-v.fill-v.gastos,
+.barra-v.fill-v.deuda {
+  background: var(--peligro);
 }
 
 .etiqueta {
@@ -305,13 +296,16 @@
 
 .fill {
   height: 100%;
-  background: linear-gradient(90deg, var(--acento), color-mix(in srgb, var(--acento) 35%, var(--acento-2)));
   border-radius: 999px;
   transition: width 0.8s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
+.fill-deuda {
+  background: var(--peligro);
+}
+
 .fill-prestamista {
-  background: linear-gradient(90deg, var(--ok), color-mix(in srgb, var(--ok) 40%, var(--acento-2)));
+  background: var(--ok);
 }
 
 .ver-todas {
@@ -338,8 +332,31 @@
   .charts { grid-template-columns: 1fr; }
 }
 
-@media (max-width: 640px) {
+@media (max-width: 640px) and (orientation: portrait) {
   .metricas { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .donut-wrap { grid-template-columns: 1fr; justify-items: center; }
-  .leyenda { width: 100%; }
+  .leyenda {
+    width: 100%;
+    max-height: none;
+    overflow: visible;
+  }
+  .hero {
+    flex-wrap: wrap;
+    gap: 0.65rem;
+  }
+}
+
+@media (orientation: landscape) and (max-height: 520px) {
+  .metricas {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.45rem;
+  }
+  .charts {
+    grid-template-columns: 1fr 1fr;
+    gap: 0.55rem;
+  }
+  .panel { padding: 0.7rem; }
+  .leyenda {
+    max-height: min(28vh, 9rem);
+  }
 }

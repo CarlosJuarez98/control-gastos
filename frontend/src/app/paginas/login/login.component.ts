@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core';
+import { AfterViewInit, Component, ElementRef, ViewChild, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { AuthService } from '../../auth.service';
@@ -11,14 +11,21 @@ import { sha256Hex } from '../../password-digest';
   templateUrl: './login.component.html',
   styleUrl: './login.component.css',
 })
-export class LoginComponent {
+export class LoginComponent implements AfterViewInit {
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
 
-  usuario = 'admin';
+  @ViewChild('usuarioInput') usuarioInput?: ElementRef<HTMLInputElement>;
+
+  usuario = '';
   password = '';
   error = '';
   cargando = false;
+  verClave = false;
+
+  ngAfterViewInit(): void {
+    queueMicrotask(() => this.usuarioInput?.nativeElement.focus());
+  }
 
   async entrar(): Promise<void> {
     this.error = '';

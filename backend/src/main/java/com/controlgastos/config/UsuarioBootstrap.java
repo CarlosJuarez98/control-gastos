@@ -14,9 +14,13 @@ import com.controlgastos.modelo.UsuarioAcceso;
 import com.controlgastos.repositorio.UsuarioAccesoRepository;
 import com.controlgastos.seguridad.PasswordDigests;
 
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
+
 /**
- * Asegura el usuario admin inicial en Oracle.
- * Flujo: contraseña → SHA-256 → BCrypt. En CG_USUARIO solo se guarda el BCrypt.
+ * Semilla del primer admin solo si CG_USUARIO está vacía.
+ * Si el admin se renombra (p. ej. admin → Carlos), no se vuelve a crear al reiniciar.
+ * También limpia un "admin" fantasma recreado por versiones viejas del bootstrap.
  */
 @Component
 @Order(0)
@@ -24,8 +28,21 @@ public class UsuarioBootstrap implements ApplicationRunner {
 
     private static final Logger log = LoggerFactory.getLogger(UsuarioBootstrap.class);
 
+    private static final String[] TABLAS_PROPIETARIO = {
+            "CG_INGRESO",
+            "CG_GASTO",
+            "CG_GASTO_MENSUAL",
+            "CG_CUENTA",
+            "CG_MOVIMIENTO",
+            "CG_SALDO",
+            "CG_DENOMINACION"
+    };
+
     private final UsuarioAccesoRepository usuarioAccesoRepository;
     private final PasswordEncoder passwordEncoder;
+
+    @PersistenceContext
+    private EntityManager entityManager;
 
     @Value("${app.auth.username}")
     private String username;
@@ -43,23 +60,52 @@ public class UsuarioBootstrap implements ApplicationRunner {
     @Override
     @Transactional
     public void run(ApplicationArguments args) {
-        String digest = PasswordDigests.sha256Hex(passwordPlanoSemilla);
-        UsuarioAcceso usuario = usuarioAccesoRepository.findByUsuarioIgnoreCase(username)
-                .orElseGet(UsuarioAcceso::new);
-        boolean nuevo = usuario.getId() == null;
-        boolean cambiarHash = nuevo
-                || usuario.getPasswordHash() == null
-                || !passwordEncoder.matches(digest, usuario.getPasswordHash());
+        long existentes = usuarioAccesoRepository.count();
+        if (existentes > 0) {
+            limpiarSemillaFantasma();
+            log.info("CG_USUARIO ya tiene {} usuario(s); no se recrea la semilla '{}'",
+                    usuarioAccesoRepository.count(), username);
+            return;
+        }
 
+        String digest = PasswordDigests.sha256Hex(passwordPlanoSemilla);
+        UsuarioAcceso usuario = new UsuarioAcceso();
         usuario.setUsuario(username);
         usuario.setActivo(true);
         usuario.setRol(UsuarioAcceso.ROL_ADMIN);
-        if (cambiarHash) {
-            usuario.setPasswordHash(passwordEncoder.encode(digest));
-        }
+        usuario.setPasswordHash(passwordEncoder.encode(digest));
         usuarioAccesoRepository.save(usuario);
-        log.info(
-                "Usuario admin {} en CG_USUARIO (PASSWORD_HASH = BCrypt, no reversible)",
-                nuevo ? "creado" : (cambiarHash ? "actualizado" : "ok"));
+        log.info("Usuario admin semilla '{}' creado en CG_USUARIO (PASSWORD_HASH = BCrypt)", username);
+    }
+
+    /**
+     * Si quedó un usuario semilla (admin) vacío y ya hay otro admin activo
+     * (porque se renombró), lo elimina. No toca usuarios con datos.
+     */
+    private void limpiarSemillaFantasma() {
+        usuarioAccesoRepository.findByUsuarioIgnoreCase(username).ifPresent(seed -> {
+            boolean otroAdmin = usuarioAccesoRepository.findAll().stream()
+                    .filter(UsuarioAcceso::isActivo)
+                    .filter(UsuarioAcceso::esAdmin)
+                    .anyMatch(u -> !u.getId().equals(seed.getId()));
+            if (!otroAdmin || tieneDatos(seed.getUsuario())) {
+                return;
+            }
+            usuarioAccesoRepository.delete(seed);
+            log.info("Eliminado usuario semilla fantasma '{}' (sin datos; hay otro admin)", username);
+        });
+    }
+
+    private boolean tieneDatos(String propietario) {
+        for (String tabla : TABLAS_PROPIETARIO) {
+            Number n = (Number) entityManager.createNativeQuery(
+                    "SELECT COUNT(*) FROM " + tabla + " WHERE PROPIETARIO = :u")
+                    .setParameter("u", propietario)
+                    .getSingleResult();
+            if (n != null && n.longValue() > 0) {
+                return true;
+            }
+        }
+        return false;
     }
 }

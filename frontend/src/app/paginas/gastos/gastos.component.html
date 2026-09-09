@@ -1,9 +1,35 @@
 <section class="cab">
   <div>
-    <h1>Gastos adicionales</h1>
-    <p>Total {{ total | currency:'MXN':'symbol-narrow':'1.2-2' }}</p>
+    <h1>Gastos</h1>
+    <div class="totales" role="group" aria-label="Vista de gastos">
+      <button
+        type="button"
+        class="total-btn"
+        [class.activo]="vista === 'total'"
+        (click)="seleccionarVista('total')"
+      >
+        <span>Total</span>
+        <strong class="mono neg">{{ total | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
+      </button>
+      <button
+        type="button"
+        class="total-btn actual"
+        [class.activo]="vista === 'quincena'"
+        (click)="seleccionarVista('quincena')"
+      >
+        <span>Esta quincena</span>
+        <strong class="mono neg">{{ totalQuincenaActual | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
+        <small>{{ etiquetaQuincenaActual }}</small>
+      </button>
+    </div>
   </div>
-  <input class="buscar" [(ngModel)]="filtro" placeholder="Filtrar categoría, motivo o pago…" />
+  <input
+    class="buscar"
+    [ngModel]="filtro"
+    (ngModelChange)="alFiltrar($event)"
+    name="filtroGastos"
+    placeholder="Filtrar categoría, motivo o pago…"
+  />
 </section>
 
 @if (error) { <p class="error">{{ error }}</p> }
@@ -59,22 +85,72 @@
   <p class="hint-pago">Se registrará el gasto y un <strong>cargo</strong> en la TDC elegida.</p>
 }
 
-<div class="tabla-wrap">
-  <table>
-    <thead>
-      <tr><th>Fecha</th><th>Categoría</th><th>Motivo</th><th>Pago</th><th>Monto</th><th></th></tr>
-    </thead>
-    <tbody>
-      @for (g of filtrados; track g.id) {
-        <tr>
-          <td>{{ g.fecha | date:'dd/MM/yyyy' }}</td>
-          <td>{{ g.categoria }}</td>
-          <td>{{ g.motivo }}</td>
-          <td>{{ etiquetaPago(g) }}</td>
-          <td class="mono neg">{{ g.monto | currency:'MXN':'symbol-narrow':'1.2-2' }}</td>
-          <td><button type="button" class="peligro" (click)="eliminar(g.id)">Borrar</button></td>
-        </tr>
+<div class="lista-scroll">
+  @for (grupo of grupos; track grupo.clave) {
+    <section class="quincena" [class.abierta]="grupo.abierta">
+      <button
+        type="button"
+        class="quincena-cab"
+        (click)="toggleGrupo(grupo.clave)"
+        [attr.aria-expanded]="grupo.abierta"
+      >
+        <span class="quincena-tit">
+          <span class="chev" aria-hidden="true">{{ grupo.abierta ? '▾' : '▸' }}</span>
+          <h2>{{ grupo.etiqueta }}</h2>
+          <small>{{ grupo.cuantos }} {{ grupo.cuantos === 1 ? 'gasto' : 'gastos' }}</small>
+        </span>
+        <strong class="mono neg">{{ grupo.totalTxt }}</strong>
+      </button>
+      @if (grupo.abierta) {
+        <ul class="items-lista">
+          @for (g of grupo.items; track g.id) {
+            <li>
+              <div class="item-meta">
+                <span>{{ g.fechaTxt }}</span>
+                <span class="item-tag">{{ g.categoria }} · {{ g.pago }}</span>
+              </div>
+              @if (g.motivo) {
+                <p class="item-motivo">{{ g.motivo }}</p>
+              }
+              <div class="item-fila">
+                <strong class="mono neg">{{ g.montoTxt }}</strong>
+                <button type="button" class="icono peligro" title="Borrar" aria-label="Borrar" (click)="eliminar(g.id)">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                  </svg>
+                </button>
+              </div>
+            </li>
+          }
+        </ul>
+        <div class="tabla-wrap">
+          <table>
+            <thead>
+              <tr><th>Fecha</th><th>Categoría</th><th>Motivo</th><th>Pago</th><th>Monto</th><th></th></tr>
+            </thead>
+            <tbody>
+              @for (g of grupo.items; track g.id) {
+                <tr>
+                  <td>{{ g.fechaTxt }}</td>
+                  <td>{{ g.categoria }}</td>
+                  <td>{{ g.motivo }}</td>
+                  <td>{{ g.pago }}</td>
+                  <td class="mono neg">{{ g.montoTxt }}</td>
+                  <td class="acciones">
+                    <button type="button" class="icono peligro" title="Borrar" aria-label="Borrar" (click)="eliminar(g.id)">
+                      <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                      </svg>
+                    </button>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
       }
-    </tbody>
-  </table>
+    </section>
+  } @empty {
+    <p class="vacio">No hay gastos para mostrar.</p>
+  }
 </div>

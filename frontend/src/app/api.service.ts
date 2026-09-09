@@ -29,6 +29,10 @@ export class ApiService {
     return this.http.post<Ingreso>(`${this.base}/ingresos`, body);
   }
 
+  actualizarIngreso(id: number, body: Ingreso): Observable<Ingreso> {
+    return this.http.put<Ingreso>(`${this.base}/ingresos/${id}`, body);
+  }
+
   eliminarIngreso(id: number): Observable<void> {
     return this.http.delete<void>(`${this.base}/ingresos/${id}`);
   }
@@ -148,5 +152,9 @@ export class ApiService {
 
   cambiarRolUsuario(id: number, rol: string): Observable<UsuarioAcceso> {
     return this.http.put<UsuarioAcceso>(`${this.base}/usuarios/${id}/rol`, { rol });
+  }
+
+  eliminarUsuario(id: number): Observable<void> {
+    return this.http.delete<void>(`${this.base}/usuarios/${id}`);
   }
 }

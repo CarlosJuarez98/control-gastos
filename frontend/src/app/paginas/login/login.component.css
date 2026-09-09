@@ -1,71 +1,388 @@
 .login {
+  position: relative;
   min-height: 100%;
+  min-height: 100dvh;
   display: grid;
   place-items: center;
-  padding: 1rem;
-  animation: entrar 0.45s ease both;
+  align-content: center;
+  justify-items: center;
+  padding: max(1rem, env(safe-area-inset-top)) max(1rem, env(safe-area-inset-right))
+    max(1rem, env(safe-area-inset-bottom)) max(1rem, env(safe-area-inset-left));
+  overflow: hidden;
 }
 
-.card {
+.ambiente {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(2px);
+  will-change: transform, opacity;
+}
+
+.orb-a {
+  width: min(55vw, 420px);
+  height: min(55vw, 420px);
+  top: -12%;
+  left: -8%;
+  background: radial-gradient(circle, rgba(61, 190, 160, 0.35), transparent 68%);
+  animation: flotar-a 14s ease-in-out infinite alternate;
+}
+
+.orb-b {
+  width: min(48vw, 360px);
+  height: min(48vw, 360px);
+  right: -10%;
+  bottom: 8%;
+  background: radial-gradient(circle, rgba(61, 190, 160, 0.2), transparent 70%);
+  animation: flotar-b 18s ease-in-out infinite alternate;
+}
+
+.orb-c {
+  width: min(30vw, 220px);
+  height: min(30vw, 220px);
+  left: 42%;
+  top: 38%;
+  background: radial-gradient(circle, rgba(61, 190, 160, 0.12), transparent 72%);
+  animation: flotar-c 11s ease-in-out infinite alternate;
+}
+
+.peso {
+  position: absolute;
+  font-family: var(--fuente-display);
+  font-weight: 800;
+  color: var(--acento);
+  line-height: 1;
+  user-select: none;
+  pointer-events: none;
+}
+
+.peso.p1 {
+  top: 12%;
+  left: 8%;
+  font-size: clamp(2.5rem, 9vw, 4.5rem);
+  opacity: 0.11;
+  transform: rotate(-18deg);
+  animation: flotar-a 16s ease-in-out infinite alternate;
+}
+
+.peso.p2 {
+  top: 18%;
+  right: 10%;
+  font-size: clamp(1.8rem, 6vw, 3.2rem);
+  opacity: 0.08;
+  transform: rotate(12deg);
+  animation: flotar-b 20s ease-in-out infinite alternate;
+}
+
+.peso.p3 {
+  bottom: 16%;
+  left: 14%;
+  font-size: clamp(2rem, 7vw, 3.6rem);
+  opacity: 0.09;
+  transform: rotate(8deg);
+  animation: flotar-c 13s ease-in-out infinite alternate;
+}
+
+.peso.p4 {
+  bottom: 22%;
+  right: 16%;
+  font-size: clamp(1.5rem, 5vw, 2.6rem);
+  opacity: 0.07;
+  transform: rotate(-10deg);
+  animation: flotar-a 19s ease-in-out infinite alternate-reverse;
+}
+
+.peso.p5 {
+  top: 48%;
+  left: 4%;
+  font-size: clamp(1.2rem, 4vw, 2rem);
+  opacity: 0.06;
+  transform: rotate(22deg);
+  animation: flotar-b 15s ease-in-out infinite alternate;
+}
+
+.escena {
+  position: relative;
+  z-index: 1;
+  width: min(100%, 880px);
+  margin-inline: auto;
+  display: grid;
+  gap: 1.5rem;
+  align-items: center;
+  justify-items: center;
+}
+
+.hero {
   width: min(100%, 420px);
-  background: color-mix(in srgb, var(--superficie) 92%, transparent);
-  border: 1px solid var(--linea);
-  border-radius: 1rem;
-  padding: 1.5rem 1.35rem 1.35rem;
-  box-shadow: var(--sombra);
-  backdrop-filter: blur(8px);
+  text-align: center;
+  animation: entrar var(--dur-lenta) var(--ease-out) both;
 }
 
 .marca {
-  margin: 0 0 0.35rem;
+  margin: 0 0 0.55rem;
   font-family: var(--fuente-display);
   font-weight: 800;
-  font-size: 1.15rem;
-  letter-spacing: -0.03em;
-  color: var(--acento);
+  font-size: clamp(2.1rem, 7vw, 3.35rem);
+  line-height: 1.05;
+  letter-spacing: -0.045em;
+  color: var(--texto);
+  text-wrap: balance;
+  animation: marca-brillo 4.5s ease-in-out infinite;
+}
+
+.card {
+  position: relative;
+  width: min(100%, 420px);
+  justify-self: center;
+  background: color-mix(in srgb, var(--superficie) 88%, transparent);
+  border: 1px solid var(--linea);
+  border-radius: 1.1rem;
+  padding: 1.45rem 1.3rem 1.35rem;
+  box-shadow: var(--sombra);
+  backdrop-filter: blur(12px);
+  overflow: hidden;
+  animation: entrar var(--dur-lenta) var(--ease-out) 0.08s both;
+}
+
+.card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    120deg,
+    transparent 35%,
+    color-mix(in srgb, var(--acento) 10%, transparent) 50%,
+    transparent 65%
+  );
+  transform: translateX(-120%);
+  animation: card-shine 5.5s ease-in-out 1.2s infinite;
 }
 
 h1 {
-  margin-bottom: 0.35rem;
-  font-size: clamp(1.6rem, 4vw, 2rem);
+  margin: 0 0 0.35rem;
+  font-size: clamp(1.45rem, 3.5vw, 1.75rem);
+  color: var(--acento);
 }
 
 .hint {
-  margin-bottom: 1.25rem;
-  font-size: 0.95rem;
+  margin: 0 0 1.2rem;
+  font-size: 0.92rem;
 }
 
 form {
   display: grid;
-  gap: 0.85rem;
+  gap: 0.9rem;
 }
 
 label {
   display: grid;
-  gap: 0.35rem;
+  gap: 0.4rem;
   font-size: 0.85rem;
   font-weight: 600;
   color: var(--texto-suave);
+  animation: entrar 0.5s var(--ease-out) both;
+}
+
+label:nth-of-type(1) { animation-delay: 0.14s; }
+label:nth-of-type(2) { animation-delay: 0.2s; }
+
+.campo-clave {
+  position: relative;
+  display: grid;
+}
+
+.campo-clave input {
+  padding-right: 4.4rem;
+}
+
+.ver-clave {
+  position: absolute;
+  right: 0.35rem;
+  top: 50%;
+  transform: translateY(-50%);
+  padding: 0.35rem 0.55rem;
+  border-radius: 0.45rem;
+  background: transparent;
+  color: var(--texto-suave);
+  border: none;
+  font-size: 0.78rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.ver-clave:hover {
+  color: var(--texto);
+  background: rgba(255, 255, 255, 0.05);
+  filter: none;
+  transform: translateY(-50%);
 }
 
 .error {
   margin: 0;
   color: var(--peligro);
   font-size: 0.9rem;
+  animation: sacudir 0.35s ease;
 }
 
-button {
+.cta {
   width: 100%;
-  margin-top: 0.25rem;
+  margin-top: 0.15rem;
+  min-height: 2.75rem;
+  animation: entrar 0.5s var(--ease-out) 0.26s both;
+  box-shadow: 0 10px 28px color-mix(in srgb, var(--acento) 22%, transparent);
 }
 
-button:disabled {
-  opacity: 0.7;
+.cta:hover {
+  box-shadow: 0 14px 34px color-mix(in srgb, var(--acento) 32%, transparent);
+}
+
+.cta:disabled {
+  opacity: 0.72;
   transform: none;
   cursor: wait;
+  box-shadow: none;
 }
 
 @keyframes entrar {
-  from { opacity: 0; transform: translateY(10px); }
+  from { opacity: 0; transform: translateY(12px); }
   to { opacity: 1; transform: none; }
+}
+
+@keyframes sacudir {
+  0%, 100% { transform: none; }
+  25% { transform: translateX(-4px); }
+  75% { transform: translateX(4px); }
+}
+
+@keyframes flotar-a {
+  from { transform: translate(0, 0) scale(1); opacity: 0.85; }
+  to { transform: translate(8%, 10%) scale(1.08); opacity: 1; }
+}
+
+@keyframes flotar-b {
+  from { transform: translate(0, 0) scale(1); }
+  to { transform: translate(-10%, -8%) scale(1.12); }
+}
+
+@keyframes flotar-c {
+  from { transform: translate(0, 0); opacity: 0.5; }
+  to { transform: translate(-12%, 14%); opacity: 0.9; }
+}
+
+@keyframes marca-brillo {
+  0%, 100% { text-shadow: 0 0 0 transparent; }
+  50% { text-shadow: 0 0 28px color-mix(in srgb, var(--acento) 28%, transparent); }
+}
+
+@keyframes card-shine {
+  0%, 70%, 100% { transform: translateX(-120%); }
+  85% { transform: translateX(120%); }
+}
+
+@media (min-width: 820px) {
+  .escena {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 420px);
+    gap: 2.25rem;
+    align-items: center;
+    justify-content: center;
+    justify-items: stretch;
+  }
+
+  .hero {
+    width: auto;
+    max-width: 22rem;
+    justify-self: end;
+    text-align: right;
+  }
+
+  .card {
+    justify-self: start;
+    width: 100%;
+  }
+}
+
+@media (max-width: 819px) {
+  .login {
+    place-items: center;
+    align-content: center;
+  }
+
+  .escena {
+    width: min(100%, 420px);
+    gap: 1.15rem;
+  }
+
+  .marca {
+    font-size: clamp(1.85rem, 9vw, 2.45rem);
+  }
+
+  .card {
+    width: 100%;
+    padding: 1.25rem 1.1rem 1.2rem;
+  }
+
+  label input,
+  .campo-clave input {
+    min-height: 2.75rem;
+    font-size: 1rem;
+  }
+}
+
+@media (orientation: landscape) and (max-height: 520px) {
+  .login {
+    place-items: center;
+    align-content: center;
+    padding: max(0.5rem, env(safe-area-inset-top)) max(0.75rem, env(safe-area-inset-right))
+      max(0.5rem, env(safe-area-inset-bottom)) max(0.75rem, env(safe-area-inset-left));
+  }
+
+  .escena {
+    grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+    gap: 1rem;
+    width: min(100%, 780px);
+    justify-content: center;
+  }
+
+  .hero {
+    text-align: right;
+    justify-self: end;
+    max-width: 16rem;
+  }
+
+  .marca {
+    font-size: clamp(1.4rem, 5vh, 2rem);
+  }
+
+  .card {
+    padding: 0.9rem 1rem;
+    justify-self: start;
+  }
+
+  form { gap: 0.55rem; }
+
+  label input,
+  .campo-clave input,
+  .cta {
+    min-height: 2.35rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .orb,
+  .peso,
+  .hero,
+  .card,
+  .card::before,
+  .marca,
+  label,
+  .cta {
+    animation: none !important;
+  }
 }

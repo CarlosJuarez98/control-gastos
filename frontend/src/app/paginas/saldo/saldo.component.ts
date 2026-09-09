@@ -1,17 +1,18 @@
 import { Component, OnInit } from '@angular/core';
-import { CurrencyPipe, DatePipe } from '@angular/common';
+import { CurrencyPipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ApiService } from '../../api.service';
 import { ConfirmDialogService } from '../../confirm-dialog.service';
 import { Denominacion, SaldoSnapshot } from '../../modelos';
 import { formatDineroInput, formatDineroNumero, parseDinero, soloMontoKey } from '../../dinero.util';
+import { FechaCortaPipe, formatFechaCorta } from '../../fecha.util';
 
 type DigitalKey = 'dineroBbva' | 'dineroMercadoLibre' | 'dineroNu' | 'dineroDidi';
 
 @Component({
   selector: 'app-saldo',
   standalone: true,
-  imports: [FormsModule, CurrencyPipe, DatePipe],
+  imports: [FormsModule, CurrencyPipe, FechaCortaPipe],
   templateUrl: './saldo.component.html',
   styleUrl: './saldo.component.css',
 })
@@ -57,14 +58,17 @@ export class SaldoComponent implements OnInit {
   /** Saldo teórico según ingresos − gastos − abonos (no editable). */
   esperado = 0;
 
+  /** Últimos totales guardados (solo pista en el encabezado). */
+  ultimoTotalDigital = 0;
+  ultimoTotalEfectivo = 0;
+
   /** Base del último corte guardado (para recalcular al guardar). */
   private baselineSaldo = 0;
   private baselineFecha = '';
 
   /**
-   * Si false, el efectivo de “Tengo” usa totalFisico del último corte
-   * (las denominaciones pueden estar vacías o desfasadas).
-   * Pasa a true al contar billetes/monedas.
+   * Si false, aún no se contaron billetes en esta sesión:
+   * no pisar el último conteo guardado con ceros al guardar.
    */
   private conteoEfectivoActivo = false;
 
@@ -77,32 +81,18 @@ export class SaldoComponent implements OnInit {
     this.api.saldo().subscribe({
       next: (r) => {
         this.historial = r.historial ?? [];
-        if (r.saldo && Object.keys(r.saldo).length) {
-          this.baselineSaldo = this.n(r.saldo.saldoTotal);
-          this.baselineFecha = r.saldo.fecha || '';
-          this.aplicarRealDesdeCorte(r.saldo);
+        const corte = r.saldo && Object.keys(r.saldo).length ? r.saldo : null;
+        if (corte) {
+          this.baselineSaldo = this.n(corte.saldoTotal);
+          this.baselineFecha = corte.fecha || '';
+          this.recordarUltimosTotales(corte);
         } else {
           this.baselineSaldo = 0;
           this.baselineFecha = '';
-          this.saldo.fecha = this.hoy();
-          this.syncTextosDesdeSaldo();
+          this.ultimoTotalDigital = 0;
+          this.ultimoTotalEfectivo = 0;
         }
-        this.denominaciones = r.denominaciones?.length
-          ? r.denominaciones
-          : [
-              { valor: 1000, cantidad: 0 },
-              { valor: 500, cantidad: 0 },
-              { valor: 200, cantidad: 0 },
-              { valor: 100, cantidad: 0 },
-              { valor: 50, cantidad: 0 },
-              { valor: 20, cantidad: 0 },
-              { valor: 10, cantidad: 0 },
-              { valor: 5, cantidad: 0 },
-              { valor: 2, cantidad: 0 },
-              { valor: 1, cantidad: 0 },
-              { valor: 0.5, cantidad: 0 },
-            ];
-        this.sincronizarModoEfectivo();
+        this.iniciarFormularioVacio();
         if (r.esperado != null && Number.isFinite(Number(r.esperado))) {
           this.esperado = this.redondear(this.n(r.esperado));
           this.cargandoEsperado = false;
@@ -184,14 +174,7 @@ export class SaldoComponent implements OnInit {
   }
 
   get totalEfectivo(): number {
-    if (this.conteoEfectivoActivo) {
-      return this.sumaDenominaciones();
-    }
-    return this.n(this.saldo.totalFisico);
-  }
-
-  get usandoEfectivoDelCorte(): boolean {
-    return !this.conteoEfectivoActivo && this.n(this.saldo.totalFisico) > 0;
+    return this.sumaDenominaciones();
   }
 
   get totalDigital(): number {
@@ -203,15 +186,56 @@ export class SaldoComponent implements OnInit {
     );
   }
 
+  get hayCapturaDigital(): boolean {
+    return this.camposDigital.some((c) => !!(this.textosDigital[c.key] || '').trim());
+  }
+
+  get hayCapturaEfectivo(): boolean {
+    return this.conteoEfectivoActivo || this.denominaciones.some((d) => String(d.cantidad ?? '').trim() !== '');
+  }
+
+  /** Ya empezó a contar en esta sesión (apps o efectivo). */
+  get hayCaptura(): boolean {
+    return this.hayCapturaDigital || this.hayCapturaEfectivo;
+  }
+
+  /** Último corte del historial (más reciente). */
+  get ultimoCorte(): SaldoSnapshot | null {
+    return this.historial.length ? this.historial[0] : null;
+  }
+
+  /** Real del último corte guardado. */
+  get tuve(): number {
+    return this.ultimoCorte ? this.realDe(this.ultimoCorte) : 0;
+  }
+
   get real(): number {
     return this.redondear(this.totalEfectivo + this.totalDigital);
   }
 
+  /**
+   * Con captura: compara “Tengo”.
+   * Sin captura (Tengo en 0): compara “Tuve” del último corte.
+   */
+  get realComparacion(): number {
+    return this.hayCaptura ? this.real : this.tuve;
+  }
+
+  get usandoTuve(): boolean {
+    return !this.hayCaptura && this.tuve > 0;
+  }
+
   get diferencia(): number {
-    return this.redondear(this.real - this.esperado);
+    if (!this.hayCaptura && this.tuve <= 0) {
+      return 0;
+    }
+    return this.redondear(this.realComparacion - this.esperado);
   }
 
   get cuadra(): boolean {
+    if (!this.hayCaptura && this.tuve <= 0) {
+      return false;
+    }
     return Math.abs(this.diferencia) < 0.005;
   }
 
@@ -219,13 +243,7 @@ export class SaldoComponent implements OnInit {
     if (this.cargandoEsperado) {
       return 'Calculando saldo según tus registros…';
     }
-    if (this.cuadra) {
-      return 'Cuadra: lo esperado (según registros) y lo real coinciden.';
-    }
-    if (this.diferencia < 0) {
-      return 'Te falta dinero respecto a lo esperado. ¿Hubo un gasto o abono sin registrar?';
-    }
-    return 'Tienes de más respecto a lo esperado. ¿Hubo un ingreso sin registrar?';
+    return '';
   }
 
   /** Ancho del input según dígitos (mín. 2). */
@@ -267,14 +285,12 @@ export class SaldoComponent implements OnInit {
   }
 
   normalizarCantidad(d: Denominacion): void {
-    d.cantidad = Math.max(0, Math.trunc(this.n(d.cantidad)));
-  }
-
-  private syncTextosDesdeSaldo(): void {
-    for (const { key } of this.camposDigital) {
-      const v = this.saldo[key];
-      this.textosDigital[key] = v == null || v === undefined ? '' : formatDineroNumero(Number(v));
+    const raw = String(d.cantidad ?? '').trim();
+    if (raw === '') {
+      d.cantidad = '' as unknown as number;
+      return;
     }
+    d.cantidad = Math.max(0, Math.trunc(this.n(d.cantidad)));
   }
 
   soloMonto(ev: KeyboardEvent): void {
@@ -468,10 +484,9 @@ export class SaldoComponent implements OnInit {
       next: (act) => {
         this.historial = this.historial.map((h) => (h.id === act.id ? act : h));
         this.sincronizarBaselineDesdeHistorial();
-        // Si editaste el corte más reciente, el formulario de “real” sigue ese valor
         if (this.historial[0]?.id === act.id) {
-          this.aplicarRealDesdeCorte(act);
-          this.sincronizarModoEfectivo();
+          this.recordarUltimosTotales(act);
+          this.iniciarFormularioVacio();
         }
         this.editando = null;
         this.guardandoEdit = false;
@@ -491,7 +506,7 @@ export class SaldoComponent implements OnInit {
 
   async eliminarCorte(h: SaldoSnapshot): Promise<void> {
     if (!h.id || this.guardando) return;
-    const ok = await this.confirmDlg.ask(`¿Eliminar el corte del ${h.fecha}?`);
+    const ok = await this.confirmDlg.ask(`¿Eliminar el corte del ${formatFechaCorta(h.fecha)}?`);
     if (!ok) return;
 
     this.api.eliminarSaldo(h.id).subscribe({
@@ -530,22 +545,14 @@ export class SaldoComponent implements OnInit {
     conteo: boolean;
     digital: Record<DigitalKey, number | null>;
   }): void {
-    this.denominaciones = keep.dens.map((d) => ({
-      valor: this.n(d.valor),
-      cantidad: this.n(d.cantidad),
-    }));
-    this.conteoEfectivoActivo = keep.conteo;
-    this.saldo = {
-      ...this.saldo,
-      dineroBbva: keep.digital.dineroBbva,
-      dineroMercadoLibre: keep.digital.dineroMercadoLibre,
-      dineroNu: keep.digital.dineroNu,
-      dineroDidi: keep.digital.dineroDidi,
-      totalFisico: keep.efectivo,
-      fecha: this.hoy(),
-    };
-    delete this.saldo.id;
-    this.textosDigital = { ...keep.textos };
+    this.ultimoTotalDigital = this.redondear(
+      this.n(keep.digital.dineroBbva) +
+        this.n(keep.digital.dineroMercadoLibre) +
+        this.n(keep.digital.dineroNu) +
+        this.n(keep.digital.dineroDidi)
+    );
+    this.ultimoTotalEfectivo = this.redondear(keep.efectivo);
+    this.iniciarFormularioVacio();
     this.guardando = false;
     this.exitoVisible = true;
     this.recalcularEsperado();
@@ -555,26 +562,47 @@ export class SaldoComponent implements OnInit {
     }, 3500);
   }
 
-  /** Precarga apps/bancos desde el último corte registrado. */
-  private aplicarRealDesdeCorte(corte: SaldoSnapshot): void {
-    this.saldo = {
-      ...this.saldo,
-      dineroBbva: corte.dineroBbva ?? null,
-      dineroMercadoLibre: corte.dineroMercadoLibre ?? null,
-      dineroNu: corte.dineroNu ?? null,
-      dineroDidi: corte.dineroDidi ?? null,
-      totalFisico: corte.totalFisico ?? 0,
-      fecha: this.hoy(),
-    };
-    delete this.saldo.id;
-    this.syncTextosDesdeSaldo();
+  private recordarUltimosTotales(corte: SaldoSnapshot): void {
+    this.ultimoTotalDigital = this.redondear(
+      this.n(corte.dineroBbva) +
+        this.n(corte.dineroMercadoLibre) +
+        this.n(corte.dineroNu) +
+        this.n(corte.dineroDidi)
+    );
+    this.ultimoTotalEfectivo = this.redondear(this.n(corte.totalFisico));
   }
 
-  /** Usa billetes solo si cuadran con el efectivo guardado del corte. */
-  private sincronizarModoEfectivo(): void {
-    const dens = this.sumaDenominaciones();
-    const fis = this.n(this.saldo.totalFisico);
-    this.conteoEfectivoActivo = dens > 0 && Math.abs(dens - fis) < 0.02;
+  /** Formulario en blanco; los últimos totales solo se muestran como pista. */
+  private iniciarFormularioVacio(): void {
+    this.saldo = {
+      fecha: this.hoy(),
+      saldoTotal: 0,
+      totalFisico: 0,
+      dineroBbva: null,
+      dineroMercadoLibre: null,
+      dineroNu: null,
+      dineroDidi: null,
+    };
+    this.textosDigital = {
+      dineroBbva: '',
+      dineroMercadoLibre: '',
+      dineroNu: '',
+      dineroDidi: '',
+    };
+    this.denominaciones = [
+      { valor: 1000, cantidad: '' as unknown as number },
+      { valor: 500, cantidad: '' as unknown as number },
+      { valor: 200, cantidad: '' as unknown as number },
+      { valor: 100, cantidad: '' as unknown as number },
+      { valor: 50, cantidad: '' as unknown as number },
+      { valor: 20, cantidad: '' as unknown as number },
+      { valor: 10, cantidad: '' as unknown as number },
+      { valor: 5, cantidad: '' as unknown as number },
+      { valor: 2, cantidad: '' as unknown as number },
+      { valor: 1, cantidad: '' as unknown as number },
+      { valor: 0.5, cantidad: '' as unknown as number },
+    ];
+    this.conteoEfectivoActivo = false;
   }
 
   private sumaDenominaciones(): number {

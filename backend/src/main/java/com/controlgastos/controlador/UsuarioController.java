@@ -3,6 +3,7 @@ package com.controlgastos.controlador;
 import java.util.List;
 
 import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -79,5 +80,10 @@ public class UsuarioController {
             @Valid @RequestBody RolRequest body,
             Authentication authentication) {
         return usuarioAdminService.cambiarRol(id, body.rol(), authentication.getName());
+    }
+
+    @DeleteMapping("/{id}")
+    public void eliminar(@PathVariable Long id, Authentication authentication) {
+        usuarioAdminService.eliminar(id, authentication.getName());
     }
 }

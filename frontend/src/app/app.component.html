@@ -9,10 +9,12 @@
       <div class="brand">
         <p class="brand-mark">Control de gastos</p>
       </div>
-      <nav>
+      <nav aria-label="Secciones">
         @for (l of links; track l.path) {
           <a [routerLink]="l.path" routerLinkActive="activo" [routerLinkActiveOptions]="{ exact: l.exact }">{{ l.label }}</a>
         }
+      </nav>
+      <div class="acciones">
         @if (auth.usuario) {
           <button type="button" class="sesion" title="Editar mi cuenta" (click)="abrirPerfil()">
             <span class="sesion-usuario">{{ auth.usuario }}</span>
@@ -22,7 +24,7 @@
           </button>
         }
         <button type="button" class="secundario salir" (click)="salir()">Salir</button>
-      </nav>
+      </div>
     </header>
   }
   <main>

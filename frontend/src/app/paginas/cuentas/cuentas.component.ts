@@ -1,20 +1,23 @@
-import { Component, OnInit } from '@angular/core';
-import { CurrencyPipe, DatePipe } from '@angular/common';
+import { ChangeDetectorRef, Component, ElementRef, OnDestroy, OnInit, ViewChild } from '@angular/core';
+import { CurrencyPipe, NgTemplateOutlet } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { ApiService } from '../../api.service';
 import { ConfirmDialogService } from '../../confirm-dialog.service';
 import { Cuenta, Movimiento } from '../../modelos';
 import { formatDineroInput, formatDineroNumero, parseDinero, soloMontoKey } from '../../dinero.util';
+import { FechaCortaPipe } from '../../fecha.util';
 
 @Component({
   selector: 'app-cuentas',
   standalone: true,
-  imports: [FormsModule, CurrencyPipe, DatePipe, RouterLink],
+  imports: [FormsModule, CurrencyPipe, FechaCortaPipe, RouterLink, NgTemplateOutlet],
   templateUrl: './cuentas.component.html',
   styleUrl: './cuentas.component.css',
 })
-export class CuentasComponent implements OnInit {
+export class CuentasComponent implements OnInit, OnDestroy {
+  @ViewChild('panelDetalle') panelDetalle?: ElementRef<HTMLElement>;
+
   cuentas: Cuenta[] = [];
   seleccionada?: Cuenta;
   movimientos: Movimiento[] = [];
@@ -32,17 +35,30 @@ export class CuentasComponent implements OnInit {
   hoy = this.fechaLocal();
   guardandoTipo = false;
   saldoDisponible: number | null = null;
+  /** En móvil el detalle va debajo de la deuda elegida. */
+  esMovil = false;
+
+  private media?: MediaQueryList;
+  private onMedia?: () => void;
 
   constructor(
     private api: ApiService,
     private route: ActivatedRoute,
     private router: Router,
     private confirmDlg: ConfirmDialogService,
+    private cdr: ChangeDetectorRef,
   ) {}
 
   ngOnInit(): void {
     this.hoy = this.fechaLocal();
     this.mov.fecha = this.hoy;
+    this.media = window.matchMedia('(max-width: 860px)');
+    this.onMedia = () => {
+      this.esMovil = !!this.media?.matches;
+      this.cdr.detectChanges();
+    };
+    this.onMedia();
+    this.media.addEventListener('change', this.onMedia);
     this.cargarCuentas();
     this.cargarSaldoDisponible();
     this.route.paramMap.subscribe((p) => {
@@ -53,6 +69,23 @@ export class CuentasComponent implements OnInit {
         this.movimientos = [];
       }
     });
+  }
+
+  ngOnDestroy(): void {
+    if (this.media && this.onMedia) {
+      this.media.removeEventListener('change', this.onMedia);
+    }
+  }
+
+  /**
+   * En móvil: segundo clic en la deuda abierta la cierra
+   * (evita scrollear todo el panel para llegar a otra).
+   */
+  linkCuenta(c: Cuenta): string | any[] {
+    if (this.esMovil && c.id && this.seleccionada?.id === c.id) {
+      return '/cuentas';
+    }
+    return ['/cuentas', c.id];
   }
 
   etiquetaTipo(t: string): string {
@@ -207,6 +240,13 @@ export class CuentasComponent implements OnInit {
         this.seleccionada = c;
         this.error = '';
         this.api.movimientos(id).subscribe({ next: (m) => (this.movimientos = m) });
+        // En móvil: el panel queda bajo la deuda; asegurar que se vea
+        setTimeout(() => {
+          this.panelDetalle?.nativeElement?.scrollIntoView({
+            behavior: 'smooth',
+            block: 'nearest',
+          });
+        }, 120);
       },
       error: (e) => {
         this.seleccionada = undefined;

@@ -156,4 +156,26 @@ export class UsuariosComponent implements OnInit {
       error: (e) => (this.error = e?.error?.error || 'No se pudo cambiar el rol'),
     });
   }
+
+  esYo(u: UsuarioAcceso): boolean {
+    return !!this.auth.usuario && this.auth.usuario.toLowerCase() === u.usuario.toLowerCase();
+  }
+
+  async eliminar(u: UsuarioAcceso): Promise<void> {
+    this.error = '';
+    this.ok = '';
+    const ok = await this.confirmDlg.ask(`¿Eliminar al usuario “${u.usuario}”?`, {
+      titulo: 'Eliminar usuario',
+      confirmarTexto: 'Eliminar',
+    });
+    if (!ok) return;
+    this.api.eliminarUsuario(u.id).subscribe({
+      next: () => {
+        this.ok = `Usuario ${u.usuario} eliminado`;
+        if (this.editId === u.id) this.cerrarEdicion();
+        this.cargar();
+      },
+      error: (e) => (this.error = e?.error?.error || 'No se pudo eliminar'),
+    });
+  }
 }

@@ -1,7 +1,16 @@
 <section class="cab">
   <div>
     <h1>Gastos mensuales fijos</h1>
-    <p>Compromisos recurrentes · {{ total | currency:'MXN':'symbol-narrow':'1.2-2' }} / mes</p>
+  </div>
+  <div class="totales">
+    <article>
+      <span>Por mes</span>
+      <strong class="mono">{{ total | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
+    </article>
+    <article>
+      <span>Por quincena</span>
+      <strong class="mono">{{ porQuincena | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
+    </article>
   </div>
 </section>
 
@@ -9,7 +18,7 @@
 
 <form class="alta" (ngSubmit)="guardar()">
   <label>Motivo <input [(ngModel)]="form.motivo" name="motivo" required placeholder="Renta, TDC…" /></label>
-  <label>Monto
+  <label>Monto mensual
     <div class="monto-wrap">
       <span class="simbolo">$</span>
       <input
@@ -31,11 +40,18 @@
 <ul class="lista">
   @for (g of items; track g.id) {
     <li>
-      <div>
+      <div class="item-info">
         <strong>{{ g.motivo }}</strong>
-        <span class="mono">{{ g.monto | currency:'MXN':'symbol-narrow':'1.2-2' }}</span>
+        <div class="montos">
+          <span class="mono mes">{{ g.monto | currency:'MXN':'symbol-narrow':'1.2-2' }} <small>/ mes</small></span>
+          <span class="mono quincena">{{ quincenaDe(g.monto) | currency:'MXN':'symbol-narrow':'1.2-2' }} <small>/ quincena</small></span>
+        </div>
       </div>
-      <button type="button" class="peligro" (click)="eliminar(g.id)">Quitar</button>
+      <button type="button" class="icono peligro" title="Quitar" aria-label="Quitar" (click)="eliminar(g.id)">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+      </button>
     </li>
   }
 </ul>

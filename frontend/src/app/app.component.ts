@@ -51,12 +51,12 @@ export class AppComponent {
   }
 
   get pullVisible(): boolean {
-    return this.pullDistancia > 8 && this.mostrarNav;
+    return this.pullDistancia > 8 && !this.perfilAbierto;
   }
 
   @HostListener('touchstart', ['$event'])
   onTouchStart(ev: TouchEvent): void {
-    if (!this.mostrarNav || this.perfilAbierto || ev.touches.length !== 1) return;
+    if (this.perfilAbierto || ev.touches.length !== 1) return;
     if (!this.contenidoEnTope(ev.target)) {
       this.pullInicioY = null;
       return;
@@ -78,11 +78,14 @@ export class AppComponent {
     if (dy <= 0) {
       this.pullDistancia = 0;
       this.pullListo = false;
+      // El usuario está scrolleando hacia abajo: soltar el pull para no trabar
+      this.resetPull();
       return;
     }
     this.pullDistancia = Math.min(120, dy * 0.55);
     this.pullListo = this.pullDistancia >= this.pullUmbral;
-    if (this.pullDistancia > 12) {
+    // Solo bloquear el scroll nativo cuando ya hay un pull claro
+    if (this.pullDistancia > 20) {
       ev.preventDefault();
     }
   }
