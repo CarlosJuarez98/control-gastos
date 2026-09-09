@@ -210,10 +210,16 @@ public class FinanzasService {
         if (gasto.getMonto() == null || gasto.getMonto().compareTo(BigDecimal.ZERO) <= 0) {
             throw new IllegalArgumentException("El monto debe ser mayor a cero");
         }
+
+        Gasto existing = null;
         if (gasto.getId() != null) {
-            Gasto existing = gastoRepository.findById(gasto.getId())
+            existing = gastoRepository.findById(gasto.getId())
                     .orElseThrow(() -> new IllegalArgumentException("Gasto no encontrado"));
             exigirPropietario(u, existing.getPropietario());
+            // Conservar vínculo al cargo TDC si el cliente no lo manda
+            if (gasto.getMovimientoId() == null) {
+                gasto.setMovimientoId(existing.getMovimientoId());
+            }
         }
 
         gasto.setCategoria(CategoriaGastoNormalizer.normalizar(gasto.getCategoria()));
@@ -226,6 +232,10 @@ public class FinanzasService {
         gasto.setFormaPago(forma);
         gasto.setPropietario(u);
 
+        String concepto = gasto.getMotivo() != null && !gasto.getMotivo().isBlank()
+                ? gasto.getMotivo()
+                : "Gasto " + gasto.getCategoria();
+
         if (forma.equals("TARJETA")) {
             Long cuentaId = gasto.getCuentaId();
             if (cuentaId == null) {
@@ -235,29 +245,54 @@ public class FinanzasService {
             if (!"TDC".equalsIgnoreCase(cuenta.getTipo())) {
                 throw new IllegalArgumentException("Solo puedes pagar con una tarjeta de crédito (TDC)");
             }
-            // Solo en altas: un CARGO por gasto nuevo
-            if (gasto.getId() == null) {
+
+            if (existing == null || existing.getMovimientoId() == null) {
                 MovimientoCuenta mov = new MovimientoCuenta();
                 mov.setCuenta(cuenta);
                 mov.setFecha(gasto.getFecha());
                 mov.setTipo("CARGO");
                 mov.setMonto(gasto.getMonto());
                 mov.setPropietario(u);
-                String concepto = gasto.getMotivo() != null && !gasto.getMotivo().isBlank()
-                        ? gasto.getMotivo()
-                        : "Gasto " + gasto.getCategoria();
                 mov.setConcepto(concepto);
                 MovimientoCuenta savedMov = movimientoRepository.save(mov);
                 aplicarSaldo(cuenta, "CARGO", gasto.getMonto());
                 cuentaRepository.save(cuenta);
                 gasto.setMovimientoId(savedMov.getId());
+            } else {
+                MovimientoCuenta mov = movimientoRepository.findById(existing.getMovimientoId())
+                        .orElseThrow(() -> new IllegalArgumentException("Movimiento del gasto no encontrado"));
+                exigirPropietario(u, mov.getPropietario());
+                Cuenta cuentaAnterior = mov.getCuenta();
+                revertirSaldo(cuentaAnterior, mov.getTipo(), mov.getMonto());
+                Cuenta destino = cuentaAnterior.getId().equals(cuenta.getId()) ? cuentaAnterior : cuenta;
+                if (!cuentaAnterior.getId().equals(cuenta.getId())) {
+                    cuentaRepository.save(cuentaAnterior);
+                }
+                mov.setCuenta(destino);
+                mov.setFecha(gasto.getFecha());
+                mov.setMonto(gasto.getMonto());
+                mov.setConcepto(concepto);
+                movimientoRepository.save(mov);
+                aplicarSaldo(destino, "CARGO", gasto.getMonto());
+                cuentaRepository.save(destino);
+                gasto.setMovimientoId(mov.getId());
+                gasto.setCuenta(destino);
             }
-            gasto.setCuenta(cuenta);
+            if (gasto.getCuenta() == null) {
+                gasto.setCuenta(cuenta);
+            }
         } else {
-            gasto.setCuenta(null);
-            if (gasto.getId() == null) {
-                gasto.setMovimientoId(null);
+            if (existing != null && existing.getMovimientoId() != null) {
+                movimientoRepository.findById(existing.getMovimientoId()).ifPresent(mov -> {
+                    exigirPropietario(u, mov.getPropietario());
+                    Cuenta c = mov.getCuenta();
+                    revertirSaldo(c, mov.getTipo(), mov.getMonto());
+                    cuentaRepository.save(c);
+                    movimientoRepository.delete(mov);
+                });
             }
+            gasto.setCuenta(null);
+            gasto.setMovimientoId(null);
         }
 
         return gastoRepository.save(gasto);

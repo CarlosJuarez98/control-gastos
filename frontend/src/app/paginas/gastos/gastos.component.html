@@ -76,13 +76,21 @@
       </select>
     </label>
   }
-  <button type="submit" [disabled]="guardando">
-    {{ guardando ? 'Guardando…' : 'Agregar gasto' }}
-  </button>
+  <div class="alta-acciones">
+    <button type="submit" [disabled]="guardando">
+      {{ guardando ? 'Guardando…' : (editandoId ? 'Guardar cambios' : 'Agregar gasto') }}
+    </button>
+    @if (editandoId) {
+      <button type="button" class="secundario" (click)="cancelarEdicion()">Cancelar</button>
+    }
+  </div>
 </form>
 
-@if (form.formaPago === 'TARJETA') {
+@if (form.formaPago === 'TARJETA' && !editandoId) {
   <p class="hint-pago">Se registrará el gasto y un <strong>cargo</strong> en la TDC elegida.</p>
+}
+@if (form.formaPago === 'TARJETA' && editandoId) {
+  <p class="hint-pago">Al guardar se actualiza también el <strong>cargo</strong> en la TDC.</p>
 }
 
 <div class="lista-scroll">
@@ -104,7 +112,7 @@
       @if (grupo.abierta) {
         <ul class="items-lista">
           @for (g of grupo.items; track g.id) {
-            <li>
+            <li [class.editando]="editandoId === g.id">
               <div class="item-meta">
                 <span>{{ g.fechaTxt }}</span>
                 <span class="item-tag">{{ g.categoria }} · {{ g.pago }}</span>
@@ -114,11 +122,19 @@
               }
               <div class="item-fila">
                 <strong class="mono neg">{{ g.montoTxt }}</strong>
-                <button type="button" class="icono peligro" title="Borrar" aria-label="Borrar" (click)="eliminar(g.id)">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                  </svg>
-                </button>
+                <div class="acciones">
+                  <button type="button" class="icono" title="Editar" aria-label="Editar" (click)="editar(g)">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M4 20h4.5L19 9.5 14.5 5 4 15.5V20z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+                      <path d="M12.5 7l4.5 4.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                    </svg>
+                  </button>
+                  <button type="button" class="icono peligro" title="Borrar" aria-label="Borrar" (click)="eliminar(g.id)">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                  </button>
+                </div>
               </div>
             </li>
           }
@@ -130,13 +146,19 @@
             </thead>
             <tbody>
               @for (g of grupo.items; track g.id) {
-                <tr>
+                <tr [class.editando]="editandoId === g.id">
                   <td>{{ g.fechaTxt }}</td>
                   <td>{{ g.categoria }}</td>
                   <td>{{ g.motivo }}</td>
                   <td>{{ g.pago }}</td>
                   <td class="mono neg">{{ g.montoTxt }}</td>
                   <td class="acciones">
+                    <button type="button" class="icono" title="Editar" aria-label="Editar" (click)="editar(g)">
+                      <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M4 20h4.5L19 9.5 14.5 5 4 15.5V20z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+                        <path d="M12.5 7l4.5 4.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                      </svg>
+                    </button>
                     <button type="button" class="icono peligro" title="Borrar" aria-label="Borrar" (click)="eliminar(g.id)">
                       <svg viewBox="0 0 24 24" aria-hidden="true">
                         <path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>

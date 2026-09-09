@@ -48,6 +48,10 @@ export class ApiService {
     return this.http.post<Gasto>(`${this.base}/gastos`, body);
   }
 
+  actualizarGasto(id: number, body: Gasto): Observable<Gasto> {
+    return this.http.put<Gasto>(`${this.base}/gastos/${id}`, body);
+  }
+
   eliminarGasto(id: number): Observable<void> {
     return this.http.delete<void>(`${this.base}/gastos/${id}`);
   }

@@ -64,8 +64,8 @@ function Invoke-LocalSql([string]$sql) {
 Write-Host "== Sync incremental local → nube ==" -ForegroundColor Cyan
 Write-Host "Propietario: $Propietario  Full=$Full"
 
-# 1) Max IDs en la nube (ATP) vía SSH + Python
-$py = @'
+# 1) Max IDs en la nube (ATP) vía SSH + Python (archivo, evita pelear comillas PowerShell/SSH)
+$pyMax = @'
 import oracledb, os, json
 wallet = os.path.expanduser("~/control-gastos/wallet")
 conn = oracledb.connect(
@@ -78,17 +78,17 @@ conn = oracledb.connect(
 cur = conn.cursor()
 tables = ["CG_CUENTA","CG_INGRESO","CG_GASTO_MENSUAL","CG_MOVIMIENTO","CG_GASTO","CG_SALDO","CG_DENOMINACION"]
 out = {}
+prop = os.environ.get("PROP", "admin")
 for t in tables:
-    cur.execute(f"select nvl(max(id),0) from {t} where propietario = :p", p=os.environ.get("PROP","admin"))
+    cur.execute(f"select nvl(max(id),0) from {t} where propietario = :p", p=prop)
     out[t] = int(cur.fetchone()[0])
 print(json.dumps(out))
 conn.close()
 '@
-
-$envProp = $Propietario
-$cloudJson = ssh -i $SshKey -o StrictHostKeyChecking=no $SshHost "PROP='$Propietario' python3 - <<'PY'
-$py
-PY"
+$pyMaxPath = Join-Path $MigrateDir "cloud_max_ids.py"
+Set-Content -Path $pyMaxPath -Value $pyMax -Encoding UTF8
+scp -i $SshKey -o StrictHostKeyChecking=no $pyMaxPath "${SshHost}:/tmp/cloud_max_ids.py" | Out-Null
+$cloudJson = ssh -i $SshKey -o StrictHostKeyChecking=no $SshHost "PROP='$Propietario' python3 /tmp/cloud_max_ids.py"
 if (-not $cloudJson) { throw "No se pudieron leer max IDs de la nube (¿pip install oracledb en la VM?)" }
 Write-Host "Max IDs nube: $cloudJson"
 $cloudMax = $cloudJson | ConvertFrom-Json

@@ -63,6 +63,7 @@ export class GastosComponent implements OnInit {
   /** total = todas las quincenas; quincena = solo la actual. */
   vista: 'total' | 'quincena' = 'total';
   error = '';
+  editandoId: number | null = null;
   guardando = false;
   hoy = this.fechaLocal();
 
@@ -291,6 +292,41 @@ export class GastosComponent implements OnInit {
     return 'Efectivo';
   }
 
+  editar(g: GastoFila): void {
+    if (!g.id) return;
+    const original = this.items.find((x) => x.id === g.id);
+    if (!original) return;
+    this.error = '';
+    this.editandoId = g.id;
+    const forma = ((original.formaPago || 'EFECTIVO').toUpperCase() === 'TARJETA'
+      ? 'TARJETA'
+      : 'EFECTIVO') as 'EFECTIVO' | 'TARJETA';
+    this.form = {
+      fecha: (original.fecha || '').slice(0, 10),
+      categoria: original.categoria || 'Yo',
+      monto: formatDineroInput(String(original.monto)),
+      motivo: original.motivo || '',
+      formaPago: forma,
+      cuentaId: forma === 'TARJETA' ? (original.cuentaId ?? original.cuenta?.id ?? null) : null,
+    };
+    this.cdr.markForCheck();
+  }
+
+  cancelarEdicion(): void {
+    this.editandoId = null;
+    this.error = '';
+    this.hoy = this.fechaLocal();
+    this.form = {
+      fecha: this.hoy,
+      categoria: 'Yo',
+      monto: '',
+      motivo: '',
+      formaPago: 'EFECTIVO',
+      cuentaId: null,
+    };
+    this.cdr.markForCheck();
+  }
+
   guardar(): void {
     if (this.guardando) return;
     this.error = '';
@@ -328,20 +364,15 @@ export class GastosComponent implements OnInit {
     };
 
     this.guardando = true;
-    this.api.crearGasto(body).subscribe({
+    const req = this.editandoId
+      ? this.api.actualizarGasto(this.editandoId, body)
+      : this.api.crearGasto(body);
+    req.subscribe({
       next: () => {
-        this.hoy = this.fechaLocal();
+        this.guardando = false;
+        this.cancelarEdicion();
         this.claveHoy = this.claveQuincena(this.hoy);
         this.etiquetaQuincenaActual = this.etiquetaDeClave(this.claveHoy);
-        this.form = {
-          fecha: this.hoy,
-          categoria: 'Yo',
-          monto: '',
-          motivo: '',
-          formaPago: 'EFECTIVO',
-          cuentaId: null,
-        };
-        this.guardando = false;
         this.cargar();
       },
       error: (e) => {
@@ -357,7 +388,10 @@ export class GastosComponent implements OnInit {
     const ok = await this.confirmDlg.ask('¿Eliminar este gasto?');
     if (!ok) return;
     this.api.eliminarGasto(id).subscribe({
-      next: () => this.cargar(),
+      next: () => {
+        if (this.editandoId === id) this.cancelarEdicion();
+        this.cargar();
+      },
       error: (e) => {
         this.error = e?.error?.error || 'No se pudo eliminar';
         this.cdr.markForCheck();
