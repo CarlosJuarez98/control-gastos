@@ -152,6 +152,37 @@ public class UsuarioAdminService {
         return toDto(usuarioAccesoRepository.save(entity));
     }
 
+    @Transactional
+    public void eliminar(Long id, String actor) {
+        UsuarioAcceso entity = buscar(id);
+        if (entity.getUsuario().equalsIgnoreCase(actor)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "No puedes eliminar tu propio usuario");
+        }
+        if (entity.esAdmin() && entity.isActivo() && contarAdminsActivos() <= 1) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Debe quedar al menos un admin activo");
+        }
+        if (tieneDatos(entity.getUsuario())) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Ese usuario aún tiene datos; desactívalo o migra sus movimientos antes de borrarlo");
+        }
+        usuarioAccesoRepository.delete(entity);
+    }
+
+    /** True si el login aparece como propietario en alguna tabla de datos. */
+    private boolean tieneDatos(String usuario) {
+        for (String tabla : TABLAS_PROPIETARIO) {
+            Number n = (Number) entityManager.createNativeQuery(
+                    "SELECT COUNT(*) FROM " + tabla + " WHERE PROPIETARIO = :u")
+                    .setParameter("u", usuario)
+                    .getSingleResult();
+            if (n != null && n.longValue() > 0) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private long contarAdminsActivos() {
         return usuarioAccesoRepository.findAll().stream()
                 .filter(UsuarioAcceso::isActivo)

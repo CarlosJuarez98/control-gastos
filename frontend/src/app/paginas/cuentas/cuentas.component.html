@@ -2,7 +2,7 @@
   <div>
     <h1>Deudas y cuentas</h1>
     <p>
-      Tú debes: <strong class="mono">{{ deudaVisible | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
+      Tú debes: <strong class="mono neg">{{ deudaVisible | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
       @if (meDebenTotal) {
         · Te deben: <strong class="mono pos">{{ meDebenTotal | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
       }
@@ -43,19 +43,27 @@
   <button type="submit">Nueva cuenta</button>
 </form>
 
-<div class="layout">
+<div class="layout" [class.movil]="esMovil">
   <div class="lista-cuentas">
     <div class="grupo">
       <h3>Mis deudas</h3>
       <ul class="cuentas">
         @for (c of misDeudasPendientes; track c.id) {
           <li [class.activa]="seleccionada?.id === c.id">
-            <a [routerLink]="['/cuentas', c.id]">
+            <a [routerLink]="linkCuenta(c)">
               <strong>{{ c.nombre }}</strong>
               <small>{{ etiquetaTipo(c.tipo) }}</small>
               <span class="mono">{{ c.saldoActual | currency:'MXN':'symbol-narrow':'1.2-2' }}</span>
             </a>
           </li>
+          @if (esMovil && seleccionada?.id === c.id) {
+            <li class="detalle-inline">
+              <div class="espacio-deuda" aria-hidden="true"></div>
+              <div class="detalle" #panelDetalle>
+                <ng-container *ngTemplateOutlet="detalleTpl" />
+              </div>
+            </li>
+          }
         } @empty {
           <li class="vacio">Sin deudas pendientes</li>
         }
@@ -68,12 +76,20 @@
         <ul class="cuentas">
           @for (c of meDebenPendientes; track c.id) {
             <li [class.activa]="seleccionada?.id === c.id">
-              <a [routerLink]="['/cuentas', c.id]">
+              <a [routerLink]="linkCuenta(c)">
                 <strong>{{ c.nombre }}</strong>
                 <small>{{ etiquetaTipo(c.tipo) }}</small>
                 <span class="mono pos">{{ c.saldoActual | currency:'MXN':'symbol-narrow':'1.2-2' }}</span>
               </a>
             </li>
+            @if (esMovil && seleccionada?.id === c.id) {
+              <li class="detalle-inline">
+                <div class="espacio-deuda" aria-hidden="true"></div>
+                <div class="detalle" #panelDetalle>
+                  <ng-container *ngTemplateOutlet="detalleTpl" />
+                </div>
+              </li>
+            }
           }
         </ul>
       </div>
@@ -86,143 +102,205 @@
           @for (c of cuentasSaldadas; track c.id) {
             <li [class.activa]="seleccionada?.id === c.id" class="saldada">
               <div class="fila-cuenta">
-                <a [routerLink]="['/cuentas', c.id]">
+                <a [routerLink]="linkCuenta(c)">
                   <strong>{{ c.nombre }}</strong>
                   <small>{{ etiquetaTipo(c.tipo) }}</small>
                   <span class="mono">{{ c.saldoActual | currency:'MXN':'symbol-narrow':'1.2-2' }}</span>
                 </a>
-                <button type="button" class="peligro mini" (click)="eliminarCuenta(c)" title="Eliminar">Borrar</button>
+                <button type="button" class="icono peligro" (click)="eliminarCuenta(c)" title="Borrar" aria-label="Borrar">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                  </svg>
+                </button>
               </div>
             </li>
+            @if (esMovil && seleccionada?.id === c.id) {
+              <li class="detalle-inline">
+                <div class="espacio-deuda" aria-hidden="true"></div>
+                <div class="detalle" #panelDetalle>
+                  <ng-container *ngTemplateOutlet="detalleTpl" />
+                </div>
+              </li>
+            }
           }
         </ul>
       </div>
     }
   </div>
 
-  <div class="detalle">
-    @if (seleccionada) {
-      <div class="detalle-cab">
-        <div>
-          <h2>{{ seleccionada.nombre }}</h2>
-          <p class="saldo-linea">
-            Saldo actual:
-            <strong class="mono">{{ seleccionada.saldoActual | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
-            @if (seleccionPrestamista && saldoDisponible != null) {
-              <span class="pill-disponible">Disponible {{ saldoDisponible | currency:'MXN':'symbol-narrow':'1.2-2' }}</span>
-            }
-          </p>
-        </div>
-        <div class="detalle-acciones">
-          <label class="tipo-cuenta">Categoría
-            <select
-              [ngModel]="seleccionada.tipo"
-              (ngModelChange)="cambiarTipo($event)"
-              name="tipoCuenta"
-            >
-              @for (t of tipos; track t) { <option [value]="t">{{ etiquetaTipo(t) }}</option> }
-            </select>
-          </label>
-          @if (puedeEliminarCuenta) {
-            <button type="button" class="peligro" (click)="eliminarCuenta()">Eliminar cuenta</button>
-          }
-        </div>
-      </div>
+  @if (!esMovil) {
+    <div class="detalle detalle-lateral" #panelDetalle>
+      @if (seleccionada) {
+        <ng-container *ngTemplateOutlet="detalleTpl" />
+      } @else {
+        <p>Elige una cuenta para ver movimientos y registrar abonos.</p>
+      }
+    </div>
+  }
+</div>
 
-      <form class="alta" (ngSubmit)="agregarMovimiento()">
-        <label>Fecha
-          <input type="date" [(ngModel)]="mov.fecha" name="mfecha" [max]="hoy" required />
-        </label>
-        <label>Tipo
-          <select [(ngModel)]="mov.tipo" name="mtipo" (ngModelChange)="onTipoMovChange($event)">
-            @for (t of tiposMov; track t) { <option [value]="t">{{ etiquetaMov(t) }}</option> }
+<ng-template #detalleTpl>
+  @if (seleccionada) {
+    <div class="detalle-cab">
+      <div>
+        <h2>{{ seleccionada.nombre }}</h2>
+        <p class="saldo-linea">
+          Saldo actual:
+          <strong class="mono">{{ seleccionada.saldoActual | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
+          @if (seleccionPrestamista && saldoDisponible != null) {
+            <span class="pill-disponible">Disponible {{ saldoDisponible | currency:'MXN':'symbol-narrow':'1.2-2' }}</span>
+          }
+        </p>
+      </div>
+      <div class="detalle-acciones">
+        <label class="tipo-cuenta">Categoría
+          <select
+            [ngModel]="seleccionada.tipo"
+            (ngModelChange)="cambiarTipo($event)"
+            name="tipoCuenta"
+          >
+            @for (t of tipos; track t) { <option [value]="t">{{ etiquetaTipo(t) }}</option> }
           </select>
         </label>
-        @if (usandoDeudaHoy) {
-          <label>Deuda que marca hoy
-            <div class="monto-wrap">
-              <span class="simbolo">$</span>
-              <input
-                type="text"
-                inputmode="decimal"
-                autocomplete="off"
-                [(ngModel)]="montoMov"
-                name="mmonto"
-                required
-                placeholder="0.00"
-                (ngModelChange)="alEscribirMonto($event)"
-                (keydown)="soloMonto($event)"
-              />
-            </div>
-          </label>
-        } @else {
-          <label class="campo-saldo">
-            <span class="campo-titulo">
-              Monto
-              @if (seleccionPrestamista && saldoDisponible != null && (mov.tipo === 'CARGO' || mov.tipo === 'ABONO' || mov.tipo === 'REEMBOLSO')) {
-                <span class="pill-disponible">Disponible {{ saldoDisponible | currency:'MXN':'symbol-narrow':'1.2-2' }}</span>
-              }
-            </span>
-            <div class="monto-wrap">
-              <span class="simbolo">$</span>
-              <input
-                type="text"
-                inputmode="decimal"
-                autocomplete="off"
-                [(ngModel)]="montoMov"
-                name="mmonto"
-                required
-                placeholder="0.00"
-                (ngModelChange)="alEscribirMonto($event)"
-                (keydown)="soloMonto($event)"
-              />
-            </div>
-          </label>
+        @if (puedeEliminarCuenta) {
+          <button type="button" class="peligro" (click)="eliminarCuenta()">Eliminar cuenta</button>
         }
-        <button type="submit">{{ editMovId ? 'Guardar cambios' : 'Registrar movimiento' }}</button>
-        @if (editMovId) {
-          <button type="button" class="secundario" (click)="cancelarEdicionMov()">Cancelar</button>
-        }
-      </form>
+      </div>
+    </div>
 
-      @if (usandoDeudaHoy && seleccionada) {
-        <p class="hint-interes">
-          Registrado ahora:
-          <strong class="mono">{{ seleccionada.saldoActual | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
-          · Interés a sumar:
-          <strong class="mono" [class.pos]="interesCalculado > 0">
-            {{ interesCalculado | currency:'MXN':'symbol-narrow':'1.2-2' }}
-          </strong>
-        </p>
+    <form class="alta" (ngSubmit)="agregarMovimiento()">
+      <label>Fecha
+        <input type="date" [(ngModel)]="mov.fecha" name="mfecha" [max]="hoy" required />
+      </label>
+      <label>Tipo
+        <select [(ngModel)]="mov.tipo" name="mtipo" (ngModelChange)="onTipoMovChange($event)">
+          @for (t of tiposMov; track t) { <option [value]="t">{{ etiquetaMov(t) }}</option> }
+        </select>
+      </label>
+      @if (usandoDeudaHoy) {
+        <label>Deuda que marca hoy
+          <div class="monto-wrap">
+            <span class="simbolo">$</span>
+            <input
+              type="text"
+              inputmode="decimal"
+              autocomplete="off"
+              [(ngModel)]="montoMov"
+              name="mmonto"
+              required
+              placeholder="0.00"
+              (ngModelChange)="alEscribirMonto($event)"
+              (keydown)="soloMonto($event)"
+            />
+          </div>
+        </label>
+      } @else {
+        <label class="campo-saldo">
+          <span class="campo-titulo">
+            Monto
+            @if (seleccionPrestamista && saldoDisponible != null && (mov.tipo === 'CARGO' || mov.tipo === 'ABONO' || mov.tipo === 'REEMBOLSO')) {
+              <span class="pill-disponible">Disponible {{ saldoDisponible | currency:'MXN':'symbol-narrow':'1.2-2' }}</span>
+            }
+          </span>
+          <div class="monto-wrap">
+            <span class="simbolo">$</span>
+            <input
+              type="text"
+              inputmode="decimal"
+              autocomplete="off"
+              [(ngModel)]="montoMov"
+              name="mmonto"
+              required
+              placeholder="0.00"
+              (ngModelChange)="alEscribirMonto($event)"
+              (keydown)="soloMonto($event)"
+            />
+          </div>
+        </label>
       }
+      <button type="submit">{{ editMovId ? 'Guardar cambios' : 'Registrar movimiento' }}</button>
+      @if (editMovId) {
+        <button type="button" class="secundario" (click)="cancelarEdicionMov()">Cancelar</button>
+      }
+    </form>
 
-      <table class="tabla-movs">
-        <thead>
-          <tr>
-            <th class="col-fecha">Fecha</th>
-            <th class="col-tipo">Tipo</th>
-            <th class="col-monto">Monto</th>
-            <th class="col-acciones"></th>
-          </tr>
-        </thead>
-        <tbody>
-          @for (m of movimientos; track m.id) {
-            <tr [class.editando]="editMovId === m.id">
-              <td class="col-fecha">{{ m.fecha | date:'dd/MM/yyyy' }}</td>
-              <td class="col-tipo">{{ etiquetaMov(m.tipo) }}</td>
-              <td class="col-monto mono">{{ m.monto | currency:'MXN':'symbol-narrow':'1.2-2' }}</td>
-              <td class="col-acciones">
-                <div class="acciones-mov">
-                  <button type="button" class="secundario" (click)="editarMovimiento(m)">Editar</button>
-                  <button type="button" class="peligro" (click)="eliminarMovimiento(m)">Borrar</button>
-                </div>
-              </td>
-            </tr>
-          }
-        </tbody>
-      </table>
-    } @else {
-      <p>Elige una cuenta para ver movimientos y registrar abonos.</p>
+    @if (usandoDeudaHoy && seleccionada) {
+      <p class="hint-interes">
+        Registrado ahora:
+        <strong class="mono">{{ seleccionada.saldoActual | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
+        · Interés a sumar:
+        <strong class="mono" [class.pos]="interesCalculado > 0">
+          {{ interesCalculado | currency:'MXN':'symbol-narrow':'1.2-2' }}
+        </strong>
+      </p>
     }
-  </div>
-</div>
+
+    @if (esMovil) {
+      <ul class="movs-lista">
+        @for (m of movimientos; track m.id) {
+          <li [class.editando]="editMovId === m.id">
+            <div class="mov-meta">
+              <span>{{ m.fecha | fechaCorta }}</span>
+              <span class="mov-tipo">{{ etiquetaMov(m.tipo) }}</span>
+            </div>
+            <div class="mov-fila">
+              <strong class="mono">{{ m.monto | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
+              <div class="acciones-mov">
+                <button type="button" class="icono" title="Editar" aria-label="Editar" (click)="editarMovimiento(m)">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M4 20h4.5L19 9.5 14.5 5 4 15.5V20z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+                    <path d="M12.5 7l4.5 4.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                  </svg>
+                </button>
+                <button type="button" class="icono peligro" title="Borrar" aria-label="Borrar" (click)="eliminarMovimiento(m)">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </li>
+        } @empty {
+          <li class="vacio">Sin movimientos</li>
+        }
+      </ul>
+    } @else {
+      <div class="movs-wrap">
+        <table class="tabla-movs">
+          <thead>
+            <tr>
+              <th class="col-fecha">Fecha</th>
+              <th class="col-tipo">Tipo</th>
+              <th class="col-monto">Monto</th>
+              <th class="col-acciones"></th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (m of movimientos; track m.id) {
+              <tr [class.editando]="editMovId === m.id">
+                <td class="col-fecha">{{ m.fecha | fechaCorta }}</td>
+                <td class="col-tipo">{{ etiquetaMov(m.tipo) }}</td>
+                <td class="col-monto mono">{{ m.monto | currency:'MXN':'symbol-narrow':'1.2-2' }}</td>
+                <td class="col-acciones">
+                  <div class="acciones-mov">
+                    <button type="button" class="icono" title="Editar" aria-label="Editar" (click)="editarMovimiento(m)">
+                      <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M4 20h4.5L19 9.5 14.5 5 4 15.5V20z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+                        <path d="M12.5 7l4.5 4.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                      </svg>
+                    </button>
+                    <button type="button" class="icono peligro" title="Borrar" aria-label="Borrar" (click)="eliminarMovimiento(m)">
+                      <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                      </svg>
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  }
+</ng-template>

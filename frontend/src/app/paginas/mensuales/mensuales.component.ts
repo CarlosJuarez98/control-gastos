@@ -26,6 +26,15 @@ export class MensualesComponent implements OnInit {
     return this.items.reduce((a, i) => a + Number(i.monto), 0);
   }
 
+  /** Aprox. al repartir el mes en 2 quincenas. */
+  get porQuincena(): number {
+    return Math.round((this.total / 2) * 100) / 100;
+  }
+
+  quincenaDe(monto: number | string): number {
+    return Math.round((Number(monto) / 2) * 100) / 100;
+  }
+
   cargar(): void {
     this.api.mensuales().subscribe({
       next: (r) => (this.items = r),

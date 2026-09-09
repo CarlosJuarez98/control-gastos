@@ -1,7 +1,6 @@
 <section class="hero">
   <div>
     <h1>Resumen</h1>
-    <p>Ingresos, gastos y gráficas del mes seleccionado</p>
   </div>
   <div class="selector-mes">
     <button
@@ -59,8 +58,8 @@
       </strong>
     </article>
     <article>
-      <span>Deuda (cierre)</span>
-      <strong class="mono">{{ data.deudaTotal | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
+      <span>Deuda</span>
+      <strong class="mono neg">{{ data.deudaTotal | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
     </article>
     <article>
       <span>Prestamista</span>
@@ -68,46 +67,44 @@
     </article>
     <article>
       <span>Disponible</span>
-      <strong class="mono">{{ data.saldoDisponible | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
+      <strong class="mono pos">{{ data.saldoDisponible | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
     </article>
     <article>
       <span>Fijos / mes</span>
-      <strong class="mono">{{ data.gastosMensuales | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
+      <strong class="mono aviso">{{ data.gastosMensuales | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
     </article>
   </div>
 
   <div class="charts" [class.opaco]="cargando">
     <section class="panel">
       <h2>Flujo · {{ etiquetaMes }}</h2>
-      <p class="nota-panel">Gastos incluyen abonos a deudas. Deuda al cierre del mes.</p>
       <div class="columnas" role="img" [attr.aria-label]="'Comparación de ingresos, gastos y deuda de ' + etiquetaMes">
         <div class="col">
           <div class="barra-v pista">
-            <div class="barra-v fill ingresos" [style.height.%]="pctFlujo(data.totalIngresos)"></div>
+            <div class="barra-v fill-v ingresos" [style.height.%]="pctFlujo(data.totalIngresos)"></div>
           </div>
           <span class="etiqueta">Ingresos</span>
           <span class="mono valor pos">{{ data.totalIngresos | currency:'MXN':'symbol-narrow':'1.2-2' }}</span>
         </div>
         <div class="col">
           <div class="barra-v pista">
-            <div class="barra-v fill gastos" [style.height.%]="pctFlujo(data.totalGastos)"></div>
+            <div class="barra-v fill-v gastos" [style.height.%]="pctFlujo(data.totalGastos)"></div>
           </div>
           <span class="etiqueta">Gastos</span>
           <span class="mono valor neg">{{ data.totalGastos | currency:'MXN':'symbol-narrow':'1.2-2' }}</span>
         </div>
         <div class="col">
           <div class="barra-v pista">
-            <div class="barra-v fill deuda" [style.height.%]="pctFlujo(data.deudaTotal)"></div>
+            <div class="barra-v fill-v deuda" [style.height.%]="pctFlujo(data.deudaTotal)"></div>
           </div>
           <span class="etiqueta">Deuda</span>
-          <span class="mono valor">{{ data.deudaTotal | currency:'MXN':'symbol-narrow':'1.2-2' }}</span>
+          <span class="mono valor neg">{{ data.deudaTotal | currency:'MXN':'symbol-narrow':'1.2-2' }}</span>
         </div>
       </div>
     </section>
 
     <section class="panel">
       <h2>Gastos por categoría · {{ etiquetaMes }}</h2>
-      <p class="nota-panel">Incluye efectivo y compras con tarjeta. El balance solo resta efectivo + abonos.</p>
       @if (!data.gastosPorCategoria.length) {
         <p class="vacio">Sin gastos registrados en este mes.</p>
       } @else {
@@ -118,7 +115,7 @@
               <strong class="mono">{{ totalCategorias() | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
             </div>
           </div>
-          <ul class="leyenda">
+          <ul class="leyenda scroll-nest">
             @for (c of data.gastosPorCategoria; track c.categoria; let i = $index) {
               <li>
                 <span class="punto" [style.background]="colores[i % colores.length]"></span>
@@ -146,10 +143,10 @@
           <li>
             <div class="fila">
               <a [routerLink]="['/cuentas', c.id]">{{ c.nombre }}</a>
-              <span class="mono">{{ c.saldoActual | currency:'MXN':'symbol-narrow':'1.2-2' }}</span>
+              <span class="mono neg">{{ c.saldoActual | currency:'MXN':'symbol-narrow':'1.2-2' }}</span>
             </div>
             <div class="track">
-              <div class="fill" [style.width.%]="(c.saldoActual / maxCuenta()) * 100"></div>
+              <div class="fill fill-deuda" [style.width.%]="(c.saldoActual / maxCuenta()) * 100"></div>
             </div>
           </li>
         }

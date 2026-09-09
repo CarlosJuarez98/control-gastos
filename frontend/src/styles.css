@@ -14,6 +14,11 @@
   --fuente-display: 'Syne', 'Segoe UI', sans-serif;
   --fuente-cuerpo: 'Figtree', 'Segoe UI', sans-serif;
   --sombra: 0 20px 48px rgba(0, 0, 0, 0.35);
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --dur-rapida: 0.18s;
+  --dur-media: 0.38s;
+  --dur-lenta: 0.55s;
+  --patron-pesos: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='168' height='168' viewBox='0 0 168 168'%3E%3Cg fill='%233dbea0' font-family='Georgia%2C serif' font-weight='700'%3E%3Ctext x='16' y='44' font-size='34' fill-opacity='0.07'%3E%24%3C/text%3E%3Ctext x='98' y='58' font-size='22' fill-opacity='0.045' transform='rotate(16 98 58)'%3E%24%3C/text%3E%3Ctext x='42' y='118' font-size='28' fill-opacity='0.055' transform='rotate(-12 42 118)'%3E%24%3C/text%3E%3Ctext x='122' y='138' font-size='18' fill-opacity='0.04' transform='rotate(9 122 138)'%3E%24%3C/text%3E%3C/g%3E%3C/svg%3E");
 }
 
 * { box-sizing: border-box; }
@@ -24,11 +29,50 @@ html, body {
   overflow: hidden;
   font-family: var(--fuente-cuerpo);
   color: var(--texto);
-  background:
+  background-color: var(--fondo);
+  background-image:
+    var(--patron-pesos),
     radial-gradient(ellipse 70% 50% at 10% -10%, rgba(61, 190, 160, 0.18), transparent 55%),
-    radial-gradient(ellipse 50% 40% at 100% 0%, rgba(240, 164, 93, 0.12), transparent 50%),
+    radial-gradient(ellipse 50% 40% at 100% 0%, rgba(61, 190, 160, 0.08), transparent 50%),
     linear-gradient(165deg, #0c1116 0%, var(--fondo) 40%, #121a22 100%);
+  background-size: 168px 168px, auto, auto, auto;
   background-attachment: fixed;
+  -webkit-tap-highlight-color: transparent;
+  text-size-adjust: 100%;
+}
+
+@media (max-width: 720px), (pointer: coarse) {
+  input, select, textarea {
+    font-size: 16px; /* evita zoom forzado en iOS */
+  }
+}
+
+/* Tablas: scroll horizontal en pantallas angostas */
+.tabla-wrap,
+.lista-scroll .tabla-wrap {
+  -webkit-overflow-scrolling: touch;
+}
+
+@media (max-width: 720px) {
+  .tabla-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-x pan-y;
+  }
+
+  th, td {
+    padding: 0.6rem 0.55rem;
+    font-size: 0.9rem;
+    white-space: nowrap;
+  }
+}
+
+/* Horizontal en teléfono: aprovecha el ancho y no desperdicia alto */
+@media (orientation: landscape) and (max-height: 520px) {
+  h1 {
+    font-size: clamp(1.25rem, 4vh, 1.6rem);
+    margin-bottom: 0.25rem;
+  }
 }
 
 h1, h2, h3 {
@@ -51,10 +95,17 @@ button {
   background: var(--acento);
   color: #06241c;
   font-weight: 700;
-  transition: transform 0.18s ease, filter 0.18s ease;
+  transition:
+    transform var(--dur-rapida) var(--ease-out),
+    filter var(--dur-rapida) ease,
+    box-shadow var(--dur-rapida) ease,
+    background var(--dur-rapida) ease,
+    border-color var(--dur-rapida) ease,
+    color var(--dur-rapida) ease;
 }
 
 button:hover { filter: brightness(1.08); transform: translateY(-1px); }
+button:active { transform: translateY(0) scale(0.98); }
 button.secundario {
   background: transparent;
   color: var(--texto);
@@ -66,24 +117,111 @@ button.peligro {
   border: 1px solid color-mix(in srgb, var(--peligro) 40%, transparent);
 }
 
+button.icono {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.1rem;
+  height: 2.1rem;
+  padding: 0;
+  border-radius: 0.55rem;
+  background: transparent;
+  color: var(--texto-suave);
+  border: 1px solid var(--linea);
+}
+
+button.icono:hover {
+  color: var(--texto);
+  background: rgba(255, 255, 255, 0.05);
+  filter: none;
+  transform: scale(1.06);
+}
+
+button.icono:active {
+  transform: scale(0.94);
+}
+
+button.icono.peligro {
+  color: var(--peligro);
+  border-color: color-mix(in srgb, var(--peligro) 40%, transparent);
+  background: transparent;
+}
+
+button.icono.peligro:hover {
+  background: color-mix(in srgb, var(--peligro) 12%, transparent);
+  color: var(--peligro);
+  filter: none;
+}
+
+button.icono svg {
+  width: 1.05rem;
+  height: 1.05rem;
+  display: block;
+}
+
 input, select, textarea {
   width: 100%;
   background: var(--superficie-2);
   border: 1px solid var(--linea);
   border-radius: 0.55rem;
   padding: 0.6rem 0.75rem;
+  transition:
+    border-color var(--dur-rapida) ease,
+    box-shadow var(--dur-rapida) ease,
+    background var(--dur-rapida) ease;
+}
+
+input:focus, select:focus, textarea:focus {
+  outline: none;
+  border-color: color-mix(in srgb, var(--acento) 55%, var(--linea));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--acento) 18%, transparent);
+}
+
+/* Chrome/Safari pintan autofill de blanco; forzar el fondo del tema */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active,
+textarea:-webkit-autofill,
+select:-webkit-autofill {
+  -webkit-text-fill-color: var(--texto) !important;
+  caret-color: var(--texto);
+  border-color: var(--linea);
+  box-shadow: 0 0 0 1000px var(--superficie-2) inset !important;
+  transition: background-color 99999s ease-in-out 0s;
+}
+
+/* Prefijo $: el anillo de focus va en el wrap, no en el input interno */
+.monto-wrap {
+  transition:
+    border-color var(--dur-rapida) ease,
+    box-shadow var(--dur-rapida) ease;
+}
+.monto-wrap:focus-within {
+  border-color: color-mix(in srgb, var(--acento) 55%, var(--linea));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--acento) 18%, transparent);
+}
+.monto-wrap input,
+.monto-wrap input:focus {
+  outline: none;
+  border: none;
+  box-shadow: none;
 }
 
 table {
   width: 100%;
   border-collapse: collapse;
+  table-layout: auto;
 }
 
 th, td {
   text-align: left;
-  padding: 0.7rem 0.55rem;
+  padding: 0.7rem 0.75rem;
   border-bottom: 1px solid var(--linea);
-  vertical-align: top;
+  vertical-align: middle;
+  white-space: nowrap;
+  font-size: 0.95rem;
+  line-height: 1.25;
 }
 
 th {
@@ -100,3 +238,159 @@ th {
 
 .pos { color: var(--ok); }
 .neg { color: var(--peligro); }
+.aviso { color: var(--acento-2); }
+
+/*
+ * Scroll anidado (PC con mouse):
+ * fuera de la tabla la rueda mueve el scroll de la página;
+ * solo al poner el cursor encima scrollea la tabla.
+ */
+@media (hover: hover) and (pointer: fine) {
+  .scroll-nest {
+    overflow-y: hidden;
+  }
+  .scroll-nest:hover,
+  .scroll-nest:focus-within {
+    overflow-y: auto;
+  }
+}
+
+/* Scroll: fino en PC, sin barra fija en teléfono */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--acento) 55%, transparent) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--acento) 40%, var(--superficie-2));
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--acento) 70%, var(--superficie-2));
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+*::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* Scroll principal de cada pantalla */
+.lista-scroll,
+.pagina-scroll {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+}
+
+/* Tablas anidadas: no atrapar el gesto; al llegar al borde sigue la página */
+.tabla-wrap,
+.scroll-nest,
+.leyenda.scroll-nest {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: auto;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .lista-scroll,
+  .pagina-scroll {
+    scrollbar-gutter: stable;
+    padding-right: 0.15rem;
+  }
+}
+
+/*
+ * Móvil vertical: un solo scroll (sin caja interna).
+ * Así da igual dónde pongas el dedo: mueve la página.
+ */
+@media (max-width: 720px) and (orientation: portrait),
+       (pointer: coarse) and (orientation: portrait) {
+  .scroll-nest {
+    overflow: visible !important;
+    max-height: none !important;
+  }
+}
+
+/*
+ * Móvil horizontal: poco alto → tabla con scroll propio,
+ * pero el dedo fuera (formulario, márgenes) mueve la página
+ * y al llegar al borde de la tabla el gesto continúa.
+ */
+@media (orientation: landscape) and (max-height: 520px) {
+  .scroll-nest {
+    overflow: auto !important;
+    max-height: min(32vh, 11rem) !important;
+    overscroll-behavior-y: auto;
+    touch-action: pan-y;
+  }
+}
+
+@media (max-width: 720px), (pointer: coarse) {
+  * {
+    scrollbar-width: none;
+  }
+
+  *::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+    display: none;
+  }
+
+  .lista-scroll,
+  .pagina-scroll {
+    scrollbar-gutter: auto;
+    padding-right: 0;
+    padding-bottom: max(0.35rem, env(safe-area-inset-bottom));
+  }
+}
+
+/* —— Motion global —— */
+@keyframes anim-entrar {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes anim-suave {
+  from { opacity: 0; transform: translateY(8px) scale(0.985); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes anim-pulso-acento {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--acento) 0%, transparent); }
+  50% { box-shadow: 0 0 0 6px color-mix(in srgb, var(--acento) 12%, transparent); }
+}
+
+.anim-entrar {
+  animation: anim-entrar var(--dur-lenta) var(--ease-out) both;
+}
+
+.anim-suave {
+  animation: anim-suave var(--dur-media) var(--ease-out) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  button:hover,
+  button.icono:hover {
+    transform: none;
+  }
+}

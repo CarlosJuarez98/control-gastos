@@ -10,36 +10,63 @@
     <span class="toast-check">✓</span>
     <div>
       <strong>Guardado completado</strong>
-      <p>El corte quedó en el historial. Los montos se conservan; ajusta solo lo que cambió.</p>
+      <p>El corte quedó en el historial. Los campos quedan listos para el siguiente conteo.</p>
     </div>
   </div>
 }
 
-<div class="comparacion" [class.ok-box]="cuadra && !cargandoEsperado" [class.diff-box]="!cuadra && !cargandoEsperado">
+<div class="comparacion" [class.ok-box]="cuadra && !cargandoEsperado && realComparacion > 0">
   <article>
     <span>Debería tener</span>
     <strong class="mono">{{ esperado | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
   </article>
   <article>
-    <span>Tengo (real)</span>
+    <span>Tuve</span>
+    <strong class="mono">{{ tuve | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
+    @if (ultimoCorte?.fecha) {
+      <small>{{ ultimoCorte!.fecha | fechaCorta }}</small>
+    }
+  </article>
+  <article>
+    <span>Tengo</span>
     <strong class="mono">{{ real | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
   </article>
   <article>
     <span>Diferencia</span>
     <strong
       class="mono"
-      [class.diff-demas]="diferencia > 0"
-      [class.diff-falta]="diferencia < 0"
+      [class.diff-falta]="diferencia < 0 && realComparacion > 0"
+      [class.diff-demas]="diferencia > 0 && realComparacion > 0"
     >
       {{ diferencia | currency:'MXN':'symbol-narrow':'1.2-2' }}
     </strong>
+    @if (usandoTuve) {
+      <small>vs último tuve</small>
+    } @else if (hayCaptura) {
+      <small>vs tengo</small>
+    }
   </article>
-  <p class="hint">{{ mensajeDiferencia }}</p>
+  @if (mensajeDiferencia) {
+    <p class="hint">{{ mensajeDiferencia }}</p>
+  }
 </div>
 
 <form class="grid" (submit)="$event.preventDefault()">
   <div class="bloque">
-    <h2>1. Lo que tengo en apps / bancos</h2>
+    <div class="bloque-cab">
+      <h2>1. Lo que tengo en apps / bancos</h2>
+      <p class="subtotal">
+        @if (hayCapturaDigital) {
+          Total:
+          <strong class="mono">{{ totalDigital | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
+        } @else if (ultimoTotalDigital > 0) {
+          <span class="pista">Último {{ ultimoTotalDigital | currency:'MXN':'symbol-narrow':'1.2-2' }}</span>
+        } @else {
+          Total:
+          <strong class="mono">{{ 0 | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
+        }
+      </p>
+    </div>
 
     @for (c of camposDigital; track c.key) {
       <label>{{ c.label }}
@@ -59,35 +86,23 @@
         </div>
       </label>
     }
-
-    <p class="subtotal">
-      Subtotal digital:
-      <strong class="mono">{{ totalDigital | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
-    </p>
-    <button
-      type="button"
-      class="btn-guardar"
-      (click)="guardar()"
-      [disabled]="guardando || real <= 0"
-    >
-      {{ guardando ? 'Guardando…' : 'Guardar comparación' }}
-    </button>
-    @if (real <= 0) {
-      <p class="ayuda aviso-vacio">Captura al menos un monto real para poder guardar.</p>
-    }
   </div>
 
   <div class="bloque bloque-efectivo">
-    <div class="efectivo-cab">
+    <div class="bloque-cab">
       <h2>2. Efectivo en mano</h2>
       <p class="subtotal">
-        Total:
-        <strong class="mono">{{ totalEfectivo | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
+        @if (hayCapturaEfectivo) {
+          Total:
+          <strong class="mono">{{ totalEfectivo | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
+        } @else if (ultimoTotalEfectivo > 0) {
+          <span class="pista">Último {{ ultimoTotalEfectivo | currency:'MXN':'symbol-narrow':'1.2-2' }}</span>
+        } @else {
+          Total:
+          <strong class="mono">{{ 0 | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
+        }
       </p>
     </div>
-    @if (usandoEfectivoDelCorte) {
-      <p class="ayuda">Efectivo del último corte. Cuenta billetes/monedas si cambió.</p>
-    }
     <div class="denoms">
       @for (d of denominaciones; track d.valor; let i = $index) {
         <label class="denom-row">
@@ -104,17 +119,25 @@
             (input)="alEscribirCantidad(d, $event)"
             (blur)="normalizarCantidad(d)"
           />
-          <span class="mono subtotal-denom">{{ d.valor * d.cantidad | currency:'MXN':'symbol-narrow':'1.2-2' }}</span>
+          <span class="mono subtotal-denom">{{ d.valor * (d.cantidad || 0) | currency:'MXN':'symbol-narrow':'1.2-2' }}</span>
         </label>
       }
     </div>
+    <button
+      type="button"
+      class="btn-guardar"
+      (click)="guardar()"
+      [disabled]="guardando || real <= 0"
+    >
+      {{ guardando ? 'Guardando…' : 'Guardar comparación' }}
+    </button>
   </div>
 </form>
 
 @if (historial.length) {
   <section class="historial">
     <h2>Historial de cortes</h2>
-    <div class="tabla-wrap">
+    <div class="tabla-wrap scroll-nest">
       <table>
         <thead>
           <tr>
@@ -128,25 +151,46 @@
         </thead>
         <tbody>
           @for (h of historial; track h.id) {
-            <tr [class.fila-falta]="estadoDiff(h) === 'falta'" [class.fila-demas]="estadoDiff(h) === 'demas'">
-              <td>{{ h.fecha | date:'dd/MM/yyyy' }}</td>
+            <tr>
+              <td>{{ h.fecha | fechaCorta }}</td>
               <td class="mono">{{ h.saldoTotal | currency:'MXN':'symbol-narrow':'1.2-2' }}</td>
               <td class="mono">{{ realDe(h) | currency:'MXN':'symbol-narrow':'1.2-2' }}</td>
               <td
                 class="mono"
-                [class.diff-falta]="estadoDiff(h) === 'falta'"
-                [class.diff-demas]="estadoDiff(h) === 'demas'"
+                [class.diff-falta]="diffDe(h) < 0"
+                [class.diff-demas]="diffDe(h) > 0"
               >
                 {{ diffDe(h) | currency:'MXN':'symbol-narrow':'1.2-2' }}
               </td>
-              <td>
-                @if (estadoDiff(h) === 'falta') { Faltó }
-                @else if (estadoDiff(h) === 'demas') { De más }
-                @else { Cuadró }
+              <td class="estado-cell">
+                @if (estadoDiff(h) === 'falta') {
+                  <span class="estado-icono falta" title="Faltó" aria-label="Faltó">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M12 5v12M7 13l5 5 5-5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                  </span>
+                } @else if (estadoDiff(h) === 'demas') {
+                  <span class="estado-icono demas" title="De más" aria-label="De más">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M12 19V7M7 11l5-5 5 5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                  </span>
+                } @else {
+                  <span class="estado-icono ok" title="Cuadró" aria-label="Cuadró">=</span>
+                }
               </td>
               <td class="acciones">
-                <button type="button" class="secundario mini" (click)="abrirEditar(h)">Editar</button>
-                <button type="button" class="peligro mini" (click)="eliminarCorte(h)">Eliminar</button>
+                <button type="button" class="icono" title="Editar" aria-label="Editar" (click)="abrirEditar(h)">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M4 20h4.5L19 9.5 14.5 5 4 15.5V20z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+                    <path d="M12.5 7l4.5 4.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                  </svg>
+                </button>
+                <button type="button" class="icono" title="Eliminar" aria-label="Eliminar" (click)="eliminarCorte(h)">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                  </svg>
+                </button>
               </td>
             </tr>
           }

@@ -42,6 +42,7 @@
   width: 100%;
 }
 .monto-wrap input:focus { outline: none; }
+
 .layout {
   flex: 1 1 auto;
   min-height: 0;
@@ -49,6 +50,7 @@
   grid-template-columns: 280px 1fr;
   gap: 0.85rem;
 }
+
 .lista-cuentas {
   min-height: 0;
   overflow: auto;
@@ -56,6 +58,7 @@
   gap: 0.75rem;
   align-content: start;
 }
+
 .grupo h3 {
   font-size: 0.75rem;
   text-transform: uppercase;
@@ -72,7 +75,10 @@
 .cuentas a {
   display: grid; gap: 0.15rem; padding: 0.7rem 0.85rem; border-bottom: 1px solid var(--linea);
 }
-.cuentas li:last-child a { border-bottom: none; }
+.cuentas > li:last-child > a { border-bottom: none; }
+.cuentas > li.detalle-inline + li > a,
+.cuentas > li.activa > a { border-bottom: 1px solid var(--linea); }
+
 .fila-cuenta {
   display: flex;
   align-items: stretch;
@@ -84,16 +90,11 @@
   border-bottom: none;
   min-width: 0;
 }
-.fila-cuenta .mini {
+.fila-cuenta .icono {
   flex: 0 0 auto;
   align-self: center;
   margin-right: 0.55rem;
-  height: 2rem;
-  padding: 0 0.55rem;
-  font-size: 0.75rem;
-  transform: none;
 }
-.fila-cuenta .mini:hover { transform: none; }
 .cuentas small { color: var(--texto-suave); }
 .cuentas .mono { color: var(--acento-2); }
 .cuentas .mono.pos { color: var(--ok); }
@@ -108,6 +109,31 @@
   color: var(--texto-suave);
   font-size: 0.9rem;
 }
+
+/* Hueco ≈ una deuda, luego el panel */
+.espacio-deuda {
+  height: 3.5rem;
+  background: transparent;
+}
+
+.detalle-inline {
+  list-style: none;
+  border-bottom: none !important;
+  padding: 0;
+  margin: 0;
+  background: transparent;
+}
+
+.detalle-inline .detalle {
+  border-radius: 0 0 1rem 1rem;
+  margin: 0;
+  border-left: none;
+  border-right: none;
+  border-bottom: none;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
 .detalle {
   min-height: 0;
   overflow: auto;
@@ -117,7 +143,11 @@
   padding: 0.9rem;
   display: flex;
   flex-direction: column;
+  scroll-margin-top: 1rem;
+  max-width: 100%;
+  box-sizing: border-box;
 }
+
 .detalle-cab {
   flex: 0 0 auto;
   display: flex;
@@ -169,51 +199,193 @@
 }
 .hint-interes .pos { color: var(--acento-2); }
 .detalle .alta { margin-bottom: 0.75rem; }
-.tabla-movs {
+
+.movs-wrap {
+  display: block;
   width: 100%;
-  table-layout: fixed;
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+  touch-action: pan-x pan-y;
+  margin-top: 0.35rem;
+  border: 1px solid var(--linea);
+  border-radius: 0.75rem;
+  background: color-mix(in srgb, var(--superficie-2) 80%, transparent);
+}
+
+.tabla-movs {
+  width: max-content;
+  min-width: 100%;
   border-collapse: collapse;
 }
 .tabla-movs th,
 .tabla-movs td {
-  vertical-align: middle;
-  padding: 0.65rem 0.55rem;
-  border-bottom: 1px solid var(--linea);
+  white-space: nowrap;
+  padding: 0.7rem 0.85rem;
 }
 .tabla-movs tbody tr:last-child td {
   border-bottom: none;
 }
-.tabla-movs .col-fecha { width: 7.5rem; }
-.tabla-movs .col-tipo { width: 7rem; }
 .tabla-movs .col-monto {
-  width: auto;
   text-align: right;
   font-variant-numeric: tabular-nums;
 }
 .tabla-movs .col-acciones {
-  width: 10.5rem;
   text-align: right;
-  padding-right: 0.25rem;
+  padding-right: 0.45rem;
 }
 .acciones-mov {
   display: inline-flex;
   flex-wrap: nowrap;
-  gap: 0.35rem;
+  gap: 0.25rem;
   align-items: center;
   justify-content: flex-end;
 }
-.acciones-mov button {
-  height: 2.1rem;
-  padding: 0 0.65rem;
-  font-size: 0.8rem;
-  transform: none;
-  white-space: nowrap;
-}
-.acciones-mov button:hover { transform: none; }
 tr.editando td {
   background: color-mix(in srgb, var(--acento) 10%, transparent);
 }
+
+.movs-lista {
+  list-style: none;
+  margin: 0.35rem 0 0;
+  padding: 0;
+  border: 1px solid var(--linea);
+  border-radius: 0.75rem;
+  background: color-mix(in srgb, var(--superficie-2) 80%, transparent);
+  overflow: hidden;
+}
+
+.movs-lista > li {
+  padding: 0.7rem 0.85rem;
+  border-bottom: 1px solid var(--linea);
+}
+
+.movs-lista > li:last-child {
+  border-bottom: none;
+}
+
+.movs-lista > li.editando {
+  background: color-mix(in srgb, var(--acento) 10%, transparent);
+}
+
+.movs-lista .mov-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  color: var(--texto-suave);
+  font-size: 0.85rem;
+  margin-bottom: 0.35rem;
+}
+
+.movs-lista .mov-tipo {
+  font-weight: 600;
+  color: var(--texto);
+}
+
+.movs-lista .mov-fila {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.movs-lista .vacio {
+  border: none;
+  background: transparent;
+}
+
 .error { flex: 0 0 auto; color: var(--peligro); margin: 0 0 0.5rem; }
+
 @media (max-width: 860px) {
-  .layout { grid-template-columns: 1fr; }
+  :host {
+    height: 100%;
+    max-height: 100%;
+    overflow-y: auto;
+    overflow-x: clip;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-y: contain;
+    padding-bottom: max(1.5rem, env(safe-area-inset-bottom));
+  }
+
+  .layout {
+    grid-template-columns: 1fr;
+    flex: 0 0 auto;
+    min-height: unset;
+    overflow: visible;
+    gap: 0;
+  }
+
+  .lista-cuentas,
+  .detalle {
+    overflow: visible;
+    min-height: unset;
+  }
+
+  .cuentas {
+    overflow: visible;
+  }
+
+  .espacio-deuda {
+    height: 2.75rem;
+  }
+
+  .detalle {
+    padding: 0.85rem 0.75rem 1rem;
+  }
+
+  .detalle-cab {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .detalle-acciones {
+    width: 100%;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .tipo-cuenta {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .detalle .alta {
+    width: 100%;
+    margin-left: 0;
+    margin-right: 0;
+    box-sizing: border-box;
+  }
+
+  .detalle .alta button,
+  .detalle-acciones .peligro {
+    width: 100%;
+  }
+
+  .alta {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .alta label { min-width: 0; width: 100%; }
+}
+
+@media (orientation: landscape) and (max-height: 520px) {
+  :host {
+    height: 100%;
+    max-height: 100%;
+    overflow-y: auto;
+    overflow-x: clip;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 1rem;
+  }
+
+  .layout:not(.movil) {
+    grid-template-columns: minmax(180px, 0.9fr) minmax(0, 1.4fr);
+    gap: 0.55rem;
+  }
+
+  .cab { margin-bottom: 0.4rem; }
+  .alta { padding: 0.55rem 0.7rem; margin-bottom: 0.45rem; }
 }

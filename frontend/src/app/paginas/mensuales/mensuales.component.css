@@ -7,8 +7,49 @@
 
 .cab {
   flex: 0 0 auto;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1.25rem;
+  align-items: flex-end;
+  justify-content: space-between;
   margin-bottom: 0.85rem;
 }
+
+.cab h1 { margin-bottom: 0.2rem; }
+.cab p { margin: 0; }
+
+.totales {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+}
+
+.totales article {
+  min-width: 8.5rem;
+  padding: 0.55rem 0.85rem;
+  border: 1px solid var(--linea);
+  border-radius: 0.75rem;
+  background: var(--superficie);
+  animation: anim-suave var(--dur-media) var(--ease-out) both;
+}
+
+.totales article:nth-child(1) { animation-delay: 0.05s; }
+.totales article:nth-child(2) { animation-delay: 0.1s; }
+
+.totales span {
+  display: block;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--texto-suave);
+  margin-bottom: 0.2rem;
+}
+
+.totales strong {
+  font-family: var(--fuente-display);
+  font-size: 1.1rem;
+}
+
 .alta {
   flex: 0 0 auto;
   display: flex;
@@ -40,8 +81,13 @@
   background: transparent;
   padding: 0.55rem 0;
   width: 100%;
+  box-shadow: none;
 }
-.monto-wrap input:focus { outline: none; }
+.monto-wrap input:focus {
+  outline: none;
+  border: none;
+  box-shadow: none;
+}
 .lista {
   flex: 1 1 auto;
   min-height: 0;
@@ -62,6 +108,60 @@
   border-bottom: 1px solid var(--linea);
 }
 .lista li:last-child { border-bottom: none; }
-.lista li > div { display: flex; justify-content: space-between; gap: 1.5rem; flex: 1; }
+
+.item-info {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.45rem 1.25rem;
+  flex: 1;
+  min-width: 0;
+  align-items: baseline;
+}
+
+.montos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 1rem;
+  align-items: baseline;
+}
+
+.montos .mes {
+  color: var(--texto);
+  font-weight: 700;
+}
+
+.montos .quincena {
+  color: var(--acento);
+  font-weight: 600;
+}
+
+.montos small {
+  font-weight: 500;
+  color: var(--texto-suave);
+  font-size: 0.75rem;
+}
+
 .error { flex: 0 0 auto; color: var(--peligro); margin: 0 0 0.5rem; }
-button.peligro { padding: 0.35rem 0.65rem; font-size: 0.8rem; }
+
+@media (max-width: 720px) and (orientation: portrait) {
+  .cab { align-items: stretch; }
+  .totales { width: 100%; }
+  .totales article { flex: 1 1 calc(50% - 0.3rem); min-width: 0; }
+  .alta {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .alta label { min-width: 0; width: 100%; }
+  .item-info {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+@media (orientation: landscape) and (max-height: 520px) {
+  .cab, .alta { margin-bottom: 0.45rem; }
+  .alta { padding: 0.55rem 0.7rem; }
+  .totales article { padding: 0.4rem 0.65rem; }
+  .totales strong { font-size: 1rem; }
+}
