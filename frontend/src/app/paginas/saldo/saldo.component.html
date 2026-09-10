@@ -51,7 +51,7 @@
   }
 </div>
 
-<form class="grid" (submit)="$event.preventDefault()">
+<form class="grid" enterAvance (ngSubmit)="guardar()">
   <div class="bloque">
     <div class="bloque-cab">
       <h2>1. Lo que tengo en apps / bancos</h2>
@@ -112,6 +112,7 @@
             type="text"
             inputmode="numeric"
             autocomplete="off"
+            data-no-clear="1"
             [(ngModel)]="d.cantidad"
             [name]="'cant'+i"
             [style.width.ch]="anchoCantidad(d.cantidad)"
@@ -124,9 +125,8 @@
       }
     </div>
     <button
-      type="button"
+      type="submit"
       class="btn-guardar"
-      (click)="guardar()"
       [disabled]="guardando || real <= 0"
     >
       {{ guardando ? 'Guardando…' : 'Guardar comparación' }}
@@ -206,48 +206,49 @@
   <div class="overlay" (click)="cancelarEditar()" role="presentation">
     <div class="dialog" (click)="$event.stopPropagation()" role="dialog" aria-modal="true">
       <h3>Editar corte</h3>
-      <label>Debería tener
-        <div class="monto-wrap">
-          <span class="simbolo">$</span>
-          <input type="text" inputmode="decimal" [(ngModel)]="editEsperado" name="editEsp"
-            (ngModelChange)="alEscribirEdit('esperado', $event)" (keydown)="soloMonto($event)" />
-        </div>
-      </label>
-      @for (c of camposDigital; track c.key) {
-        <label>{{ c.label }}
+      <form class="dialog-form" enterAvance (ngSubmit)="guardarEdicion()">
+        <label>Debería tener
           <div class="monto-wrap">
             <span class="simbolo">$</span>
-            <input type="text" inputmode="decimal" [(ngModel)]="editTextos[c.key]" [name]="'edit'+c.key"
-              (ngModelChange)="alEscribirEdit(c.key, $event)" (keydown)="soloMonto($event)" />
+            <input type="text" inputmode="decimal" [(ngModel)]="editEsperado" name="editEsp"
+              (ngModelChange)="alEscribirEdit('esperado', $event)" (keydown)="soloMonto($event)" />
           </div>
         </label>
-      }
-      <label>Efectivo (total)
-        <div class="monto-wrap">
-          <span class="simbolo">$</span>
-          <input type="text" inputmode="decimal" [(ngModel)]="editEfectivo" name="editEfec"
-            (ngModelChange)="alEscribirEdit('efectivo', $event)" (keydown)="soloMonto($event)" />
+        @for (c of camposDigital; track c.key) {
+          <label>{{ c.label }}
+            <div class="monto-wrap">
+              <span class="simbolo">$</span>
+              <input type="text" inputmode="decimal" [(ngModel)]="editTextos[c.key]" [name]="'edit'+c.key"
+                (ngModelChange)="alEscribirEdit(c.key, $event)" (keydown)="soloMonto($event)" />
+            </div>
+          </label>
+        }
+        <label>Efectivo (total)
+          <div class="monto-wrap">
+            <span class="simbolo">$</span>
+            <input type="text" inputmode="decimal" [(ngModel)]="editEfectivo" name="editEfec"
+              (ngModelChange)="alEscribirEdit('efectivo', $event)" (keydown)="soloMonto($event)" />
+          </div>
+        </label>
+        <p class="subtotal">
+          Real: <strong class="mono">{{ realEditando() | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
+          · Diff:
+          <strong
+            class="mono"
+            [class.diff-falta]="diffEditando() < 0"
+            [class.diff-demas]="diffEditando() > 0"
+          >{{ diffEditando() | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
+        </p>
+        <div class="dialog-actions">
+          <button type="button" class="secundario" (click)="cancelarEditar()" [disabled]="guardandoEdit">Cancelar</button>
+          <button
+            type="submit"
+            [disabled]="guardandoEdit || realEditando() <= 0"
+          >
+            {{ guardandoEdit ? 'Guardando…' : 'Guardar cambios' }}
+          </button>
         </div>
-      </label>
-      <p class="subtotal">
-        Real: <strong class="mono">{{ realEditando() | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
-        · Diff:
-        <strong
-          class="mono"
-          [class.diff-falta]="diffEditando() < 0"
-          [class.diff-demas]="diffEditando() > 0"
-        >{{ diffEditando() | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
-      </p>
-      <div class="dialog-actions">
-        <button type="button" class="secundario" (click)="cancelarEditar()" [disabled]="guardandoEdit">Cancelar</button>
-        <button
-          type="button"
-          (click)="guardarEdicion()"
-          [disabled]="guardandoEdit || realEditando() <= 0"
-        >
-          {{ guardandoEdit ? 'Guardando…' : 'Guardar cambios' }}
-        </button>
-      </div>
+      </form>
     </div>
   </div>
 }

@@ -5,6 +5,14 @@ const MESES_CORTO = [
   'jul', 'ago', 'sep', 'oct', 'nov', 'dic',
 ] as const;
 
+/** Fecha local de hoy en formato input date: 2026-09-09 */
+export function fechaHoyLocal(d = new Date()): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
 /** Formato fijo: 08-sep-2026 */
 export function formatFechaCorta(valor: string | Date | null | undefined): string {
   if (valor == null || valor === '') return '';

@@ -8,12 +8,26 @@
 @if (error) { <p class="error">{{ error }}</p> }
 @if (ok) { <p class="ok">{{ ok }}</p> }
 
-<form class="alta" (ngSubmit)="crear()">
+<form class="alta" enterAvance (ngSubmit)="crear()">
   <label>Usuario
-    <input [(ngModel)]="form.usuario" name="usuario" required placeholder="ej. maria" autocomplete="off" />
+    <input
+      [(ngModel)]="form.usuario"
+      (ngModelChange)="refrescarCrearOk()"
+      name="usuario"
+      required
+      placeholder="ej. maria"
+      autocomplete="off"
+    />
   </label>
   <label>Contraseña
-    <input [(ngModel)]="form.password" name="password" type="password" required autocomplete="new-password" />
+    <input
+      [(ngModel)]="form.password"
+      (ngModelChange)="refrescarCrearOk()"
+      name="password"
+      type="password"
+      required
+      autocomplete="new-password"
+    />
   </label>
   <label>Rol
     <select [(ngModel)]="form.rol" name="rol">
@@ -21,7 +35,7 @@
       <option value="ADMIN">ADMIN</option>
     </select>
   </label>
-  <button type="submit" [disabled]="cargando">Crear usuario</button>
+  <button type="submit" [disabled]="cargando || !formCrearOk">Crear usuario</button>
 </form>
 
 <div class="lista-scroll">
@@ -40,8 +54,13 @@
           <tr [class.inactivo]="!u.activo">
             <td>{{ u.usuario }}</td>
             <td>
-              <select [ngModel]="u.rol" (ngModelChange)="cambiarRol(u, $event)" [name]="'rol-' + u.id">
-                <option value="USER">USER</option>
+              <select
+                [ngModel]="u.rol"
+                (ngModelChange)="cambiarRol(u, $event)"
+                [name]="'rol-' + u.id"
+                [title]="esUnicoAdminActivo(u) ? 'Crea otro ADMIN antes de quitar este rol' : ''"
+              >
+                <option value="USER" [disabled]="!puedeQuitarAdmin(u)">USER</option>
                 <option value="ADMIN">ADMIN</option>
               </select>
             </td>
@@ -57,8 +76,9 @@
                 <button
                   type="button"
                   class="icono"
-                  [title]="u.activo ? 'Desactivar' : 'Activar'"
-                  [attr.aria-label]="u.activo ? 'Desactivar' : 'Activar'"
+                  [disabled]="!puedeDesactivar(u)"
+                  [title]="tituloActivo(u)"
+                  [attr.aria-label]="tituloActivo(u)"
                   (click)="toggleActivo(u)"
                 >
                   @if (u.activo) {
@@ -71,7 +91,7 @@
                     </svg>
                   }
                 </button>
-                @if (!esYo(u)) {
+                @if (!esYo(u) && !(esUnicoAdminActivo(u))) {
                   <button type="button" class="icono peligro" title="Eliminar" aria-label="Eliminar" (click)="eliminar(u)">
                     <svg viewBox="0 0 24 24" aria-hidden="true">
                       <path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
@@ -84,11 +104,12 @@
           @if (editId === u.id) {
             <tr class="reset-row">
               <td colspan="4">
-                <form class="reset edit" (ngSubmit)="guardarEdicion(u)">
+                <form class="reset edit" enterAvance (ngSubmit)="guardarEdicion(u)">
                   <label>Nombre de usuario
                     <input
                       type="text"
                       [(ngModel)]="editUsuario"
+                      (ngModelChange)="refrescarEditOk(u)"
                       name="editUsuario"
                       required
                       autocomplete="off"
@@ -98,12 +119,13 @@
                     <input
                       type="password"
                       [(ngModel)]="editPassword"
+                      (ngModelChange)="refrescarEditOk(u)"
                       name="editPassword"
                       autocomplete="new-password"
                       placeholder="Dejar vacío para no cambiar"
                     />
                   </label>
-                  <button type="submit" [disabled]="cargando">Guardar</button>
+                  <button type="submit" [disabled]="cargando || !formEditOk">Guardar</button>
                   <button type="button" class="secundario" (click)="cerrarEdicion()">Cancelar</button>
                 </form>
               </td>

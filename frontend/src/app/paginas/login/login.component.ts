@@ -3,11 +3,12 @@ import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { AuthService } from '../../auth.service';
 import { sha256Hex } from '../../password-digest';
+import { EnterAvanceDirective } from '../../enter-avance.directive';
 
 @Component({
   selector: 'app-login',
   standalone: true,
-  imports: [FormsModule],
+  imports: [FormsModule, EnterAvanceDirective],
   templateUrl: './login.component.html',
   styleUrl: './login.component.css',
 })
@@ -23,11 +24,16 @@ export class LoginComponent implements AfterViewInit {
   cargando = false;
   verClave = false;
 
+  get puedeEntrar(): boolean {
+    return !!(this.usuario || '').trim() && !!(this.password || '');
+  }
+
   ngAfterViewInit(): void {
     queueMicrotask(() => this.usuarioInput?.nativeElement.focus());
   }
 
   async entrar(): Promise<void> {
+    if (!this.puedeEntrar || this.cargando) return;
     this.error = '';
     this.cargando = true;
     try {

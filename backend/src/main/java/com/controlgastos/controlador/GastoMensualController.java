@@ -34,6 +34,12 @@ public class GastoMensualController {
         return service.guardarMensual(g);
     }
 
+    /** Resta 1 mes al plan MSI y muestra cuánto queda. */
+    @PostMapping("/{id}/marcar-cuota")
+    public GastoMensual marcarCuota(@PathVariable Long id) {
+        return service.marcarCuotaMensual(id);
+    }
+
     @DeleteMapping("/{id}")
     public void eliminar(@PathVariable Long id) {
         service.eliminarMensual(id);

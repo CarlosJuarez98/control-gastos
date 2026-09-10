@@ -50,7 +50,10 @@ export function formatDineroNumero(n: number, decimales = 2): string {
 }
 
 export function soloMontoKey(ev: KeyboardEvent): void {
-  const ok = ['Backspace', 'Delete', 'Tab', 'ArrowLeft', 'ArrowRight', 'Home', 'End', '.'];
+  const ok = [
+    'Backspace', 'Delete', 'Tab', 'Enter', 'Escape',
+    'ArrowLeft', 'ArrowRight', 'Home', 'End', '.',
+  ];
   if (ok.includes(ev.key) || ev.ctrlKey || ev.metaKey) return;
   if (!/^\d$/.test(ev.key)) ev.preventDefault();
 }

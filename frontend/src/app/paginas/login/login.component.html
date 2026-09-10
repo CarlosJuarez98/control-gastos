@@ -17,7 +17,7 @@
 
     <div class="card">
       <h1>Entrar</h1>
-      <form (ngSubmit)="entrar()">
+      <form enterAvance data-enter-last="go" (ngSubmit)="entrar()">
         <label>
           Usuario
           <input
@@ -57,7 +57,7 @@
         @if (error) {
           <p class="error" role="alert">{{ error }}</p>
         }
-        <button type="submit" class="cta" [disabled]="cargando">
+        <button type="submit" class="cta" [disabled]="cargando || !puedeEntrar">
           {{ cargando ? 'Entrando…' : 'Entrar' }}
         </button>
       </form>

@@ -1,6 +1,6 @@
 <section class="cab">
   <div>
-    <h1>Gastos mensuales fijos</h1>
+    <h1>Gastos mensuales</h1>
   </div>
   <div class="totales">
     <article>
@@ -11,14 +11,41 @@
       <span>Por quincena</span>
       <strong class="mono">{{ porQuincena | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
     </article>
+    @if (totalRestanteMeses > 0) {
+      <article>
+        <span>Restante a meses</span>
+        <strong class="mono aviso">{{ totalRestanteMeses | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
+      </article>
+    }
+    @if (totalEstaQuincenaProgramado > 0) {
+      <article>
+        <span>Pago esta quincena</span>
+        <strong class="mono aviso">{{ totalEstaQuincenaProgramado | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
+      </article>
+    }
+    @if (totalSiguienteQuincenaProgramado > 0) {
+      <article>
+        <span>Pago otra quincena</span>
+        <strong class="mono">{{ totalSiguienteQuincenaProgramado | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
+      </article>
+    }
   </div>
 </section>
 
 @if (error) { <p class="error">{{ error }}</p> }
+@if (ok) { <p class="ok">{{ ok }}</p> }
 
-<form class="alta" (ngSubmit)="guardar()">
-  <label>Motivo <input [(ngModel)]="form.motivo" name="motivo" required placeholder="Renta, TDC…" /></label>
-  <label>Monto mensual
+<form class="alta" enterAvance (ngSubmit)="guardar()">
+  <label>Motivo
+    <input
+      [(ngModel)]="form.motivo"
+      (ngModelChange)="refrescarFormOk()"
+      name="motivo"
+      required
+      placeholder="Renta, MSI laptop…"
+    />
+  </label>
+  <label>{{ form.aMeses ? 'Cuota / mes' : 'Monto mensual' }}
     <div class="monto-wrap">
       <span class="simbolo">$</span>
       <input
@@ -34,24 +61,217 @@
       />
     </div>
   </label>
-  <button type="submit">Agregar</button>
+  <label class="check-meses">
+    <input type="checkbox" [(ngModel)]="form.aMeses" name="aMeses" (ngModelChange)="refrescarFormOk()" />
+    A meses
+  </label>
+  <label>Día de pago
+    <input
+      type="text"
+      inputmode="numeric"
+      pattern="[0-9]*"
+      [(ngModel)]="form.diaPago"
+      (ngModelChange)="refrescarFormOk()"
+      name="diaPago"
+      placeholder="opcional 1–31"
+      autocomplete="off"
+    />
+  </label>
+  @if (form.aMeses) {
+    <label>Lo que te falta
+      <div class="monto-wrap">
+        <span class="simbolo">$</span>
+        <input
+          type="text"
+          inputmode="decimal"
+          autocomplete="off"
+          [(ngModel)]="form.falta"
+          name="falta"
+          required
+          placeholder="saldo del plan"
+          (ngModelChange)="alEscribirFalta($event)"
+          (keydown)="soloMonto($event)"
+        />
+      </div>
+    </label>
+    @if (previewMeses; as n) {
+      <p class="hint-plan">≈ {{ n }} meses con esa cuota · no suma deuda (ya está en Deudas)</p>
+    }
+  }
+  <div class="alta-acciones">
+    <button type="submit" [disabled]="guardando || !formOk">
+      {{ guardando ? 'Guardando…' : (editandoId ? 'Guardar cambios' : (form.aMeses ? 'Agregar plan' : 'Agregar fijo')) }}
+    </button>
+    @if (editandoId) {
+      <button type="button" class="secundario" (click)="cancelarEdicion()">Cancelar</button>
+    }
+  </div>
 </form>
 
-<ul class="lista">
-  @for (g of items; track g.id) {
-    <li>
-      <div class="item-info">
-        <strong>{{ g.motivo }}</strong>
-        <div class="montos">
-          <span class="mono mes">{{ g.monto | currency:'MXN':'symbol-narrow':'1.2-2' }} <small>/ mes</small></span>
-          <span class="mono quincena">{{ quincenaDe(g.monto) | currency:'MXN':'symbol-narrow':'1.2-2' }} <small>/ quincena</small></span>
+<div class="pagina-scroll">
+  @if (hayPagosProgramados) {
+    <section class="pagos-prog" aria-label="Pagos programados por quincena">
+      <h2 class="seccion-tit">Pagos programados</h2>
+      @if (compromisosEstaQuincena.length || comprasUnicas.esta.length || pagosProgramados.esta.length) {
+        <div class="pago-bloque esta">
+          <h3>
+            Esta quincena te toca
+            <strong class="mono neg">{{ totalEstaQuincenaProgramado | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
+          </h3>
+          <ul>
+            @for (c of compromisosEstaQuincena; track c.g.id) {
+              <li class="sin-link">
+                <strong>{{ c.g.motivo }}</strong>
+                <span>{{ c.etiqueta }}</span>
+                <span class="mono neg">{{ c.monto | currency:'MXN':'symbol-narrow':'1.2-2' }}</span>
+              </li>
+            }
+            @for (c of comprasUnicas.esta; track c.id) {
+              <li class="sin-link">
+                <strong>{{ c.motivo }}</strong>
+                <span>{{ c.etiqueta }}</span>
+                <span class="mono neg">{{ c.monto | currency:'MXN':'symbol-narrow':'1.2-2' }}</span>
+              </li>
+            }
+            @for (p of pagosProgramados.esta; track p.cuenta.id) {
+              <li>
+                <a [routerLink]="['/cuentas', p.cuenta.id]">
+                  <strong>{{ p.cuenta.nombre }}</strong>
+                  <span>{{ etiquetaTipoCorto(p.cuenta.tipo) }} · {{ p.etiquetaPagoCorta }}</span>
+                  <span class="mono neg">{{ p.cuenta.saldoActual | currency:'MXN':'symbol-narrow':'1.2-2' }}</span>
+                </a>
+              </li>
+            }
+          </ul>
         </div>
-      </div>
-      <button type="button" class="icono peligro" title="Quitar" aria-label="Quitar" (click)="eliminar(g.id)">
-        <svg viewBox="0 0 24 24" aria-hidden="true">
-          <path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-        </svg>
-      </button>
-    </li>
+      }
+      @if (compromisosSiguienteQuincena.length || comprasUnicas.siguiente.length || pagosProgramados.siguiente.length) {
+        <div class="pago-bloque siguiente">
+          <h3>
+            En la otra quincena
+            <strong class="mono neg">{{ totalSiguienteQuincenaProgramado | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
+          </h3>
+          <ul>
+            @for (c of compromisosSiguienteQuincena; track c.g.id) {
+              <li class="sin-link">
+                <strong>{{ c.g.motivo }}</strong>
+                <span>{{ c.etiqueta }}</span>
+                <span class="mono neg">{{ c.monto | currency:'MXN':'symbol-narrow':'1.2-2' }}</span>
+              </li>
+            }
+            @for (c of comprasUnicas.siguiente; track c.id) {
+              <li class="sin-link">
+                <strong>{{ c.motivo }}</strong>
+                <span>{{ c.etiqueta }}</span>
+                <span class="mono neg">{{ c.monto | currency:'MXN':'symbol-narrow':'1.2-2' }}</span>
+              </li>
+            }
+            @for (p of pagosProgramados.siguiente; track p.cuenta.id) {
+              <li>
+                <a [routerLink]="['/cuentas', p.cuenta.id]">
+                  <strong>{{ p.cuenta.nombre }}</strong>
+                  <span>{{ etiquetaTipoCorto(p.cuenta.tipo) }} · {{ p.etiquetaPagoCorta }}</span>
+                  <span class="mono neg">{{ p.cuenta.saldoActual | currency:'MXN':'symbol-narrow':'1.2-2' }}</span>
+                </a>
+              </li>
+            }
+          </ul>
+        </div>
+      }
+      @if (comprasUnicas.despues.length || pagosProgramados.despues.length) {
+        <div class="pago-bloque despues">
+          <h3>
+            Más adelante
+            <strong class="mono neg">{{ totalDespuesProgramado | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
+          </h3>
+          <ul>
+            @for (c of comprasUnicas.despues; track c.id) {
+              <li class="sin-link">
+                <strong>{{ c.motivo }}</strong>
+                <span>{{ c.etiqueta }}</span>
+                <span class="mono neg">{{ c.monto | currency:'MXN':'symbol-narrow':'1.2-2' }}</span>
+              </li>
+            }
+            @for (p of pagosProgramados.despues; track p.cuenta.id) {
+              <li>
+                <a [routerLink]="['/cuentas', p.cuenta.id]">
+                  <strong>{{ p.cuenta.nombre }}</strong>
+                  <span>{{ etiquetaTipoCorto(p.cuenta.tipo) }} · {{ p.etiquetaPagoCorta }}</span>
+                  <span class="mono neg">{{ p.cuenta.saldoActual | currency:'MXN':'symbol-narrow':'1.2-2' }}</span>
+                </a>
+              </li>
+            }
+          </ul>
+        </div>
+      }
+    </section>
   }
-</ul>
+
+  @if (aMeses.length) {
+    <h2 class="seccion-tit">A meses</h2>
+    <ul class="lista">
+      @for (g of aMeses; track g.id) {
+        <li class="msi" [class.editando]="editandoId === g.id">
+          <div class="item-info">
+            <strong>{{ g.motivo }}</strong>
+            <div class="montos">
+              <span class="mono mes">{{ g.monto | currency:'MXN':'symbol-narrow':'1.2-2' }} <small>/ mes</small></span>
+              <span class="badge">{{ etiquetaMeses(g) }}</span>
+              <span class="mono restante">
+                Falta {{ restanteDe(g) | currency:'MXN':'symbol-narrow':'1.2-2' }}
+              </span>
+            </div>
+          </div>
+          <div class="acciones">
+            <button type="button" class="cuota" (click)="marcarCuota(g)">Pagué 1 cuota</button>
+            <button type="button" class="icono" title="Editar" aria-label="Editar" (click)="editar(g)">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M4 20h4.5L19 9.5 14.5 5 4 15.5V20z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+                <path d="M12.5 7l4.5 4.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+              </svg>
+            </button>
+            <button type="button" class="icono peligro" title="Quitar" aria-label="Quitar" (click)="eliminar(g.id)">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              </svg>
+            </button>
+          </div>
+        </li>
+      }
+    </ul>
+  }
+
+  <h2 class="seccion-tit">Fijos</h2>
+  <ul class="lista">
+    @for (g of fijos; track g.id) {
+      <li [class.editando]="editandoId === g.id">
+        <div class="item-info">
+          <strong>{{ g.motivo }}</strong>
+          <div class="montos">
+            <span class="mono mes">{{ g.monto | currency:'MXN':'symbol-narrow':'1.2-2' }} <small>/ mes</small></span>
+            @if (g.diaPago) {
+              <span class="badge">Pago día {{ g.diaPago }}</span>
+            } @else {
+              <span class="mono quincena">{{ quincenaDe(g.monto) | currency:'MXN':'symbol-narrow':'1.2-2' }} <small>/ quincena</small></span>
+            }
+          </div>
+        </div>
+        <div class="acciones">
+          <button type="button" class="icono" title="Editar" aria-label="Editar" (click)="editar(g)">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M4 20h4.5L19 9.5 14.5 5 4 15.5V20z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+              <path d="M12.5 7l4.5 4.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+            </svg>
+          </button>
+          <button type="button" class="icono peligro" title="Quitar" aria-label="Quitar" (click)="eliminar(g.id)">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+          </button>
+        </div>
+      </li>
+    } @empty {
+      <li class="vacio">No hay gastos fijos.</li>
+    }
+  </ul>
+</div>

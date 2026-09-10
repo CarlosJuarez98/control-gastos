@@ -17,8 +17,10 @@
 }
 
 .hero h1 {
-  font-size: clamp(1.45rem, 2.8vw, 1.9rem);
+  font-size: clamp(1.5rem, 3vw, 1.95rem);
+  font-weight: 700;
   margin-bottom: 0.2rem;
+  color: var(--texto);
 }
 
 .hero p { margin-bottom: 0; font-size: 0.92rem; }
@@ -83,7 +85,7 @@
 
 .metricas {
   display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(8.5rem, 1fr));
   gap: 0.55rem;
   margin-bottom: 0.85rem;
 }
@@ -94,6 +96,10 @@
   border: 1px solid var(--linea);
   border-radius: 0.85rem;
   animation: subir 0.5s ease both;
+}
+
+.metricas article.destacada-quincena {
+  border-color: color-mix(in srgb, var(--aviso, #e0a85c) 45%, var(--linea));
 }
 
 .metricas span {
@@ -130,6 +136,8 @@
 .panel h2 {
   font-size: 1.05rem;
   margin-bottom: 0.35rem;
+  font-weight: 600;
+  color: var(--texto);
 }
 
 .cab-panel {
@@ -358,5 +366,42 @@
   .panel { padding: 0.7rem; }
   .leyenda {
     max-height: min(28vh, 9rem);
+  }
+}
+
+.historial-anual {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.historial-anual li {
+  display: grid;
+  grid-template-columns: 4.5rem 1fr 1fr 1fr;
+  gap: 0.5rem 0.75rem;
+  align-items: baseline;
+  padding: 0.55rem 0.65rem;
+  border-radius: 0.45rem;
+  background: color-mix(in srgb, var(--superficie, #1a2332) 88%, transparent);
+}
+
+.historial-anual .anio {
+  font-size: 1.05rem;
+}
+
+.historial-anual em {
+  font-style: normal;
+  margin-left: 0.25rem;
+}
+
+@media (max-width: 640px) {
+  .historial-anual li {
+    grid-template-columns: 3.5rem 1fr;
+  }
+  .historial-anual li span:nth-child(n+3) {
+    grid-column: 2;
   }
 }

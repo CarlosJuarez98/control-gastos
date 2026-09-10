@@ -12,8 +12,15 @@
 
 @if (error) { <p class="error">{{ error }}</p> }
 
-<form class="alta" (ngSubmit)="crearCuenta()">
-  <label>Nombre <input [(ngModel)]="nueva.nombre" name="nombre" required /></label>
+<form class="alta" enterAvance (ngSubmit)="crearCuenta()">
+  <label>Nombre
+    <input
+      [(ngModel)]="nueva.nombre"
+      (ngModelChange)="refrescarFormNuevaOk()"
+      name="nombre"
+      required
+    />
+  </label>
   <label>Tipo
     <select [(ngModel)]="nueva.tipo" name="tipo">
       @for (t of tipos; track t) { <option [value]="t">{{ etiquetaTipo(t) }}</option> }
@@ -40,34 +47,68 @@
       />
     </div>
   </label>
-  <button type="submit">Nueva cuenta</button>
+  @if (nuevaConCalendario) {
+    <label>Corte
+      <input type="text" inputmode="numeric" pattern="[0-9]*" [(ngModel)]="nuevaDiaCorte" name="nuevaDiaCorte" placeholder="15" autocomplete="off" />
+    </label>
+    <label>Pago
+      <input type="text" inputmode="numeric" pattern="[0-9]*" [(ngModel)]="nuevaDiaLimite" name="nuevaDiaLimite" placeholder="5" autocomplete="off" />
+    </label>
+    <label>Límite crédito
+      <div class="monto-wrap">
+        <span class="simbolo">$</span>
+        <input
+          type="text"
+          inputmode="decimal"
+          autocomplete="off"
+          [(ngModel)]="nuevaLimite"
+          name="nuevaLimite"
+          placeholder="opcional"
+          (ngModelChange)="alEscribirLimiteNuevo($event)"
+          (keydown)="soloMonto($event)"
+        />
+      </div>
+    </label>
+  }
+  <button type="submit" [disabled]="!formNuevaOk">Nueva cuenta</button>
 </form>
 
 <div class="layout" [class.movil]="esMovil">
   <div class="lista-cuentas">
     <div class="grupo">
       <h3>Mis deudas</h3>
-      <ul class="cuentas">
-        @for (c of misDeudasPendientes; track c.id) {
-          <li [class.activa]="seleccionada?.id === c.id">
-            <a [routerLink]="linkCuenta(c)">
-              <strong>{{ c.nombre }}</strong>
-              <small>{{ etiquetaTipo(c.tipo) }}</small>
-              <span class="mono">{{ c.saldoActual | currency:'MXN':'symbol-narrow':'1.2-2' }}</span>
-            </a>
-          </li>
-          @if (esMovil && seleccionada?.id === c.id) {
-            <li class="detalle-inline">
-              <div class="espacio-deuda" aria-hidden="true"></div>
-              <div class="detalle" #panelDetalle>
-                <ng-container *ngTemplateOutlet="detalleTpl" />
-              </div>
-            </li>
-          }
-        } @empty {
-          <li class="vacio">Sin deudas pendientes</li>
+      @if (gruposMisDeudas.length) {
+        @for (grupo of gruposMisDeudas; track grupo.tipo) {
+          <div class="subgrupo">
+            <h4>{{ grupo.etiqueta }}</h4>
+            <ul class="cuentas">
+              @for (c of grupo.cuentas; track c.id) {
+                <li [class.activa]="seleccionada?.id === c.id">
+                  <a [routerLink]="linkCuenta(c)">
+                    <strong>{{ c.nombre }}</strong>
+                    @if (esConCalendario(c) && (c.diaCorte || c.diaLimitePago)) {
+                      <small class="meta-tdc">{{ textoCalendario(c.diaCorte, c.diaLimitePago) }}</small>
+                    }
+                    <span class="mono">{{ c.saldoActual | currency:'MXN':'symbol-narrow':'1.2-2' }}</span>
+                  </a>
+                </li>
+                @if (esMovil && seleccionada?.id === c.id) {
+                  <li class="detalle-inline">
+                    <div class="espacio-deuda" aria-hidden="true"></div>
+                    <div class="detalle" #panelDetalle>
+                      <ng-container *ngTemplateOutlet="detalleTpl" />
+                    </div>
+                  </li>
+                }
+              }
+            </ul>
+          </div>
         }
-      </ul>
+      } @else {
+        <ul class="cuentas">
+          <li class="vacio">Sin deudas pendientes</li>
+        </ul>
+      }
     </div>
 
     @if (meDebenPendientes.length) {
@@ -105,6 +146,9 @@
                 <a [routerLink]="linkCuenta(c)">
                   <strong>{{ c.nombre }}</strong>
                   <small>{{ etiquetaTipo(c.tipo) }}</small>
+                  @if (esConCalendario(c) && (c.diaCorte || c.diaLimitePago)) {
+                    <small class="meta-tdc">{{ textoCalendario(c.diaCorte, c.diaLimitePago) }}</small>
+                  }
                   <span class="mono">{{ c.saldoActual | currency:'MXN':'symbol-narrow':'1.2-2' }}</span>
                 </a>
                 <button type="button" class="icono peligro" (click)="eliminarCuenta(c)" title="Borrar" aria-label="Borrar">
@@ -142,13 +186,27 @@
 <ng-template #detalleTpl>
   @if (seleccionada) {
     <div class="detalle-cab">
-      <div>
-        <h2>{{ seleccionada.nombre }}</h2>
+      <div class="detalle-titulo">
+        <label class="nombre-cuenta">Nombre
+          <input
+            type="text"
+            [(ngModel)]="nombreEdit"
+            name="nombreCuenta"
+            autocomplete="off"
+            maxlength="80"
+            [disabled]="guardandoNombre"
+            (blur)="guardarNombre()"
+            (keydown.enter)="$event.preventDefault(); $any($event.target).blur()"
+          />
+        </label>
         <p class="saldo-linea">
           Saldo actual:
           <strong class="mono">{{ seleccionada.saldoActual | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
           @if (seleccionPrestamista && saldoDisponible != null) {
             <span class="pill-disponible">Disponible {{ saldoDisponible | currency:'MXN':'symbol-narrow':'1.2-2' }}</span>
+          }
+          @if (esConCalendario(seleccionada) && creditoDisponibleDe(seleccionada) != null) {
+            <span class="pill-disponible">Crédito libre {{ creditoDisponibleDe(seleccionada) | currency:'MXN':'symbol-narrow':'1.2-2' }}</span>
           }
         </p>
       </div>
@@ -168,7 +226,41 @@
       </div>
     </div>
 
-    <form class="alta" (ngSubmit)="agregarMovimiento()">
+    @if (esConCalendario(seleccionada)) {
+      <form class="alta tdc-datos" enterAvance (ngSubmit)="guardarDatosCalendario()">
+        <label>Corte
+          <input type="text" inputmode="numeric" pattern="[0-9]*" [(ngModel)]="tdcEdit.diaCorte" name="diaCorte" placeholder="día 1–31" autocomplete="off" />
+        </label>
+        <label>Pago
+          <input type="text" inputmode="numeric" pattern="[0-9]*" [(ngModel)]="tdcEdit.diaLimitePago" name="diaLimite" placeholder="día 1–31" autocomplete="off" />
+        </label>
+        <label>Límite de crédito
+          <div class="monto-wrap">
+            <span class="simbolo">$</span>
+            <input
+              type="text"
+              inputmode="decimal"
+              autocomplete="off"
+              [(ngModel)]="tdcEdit.limiteCredito"
+              name="limiteCredito"
+              placeholder="0.00"
+              (ngModelChange)="alEscribirLimiteEdit($event)"
+              (keydown)="soloMonto($event)"
+            />
+          </div>
+        </label>
+        <button type="submit" [disabled]="guardandoTdc">
+          {{ guardandoTdc ? 'Guardando…' : 'Guardar corte / pago' }}
+        </button>
+        @if (textoCalendario(tdcEdit.diaCorte, tdcEdit.diaLimitePago); as cal) {
+          @if (cal) {
+            <p class="hint-tdc">{{ cal }}</p>
+          }
+        }
+      </form>
+    }
+
+    <form class="alta" enterAvance (ngSubmit)="agregarMovimiento()">
       <label>Fecha
         <input type="date" [(ngModel)]="mov.fecha" name="mfecha" [max]="hoy" required />
       </label>
@@ -218,7 +310,9 @@
           </div>
         </label>
       }
-      <button type="submit">{{ editMovId ? 'Guardar cambios' : 'Registrar movimiento' }}</button>
+      <button type="submit" [disabled]="!formMovOk">
+        {{ editMovId ? 'Guardar cambios' : 'Registrar movimiento' }}
+      </button>
       @if (editMovId) {
         <button type="button" class="secundario" (click)="cancelarEdicionMov()">Cancelar</button>
       }

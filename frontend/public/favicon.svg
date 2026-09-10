@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="Control de gastos">
+  <rect width="32" height="32" rx="8" fill="#0f1419"/>
+  <rect x="1.2" y="1.2" width="29.6" height="29.6" rx="7" fill="none" stroke="#3dbea0" stroke-width="1.6"/>
+  <text
+    x="16"
+    y="22.5"
+    text-anchor="middle"
+    font-family="Segoe UI, system-ui, sans-serif"
+    font-size="18"
+    font-weight="700"
+    fill="#3dbea0"
+  >$</text>
+</svg>
