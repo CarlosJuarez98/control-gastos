@@ -282,6 +282,26 @@ textarea:disabled {
   font-weight: 600;
   line-height: 1;
 }
+/* En móvil el teclado decimal no trae +; botón para sumar varios montos */
+.monto-wrap .btn-mas-monto {
+  flex: 0 0 auto;
+  width: 2rem;
+  height: 2rem;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--linea);
+  border-radius: 0.4rem;
+  background: color-mix(in srgb, var(--acento) 16%, var(--campo-fondo));
+  color: var(--acento-2);
+  font-size: 1.15rem;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.monto-wrap .btn-mas-monto:active {
+  background: color-mix(in srgb, var(--acento) 28%, var(--campo-fondo));
+}
 .monto-wrap input,
 .monto-wrap input:focus,
 .monto-wrap input:focus-visible {
@@ -320,6 +340,23 @@ textarea:disabled {
 }
 .monto-wrap.campo-clearable > input {
   padding-right: 2.1rem;
+}
+/* Con botón +: la ✕ deja de ser absoluta para no taparlo */
+.monto-wrap.campo-clearable:has(.btn-mas-monto) > input {
+  padding-right: 0.15rem;
+}
+.monto-wrap.campo-clearable:has(.btn-mas-monto) > .btn-clear-campo {
+  position: static;
+  transform: none;
+  flex: 0 0 auto;
+  align-self: center;
+}
+.monto-wrap.campo-clearable:has(.btn-mas-monto) > .btn-clear-campo:hover,
+.monto-wrap.campo-clearable:has(.btn-mas-monto) > .btn-clear-campo:focus-visible {
+  transform: none;
+}
+.monto-wrap.campo-clearable:has(.btn-mas-monto) > .btn-clear-campo:active {
+  transform: scale(0.94);
 }
 button.btn-clear-campo {
   position: absolute;

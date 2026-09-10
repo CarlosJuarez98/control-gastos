@@ -168,6 +168,13 @@ export class GastosComponent implements OnInit {
     this.form.monto = formatDineroInputFlexible(v);
   }
 
+  /** En móvil el teclado decimal no trae +; botón del campo. */
+  insertarMasMonto(): void {
+    const cur = String(this.form.monto ?? '').trimEnd();
+    if (!cur || /[+;]$/.test(cur)) return;
+    this.form.monto = formatDineroInputFlexible(cur + '+');
+  }
+
   /** Vista previa si hay varios montos con + o ; */
   get montoSumaHint(): string | null {
     const { total, partes } = parseDineroSuma(this.form.monto);
