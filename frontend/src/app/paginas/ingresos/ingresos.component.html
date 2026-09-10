@@ -57,6 +57,14 @@
         (ngModelChange)="alEscribirMonto($event)"
         (keydown)="soloMonto($event)"
       />
+      <button
+        type="button"
+        class="btn-mas-monto"
+        title="Sumar otro monto"
+        aria-label="Sumar otro monto"
+        (mousedown)="$event.preventDefault()"
+        (click)="insertarMasMonto()"
+      >+</button>
     </div>
     @if (montoSumaHint; as hint) {
       <small class="monto-hint">{{ hint }}</small>
