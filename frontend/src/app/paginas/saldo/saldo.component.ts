@@ -7,6 +7,8 @@ import { Denominacion, SaldoSnapshot } from '../../modelos';
 import { formatDineroInput, formatDineroNumero, parseDinero, soloMontoKey } from '../../dinero.util';
 import { FechaCortaPipe, formatFechaCorta } from '../../fecha.util';
 import { EnterAvanceDirective } from '../../enter-avance.directive';
+import { PaginadorComponent } from '../../compartido/paginador/paginador.component';
+import { EstadoPaginacion } from '../../compartido/paginar.util';
 
 type DigitalKey = 'dineroBbva' | 'dineroMercadoLibre' | 'dineroNu' | 'dineroDidi';
 type SeccionMovil = 'digital' | 'efectivo' | null;
@@ -14,7 +16,7 @@ type SeccionMovil = 'digital' | 'efectivo' | null;
 @Component({
   selector: 'app-saldo',
   standalone: true,
-  imports: [FormsModule, CurrencyPipe, FechaCortaPipe, EnterAvanceDirective],
+  imports: [FormsModule, CurrencyPipe, FechaCortaPipe, EnterAvanceDirective, PaginadorComponent],
   templateUrl: './saldo.component.html',
   styleUrl: './saldo.component.css',
 })
@@ -25,6 +27,7 @@ export class SaldoComponent implements OnInit, OnDestroy {
   };
   denominaciones: Denominacion[] = [];
   historial: SaldoSnapshot[] = [];
+  readonly pagHistorial = new EstadoPaginacion();
   error = '';
   cargandoEsperado = false;
   guardando = false;
@@ -246,6 +249,20 @@ export class SaldoComponent implements OnInit, OnDestroy {
   /** Último corte del historial (más reciente). */
   get ultimoCorte(): SaldoSnapshot | null {
     return this.historial.length ? this.historial[0] : null;
+  }
+
+  get historialPagina(): SaldoSnapshot[] {
+    return this.pagHistorial.slice(this.historial);
+  }
+
+  alCambiarPagHistorial(pagina: number): void {
+    this.pagHistorial.alCambiarPagina(pagina, this.historial.length);
+    this.cdr.markForCheck();
+  }
+
+  alCambiarTamHistorial(tam: number): void {
+    this.pagHistorial.alCambiarTam(tam, this.historial.length);
+    this.cdr.markForCheck();
   }
 
   /** Real del último corte guardado. */

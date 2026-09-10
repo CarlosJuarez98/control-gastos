@@ -1,5 +1,36 @@
 @import url('https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=Syne:wght@600;700;800&display=swap');
 
+/* Toggle de alta (móvil): reutilizable en pantallas con formulario + lista */
+.toggle-alta {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin: 0 0 0.55rem;
+  padding: 0.7rem 0.85rem;
+  border: 1px solid var(--linea);
+  border-radius: 0.85rem;
+  background: var(--superficie);
+  color: var(--texto);
+  font: inherit;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  min-height: 2.85rem;
+}
+.toggle-alta .chev {
+  color: var(--texto-suave);
+  font-size: 0.85rem;
+  flex: 0 0 auto;
+}
+.toggle-alta.abierto {
+  border-color: color-mix(in srgb, var(--acento) 45%, var(--linea));
+}
+.toggle-alta:hover {
+  border-color: color-mix(in srgb, var(--acento) 35%, var(--linea));
+}
+
 :root {
   --fondo: #0f1419;
   --superficie: #182029;

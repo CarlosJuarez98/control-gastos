@@ -8,11 +8,13 @@ import { UsuarioAcceso } from '../../modelos';
 import { sha256Hex } from '../../password-digest';
 import { firstValueFrom } from 'rxjs';
 import { EnterAvanceDirective } from '../../enter-avance.directive';
+import { PaginadorComponent } from '../../compartido/paginador/paginador.component';
+import { EstadoPaginacion } from '../../compartido/paginar.util';
 
 @Component({
   selector: 'app-usuarios',
   standalone: true,
-  imports: [FormsModule, EnterAvanceDirective, NgTemplateOutlet],
+  imports: [FormsModule, EnterAvanceDirective, NgTemplateOutlet, PaginadorComponent],
   templateUrl: './usuarios.component.html',
   styleUrl: './usuarios.component.css',
 })
@@ -23,6 +25,7 @@ export class UsuariosComponent implements OnInit, OnDestroy {
   private readonly cdr = inject(ChangeDetectorRef);
 
   items: UsuarioAcceso[] = [];
+  readonly pagLista = new EstadoPaginacion();
   error = '';
   ok = '';
   cargando = false;
@@ -89,9 +92,30 @@ export class UsuariosComponent implements OnInit, OnDestroy {
 
   cargar(): void {
     this.api.usuarios().subscribe({
-      next: (r) => (this.items = r),
-      error: (e) => (this.error = e?.error?.error || 'No se pudieron cargar usuarios'),
+      next: (r) => {
+        this.items = r;
+        this.pagLista.reset();
+        this.cdr.markForCheck();
+      },
+      error: (e) => {
+        this.error = e?.error?.error || 'No se pudieron cargar usuarios';
+        this.cdr.markForCheck();
+      },
     });
+  }
+
+  get itemsPagina(): UsuarioAcceso[] {
+    return this.pagLista.slice(this.items);
+  }
+
+  alCambiarPagLista(pagina: number): void {
+    this.pagLista.alCambiarPagina(pagina, this.items.length);
+    this.cdr.markForCheck();
+  }
+
+  alCambiarTamLista(tam: number): void {
+    this.pagLista.alCambiarTam(tam, this.items.length);
+    this.cdr.markForCheck();
   }
 
   async crear(): Promise<void> {

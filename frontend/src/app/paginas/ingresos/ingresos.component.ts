@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnInit } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnInit } from '@angular/core';
 import { CurrencyPipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ApiService } from '../../api.service';
@@ -7,6 +7,8 @@ import { Ingreso } from '../../modelos';
 import { formatDineroInput, formatDineroInputFlexible, formatDineroNumero, parseDineroSuma, soloMontoKey } from '../../dinero.util';
 import { formatFechaCorta, fechaHoyLocal } from '../../fecha.util';
 import { EnterAvanceDirective } from '../../enter-avance.directive';
+import { PaginadorComponent } from '../../compartido/paginador/paginador.component';
+import { PaginasPorClave } from '../../compartido/paginar.util';
 
 export interface IngresoFila {
   id?: number;
@@ -28,12 +30,12 @@ export interface GrupoQuincena {
 @Component({
   selector: 'app-ingresos',
   standalone: true,
-  imports: [FormsModule, CurrencyPipe, EnterAvanceDirective],
+  imports: [FormsModule, CurrencyPipe, EnterAvanceDirective, PaginadorComponent],
   templateUrl: './ingresos.component.html',
   styleUrl: './ingresos.component.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class IngresosComponent implements OnInit {
+export class IngresosComponent implements OnInit, OnDestroy {
   items: Ingreso[] = [];
   grupos: GrupoQuincena[] = [];
   total = 0;
@@ -51,11 +53,16 @@ export class IngresosComponent implements OnInit {
   error = '';
   editandoId: number | null = null;
   guardando = false;
+  esMovil = false;
+  altaAbierta = false;
 
   private claveHoy = '';
   private filtroTimer: ReturnType<typeof setTimeout> | null = null;
   private filasPorClave = new Map<string, IngresoFila[]>();
   private abiertas = new Set<string>();
+  readonly paginas = new PaginasPorClave();
+  private media?: MediaQueryList;
+  private onMedia?: () => void;
 
   private readonly meses = [
     'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
@@ -69,11 +76,30 @@ export class IngresosComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
+    this.media = window.matchMedia('(max-width: 720px)');
+    this.onMedia = () => {
+      this.esMovil = !!this.media?.matches;
+      this.cdr.markForCheck();
+    };
+    this.onMedia();
+    this.media.addEventListener('change', this.onMedia);
+
     this.hoy = fechaHoyLocal();
     this.form.fecha = this.hoy;
     this.claveHoy = this.claveQuincena(this.hoy);
     this.etiquetaQuincenaActual = this.etiquetaDeClave(this.claveHoy);
     this.cargar();
+  }
+
+  ngOnDestroy(): void {
+    if (this.media && this.onMedia) {
+      this.media.removeEventListener('change', this.onMedia);
+    }
+    if (this.filtroTimer) clearTimeout(this.filtroTimer);
+  }
+
+  toggleAlta(): void {
+    this.altaAbierta = !this.altaAbierta;
   }
 
   private fechaLocal(d = new Date()): string {
@@ -144,6 +170,24 @@ export class IngresosComponent implements OnInit {
       this.abiertas.add(clave);
     }
     this.sincronizarGruposAbiertos();
+    this.cdr.markForCheck();
+  }
+
+  itemsPagina(grupo: GrupoQuincena): IngresoFila[] {
+    return this.paginas.slice(grupo.clave, grupo.items);
+  }
+
+  paginaDe(clave: string): number {
+    return this.paginas.paginaDe(clave);
+  }
+
+  alCambiarPaginaGrupo(clave: string, pagina: number, total: number): void {
+    this.paginas.setPagina(clave, pagina, total);
+    this.cdr.markForCheck();
+  }
+
+  alCambiarTamPagina(tam: number): void {
+    this.paginas.setTam(tam);
     this.cdr.markForCheck();
   }
 
@@ -221,6 +265,7 @@ export class IngresosComponent implements OnInit {
       if (!this.abiertas.size && claves[0]) this.abiertas.add(claves[0]);
     }
 
+    this.paginas.limpiar(claves);
     this.grupos = claves.map((clave) => {
       const items = map.get(clave) || [];
       const abierta = this.abiertas.has(clave);
@@ -265,12 +310,16 @@ export class IngresosComponent implements OnInit {
     if (!original) return;
     this.error = '';
     this.editandoId = i.id;
+    if (this.esMovil) this.altaAbierta = true;
     this.form = {
       fecha: (original.fecha || '').slice(0, 10) || fechaHoyLocal(),
       concepto: original.concepto,
       monto: formatDineroInput(String(original.monto)),
     };
     this.cdr.markForCheck();
+    queueMicrotask(() => {
+      document.querySelector<HTMLElement>('form.alta')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    });
   }
 
   cancelarEdicion(): void {
@@ -278,6 +327,7 @@ export class IngresosComponent implements OnInit {
     this.error = '';
     this.hoy = fechaHoyLocal();
     this.form = { fecha: this.hoy, concepto: '', monto: '' };
+    if (this.esMovil) this.altaAbierta = false;
     this.cdr.markForCheck();
   }
 
@@ -332,8 +382,10 @@ export class IngresosComponent implements OnInit {
           // Misma fecha lista para otro ingreso del día
           this.editandoId = null;
           this.form = { fecha: fechaGuardada, concepto: '', monto: '' };
+          if (this.esMovil) this.altaAbierta = true;
         } else {
           this.cancelarEdicion();
+          if (this.esMovil) this.altaAbierta = false;
         }
         this.claveHoy = this.claveQuincena(this.hoy);
         this.etiquetaQuincenaActual = this.etiquetaDeClave(this.claveHoy);

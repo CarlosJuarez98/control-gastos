@@ -8,11 +8,13 @@ import { Cuenta, Movimiento } from '../../modelos';
 import { formatDineroInput, formatDineroNumero, parseDinero, soloMontoKey } from '../../dinero.util';
 import { FechaCortaPipe, fechaHoyLocal } from '../../fecha.util';
 import { EnterAvanceDirective } from '../../enter-avance.directive';
+import { PaginadorComponent } from '../../compartido/paginador/paginador.component';
+import { EstadoPaginacion } from '../../compartido/paginar.util';
 
 @Component({
   selector: 'app-cuentas',
   standalone: true,
-  imports: [FormsModule, CurrencyPipe, FechaCortaPipe, RouterLink, NgTemplateOutlet, EnterAvanceDirective],
+  imports: [FormsModule, CurrencyPipe, FechaCortaPipe, RouterLink, NgTemplateOutlet, EnterAvanceDirective, PaginadorComponent],
   templateUrl: './cuentas.component.html',
   styleUrl: './cuentas.component.css',
 })
@@ -20,6 +22,7 @@ export class CuentasComponent implements OnInit, OnDestroy {
   cuentas: Cuenta[] = [];
   seleccionada?: Cuenta;
   movimientos: Movimiento[] = [];
+  readonly pagMovs = new EstadoPaginacion();
   nueva: Cuenta = { nombre: '', tipo: 'TDC', saldoActual: 0 };
   saldoNueva = '';
   /** Metadatos de corte / pago al crear (TDC o tienda). */
@@ -427,12 +430,19 @@ export class CuentasComponent implements OnInit, OnDestroy {
     this.movilOpcionesAbiertas = false;
     this.movilCalendarioAbierto = false;
     this.movilHistorialAbierto = false;
+    this.pagMovs.reset();
     this.api.cuenta(id).subscribe({
       next: (c) => {
         this.seleccionada = c;
         this.sincronizarTdcEdit(c);
         this.error = '';
-        this.api.movimientos(id).subscribe({ next: (m) => (this.movimientos = m) });
+        this.api.movimientos(id).subscribe({
+          next: (m) => {
+            this.movimientos = m;
+            this.pagMovs.reset();
+            this.cdr.markForCheck();
+          },
+        });
         // En móvil: anclar la deuda (no el fondo del panel) para registrar sin saltar
         if (this.esMovil) {
           setTimeout(() => this.anclarCuentaEnVista(id), 80);
@@ -441,9 +451,24 @@ export class CuentasComponent implements OnInit, OnDestroy {
       error: (e) => {
         this.seleccionada = undefined;
         this.movimientos = [];
+        this.pagMovs.reset();
         this.error = e?.error?.error || 'Cuenta no encontrada';
       },
     });
+  }
+
+  get movimientosPagina(): Movimiento[] {
+    return this.pagMovs.slice(this.movimientos);
+  }
+
+  alCambiarPagMovs(pagina: number): void {
+    this.pagMovs.alCambiarPagina(pagina, this.movimientos.length);
+    this.cdr.markForCheck();
+  }
+
+  alCambiarTamMovs(tam: number): void {
+    this.pagMovs.alCambiarTam(tam, this.movimientos.length);
+    this.cdr.markForCheck();
   }
 
   get puedeCrearCuenta(): boolean {

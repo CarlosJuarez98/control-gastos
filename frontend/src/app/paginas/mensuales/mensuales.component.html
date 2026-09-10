@@ -35,6 +35,20 @@
 @if (error) { <p class="error">{{ error }}</p> }
 @if (ok) { <p class="ok">{{ ok }}</p> }
 
+@if (esMovil) {
+  <button
+    type="button"
+    class="toggle-alta"
+    [class.abierto]="altaAbierta || !!editandoId"
+    (click)="toggleAlta()"
+    [attr.aria-expanded]="altaAbierta || !!editandoId"
+  >
+    <span>{{ (altaAbierta || editandoId) ? (editandoId ? 'Editando gasto mensual' : 'Ocultar alta') : 'Agregar gasto mensual' }}</span>
+    <span class="chev" aria-hidden="true">{{ (altaAbierta || editandoId) ? '▾' : '▸' }}</span>
+  </button>
+}
+
+@if (!esMovil || altaAbierta || editandoId) {
 <form class="alta" enterAvance (ngSubmit)="guardar()">
   <label>Motivo
     <input
@@ -61,9 +75,15 @@
       />
     </div>
   </label>
-  <label class="check-meses">
-    <input type="checkbox" [(ngModel)]="form.aMeses" name="aMeses" (ngModelChange)="refrescarFormOk()" />
-    A meses
+  <label class="campo-toggle">
+    <span>Plan</span>
+    <button
+      type="button"
+      class="btn-toggle"
+      [class.activo]="form.aMeses"
+      [attr.aria-pressed]="form.aMeses"
+      (click)="form.aMeses = !form.aMeses; refrescarFormOk()"
+    >A meses</button>
   </label>
   <label>Día de pago
     <input
@@ -107,6 +127,7 @@
     }
   </div>
 </form>
+}
 
 <div class="pagina-scroll">
   @if (hayPagosProgramados) {
@@ -208,9 +229,9 @@
   }
 
   @if (aMeses.length) {
-    <h2 class="seccion-tit">A meses</h2>
+    <h2 class="seccion-tit" id="lista-meses">A meses</h2>
     <ul class="lista">
-      @for (g of aMeses; track g.id) {
+      @for (g of aMesesPagina; track g.id) {
         <li class="msi" [class.editando]="editandoId === g.id">
           <div class="item-info">
             <strong>{{ g.motivo }}</strong>
@@ -239,11 +260,19 @@
         </li>
       }
     </ul>
+    <app-paginador
+      [total]="aMeses.length"
+      [pagina]="pagMeses.pagina"
+      [tam]="pagMeses.tam"
+      etiqueta="Paginación a meses"
+      (paginaChange)="alCambiarPagMeses($event)"
+      (tamChange)="alCambiarTamMeses($event)"
+    />
   }
 
-  <h2 class="seccion-tit">Fijos</h2>
+  <h2 class="seccion-tit" id="lista-fijos">Fijos</h2>
   <ul class="lista">
-    @for (g of fijos; track g.id) {
+    @for (g of fijosPagina; track g.id) {
       <li [class.editando]="editandoId === g.id">
         <div class="item-info">
           <strong>{{ g.motivo }}</strong>
@@ -274,4 +303,14 @@
       <li class="vacio">No hay gastos fijos.</li>
     }
   </ul>
+  @if (fijos.length) {
+    <app-paginador
+      [total]="fijos.length"
+      [pagina]="pagFijos.pagina"
+      [tam]="pagFijos.tam"
+      etiqueta="Paginación de fijos"
+      (paginaChange)="alCambiarPagFijos($event)"
+      (tamChange)="alCambiarTamFijos($event)"
+    />
+  }
 </div>

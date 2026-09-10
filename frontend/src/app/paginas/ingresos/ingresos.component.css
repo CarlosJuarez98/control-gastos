@@ -9,27 +9,30 @@
   flex: 0 0 auto;
   display: flex;
   flex-wrap: wrap;
-  gap: 0.75rem;
+  gap: 0.45rem 0.75rem;
   align-items: flex-end;
   justify-content: space-between;
-  margin-bottom: 0.85rem;
+  margin-bottom: 0.55rem;
 }
 
-.cab h1 { margin-bottom: 0.45rem; }
+.cab h1 {
+  margin-bottom: 0.3rem;
+  font-size: clamp(1.25rem, 2.4vw, 1.55rem);
+}
 
 .totales {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.55rem;
+  gap: 0.4rem;
 }
 
 button.total-btn {
   display: block;
   min-width: 0;
-  flex: 1 1 8rem;
-  padding: 0.55rem 0.85rem;
+  flex: 1 1 7rem;
+  padding: 0.35rem 0.65rem;
   border: 1px solid var(--linea);
-  border-radius: 0.75rem;
+  border-radius: 0.6rem;
   background: var(--superficie);
   color: inherit;
   text-align: left;
@@ -57,17 +60,17 @@ button.total-btn.activo {
 
 .totales span {
   display: block;
-  font-size: 0.72rem;
+  font-size: 0.65rem;
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--texto-suave);
-  margin-bottom: 0.2rem;
+  margin-bottom: 0.08rem;
   font-weight: 600;
 }
 
 .totales strong {
   font-family: var(--fuente-display);
-  font-size: 1.1rem;
+  font-size: 0.98rem;
   font-weight: 800;
   line-height: 1.15;
   display: block;
@@ -78,12 +81,12 @@ button.total-btn.activo {
 
 .totales small {
   display: block;
-  margin-top: 0.25rem;
-  font-size: 0.75rem;
+  margin-top: 0.12rem;
+  font-size: 0.68rem;
   color: var(--texto-suave);
   text-transform: capitalize;
   font-weight: 500;
-  line-height: 1.25;
+  line-height: 1.2;
 }
 
 .buscar-wrap { max-width: 260px; width: 100%; min-width: 0; }
@@ -93,13 +96,13 @@ button.total-btn.activo {
   flex: 0 0 auto;
   display: flex;
   flex-wrap: wrap;
-  gap: 0.75rem;
+  gap: 0.55rem;
   align-items: flex-end;
-  margin-bottom: 0.85rem;
+  margin-bottom: 0.55rem;
   background: var(--superficie);
   border: 1px solid var(--linea);
-  border-radius: 1rem;
-  padding: 0.85rem;
+  border-radius: 0.85rem;
+  padding: 0.6rem 0.7rem;
   justify-content: flex-start;
 }
 
@@ -139,7 +142,7 @@ button.total-btn.activo {
   overflow-x: hidden;
   display: flex;
   flex-direction: column;
-  gap: 0.55rem;
+  gap: 0.45rem;
   align-content: start;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior-y: contain;
@@ -148,12 +151,6 @@ button.total-btn.activo {
 .quincena {
   margin: 0;
   flex: 0 0 auto;
-  content-visibility: auto;
-  contain-intrinsic-size: auto 3.2rem;
-}
-
-.quincena.abierta {
-  contain-intrinsic-size: auto 18rem;
 }
 
 button.quincena-cab {
@@ -205,6 +202,17 @@ button.quincena-cab:hover {
   margin: 0;
   font-weight: 600;
   color: var(--texto);
+}
+
+.quincena-tit .cuantos {
+  font-size: 0.78rem;
+  color: var(--texto-suave);
+  font-variant-numeric: tabular-nums;
+  background: color-mix(in srgb, var(--superficie-2) 80%, transparent);
+  border: 1px solid var(--linea);
+  border-radius: 999px;
+  padding: 0.1rem 0.45rem;
+  line-height: 1.3;
 }
 
 .quincena-cab small {
@@ -277,9 +285,21 @@ button.quincena-cab:hover {
   touch-action: pan-x pan-y;
 }
 
+.quincena.sin-cab .tabla-wrap,
+.quincena.sin-cab .items-lista {
+  border-top: 1px solid var(--linea);
+  border-radius: 1rem;
+}
+
 .tabla-wrap table {
   width: 100%;
   min-width: 100%;
+}
+
+.tabla-wrap th,
+.tabla-wrap td {
+  padding: 0.45rem 0.65rem;
+  font-size: 0.9rem;
 }
 
 .acciones {
@@ -315,12 +335,6 @@ button:disabled { opacity: 0.65; cursor: not-allowed; transform: none; filter: n
     min-height: unset;
     overscroll-behavior-y: auto;
     touch-action: auto;
-  }
-
-  .quincena,
-  .quincena.abierta {
-    content-visibility: visible;
-    contain-intrinsic-size: none;
   }
 
   .tabla-wrap {

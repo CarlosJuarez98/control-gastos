@@ -444,7 +444,7 @@
       </button>
       @if (movilHistorialAbierto) {
         <ul class="movs-lista">
-          @for (m of movimientos; track m.id) {
+          @for (m of movimientosPagina; track m.id) {
             <li [class.editando]="editMovId === m.id">
               <div class="mov-meta">
                 <span>{{ m.fecha | fechaCorta }}</span>
@@ -471,6 +471,16 @@
             <li class="vacio">Sin movimientos</li>
           }
         </ul>
+        @if (movimientos.length) {
+          <app-paginador
+            [total]="movimientos.length"
+            [pagina]="pagMovs.pagina"
+            [tam]="pagMovs.tam"
+            etiqueta="Paginación de movimientos"
+            (paginaChange)="alCambiarPagMovs($event)"
+            (tamChange)="alCambiarTamMovs($event)"
+          />
+        }
       }
     } @else {
       @if (esConCalendario(seleccionada)) {
@@ -513,7 +523,7 @@
             </tr>
           </thead>
           <tbody>
-            @for (m of movimientos; track m.id) {
+            @for (m of movimientosPagina; track m.id) {
               <tr [class.editando]="editMovId === m.id">
                 <td class="col-fecha">{{ m.fecha | fechaCorta }}</td>
                 <td class="col-tipo">{{ etiquetaMov(m.tipo) }}</td>
@@ -537,6 +547,16 @@
             }
           </tbody>
         </table>
+        @if (movimientos.length) {
+          <app-paginador
+            [total]="movimientos.length"
+            [pagina]="pagMovs.pagina"
+            [tam]="pagMovs.tam"
+            etiqueta="Paginación de movimientos"
+            (paginaChange)="alCambiarPagMovs($event)"
+            (tamChange)="alCambiarTamMovs($event)"
+          />
+        }
       </div>
     }
   }
