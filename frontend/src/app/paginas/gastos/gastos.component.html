@@ -36,6 +36,20 @@
 
 @if (error) { <p class="error">{{ error }}</p> }
 
+@if (esMovil) {
+  <button
+    type="button"
+    class="toggle-alta"
+    [class.abierto]="altaAbierta || !!editandoId"
+    (click)="toggleAlta()"
+    [attr.aria-expanded]="altaAbierta || !!editandoId"
+  >
+    <span>{{ (altaAbierta || editandoId) ? (editandoId ? 'Editando gasto' : 'Ocultar alta') : 'Agregar gasto' }}</span>
+    <span class="chev" aria-hidden="true">{{ (altaAbierta || editandoId) ? '▾' : '▸' }}</span>
+  </button>
+}
+
+@if (!esMovil || altaAbierta || editandoId) {
 <form class="alta" enterAvance (ngSubmit)="guardar()">
   <label>Fecha
     <input type="date" [(ngModel)]="form.fecha" name="fecha" [max]="hoy" required />
@@ -96,9 +110,15 @@
         }
       </p>
     }
-    <label class="check-meses">
-      <input type="checkbox" [(ngModel)]="form.aMeses" name="aMeses" />
-      A meses
+    <label class="campo-toggle">
+      <span>Plazo</span>
+      <button
+        type="button"
+        class="btn-toggle"
+        [class.activo]="form.aMeses"
+        [attr.aria-pressed]="form.aMeses"
+        (click)="form.aMeses = !form.aMeses"
+      >A meses</button>
     </label>
     @if (form.aMeses) {
       <label>Meses
@@ -132,25 +152,34 @@
     }
   </div>
 </form>
+}
 
 <div class="lista-scroll">
   @for (grupo of grupos; track grupo.clave) {
-    <section class="quincena" [class.abierta]="grupo.abierta">
-      <button
-        type="button"
-        class="quincena-cab"
-        (click)="toggleGrupo(grupo.clave)"
-        [attr.aria-expanded]="grupo.abierta"
-      >
-        <span class="quincena-tit">
-          <span class="chev" aria-hidden="true">{{ grupo.abierta ? '▾' : '▸' }}</span>
-          <h2>{{ grupo.etiqueta }}</h2>
-        </span>
-        <strong class="mono neg">{{ grupo.totalTxt }}</strong>
-      </button>
+    <section
+      class="quincena"
+      [id]="'grupo-' + grupo.clave"
+      [class.abierta]="grupo.abierta"
+      [class.sin-cab]="vista === 'quincena'"
+    >
+      @if (vista !== 'quincena') {
+        <button
+          type="button"
+          class="quincena-cab"
+          (click)="toggleGrupo(grupo.clave)"
+          [attr.aria-expanded]="grupo.abierta"
+        >
+          <span class="quincena-tit">
+            <span class="chev" aria-hidden="true">{{ grupo.abierta ? '▾' : '▸' }}</span>
+            <h2>{{ grupo.etiqueta }}</h2>
+            <small class="cuantos">{{ grupo.cuantos }}</small>
+          </span>
+          <strong class="mono neg">{{ grupo.totalTxt }}</strong>
+        </button>
+      }
       @if (grupo.abierta) {
         <ul class="items-lista">
-          @for (g of grupo.items; track g.id) {
+          @for (g of itemsPagina(grupo); track g.id) {
             <li [class.editando]="editandoId === g.id">
               <div class="item-meta">
                 <span>{{ g.fechaTxt }}</span>
@@ -184,7 +213,7 @@
               <tr><th>Fecha</th><th>Categoría</th><th>Motivo</th><th>Pago</th><th>Monto</th><th></th></tr>
             </thead>
             <tbody>
-              @for (g of grupo.items; track g.id) {
+              @for (g of itemsPagina(grupo); track g.id) {
                 <tr [class.editando]="editandoId === g.id">
                   <td>{{ g.fechaTxt }}</td>
                   <td>{{ g.categoria }}</td>
@@ -209,6 +238,15 @@
             </tbody>
           </table>
         </div>
+        <app-paginador
+          [total]="grupo.cuantos"
+          [pagina]="paginaDe(grupo.clave)"
+          [tam]="paginas.tam"
+          [pegajoso]="false"
+          etiqueta="Paginación de gastos"
+          (paginaChange)="alCambiarPaginaGrupo(grupo.clave, $event, grupo.cuantos)"
+          (tamChange)="alCambiarTamPagina($event)"
+        />
       }
     </section>
   } @empty {

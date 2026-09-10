@@ -217,7 +217,7 @@
 
     @if (!esMovil || historialAbierto) {
       <ul class="items-lista">
-        @for (h of historial; track h.id) {
+        @for (h of historialPagina; track h.id) {
           <li>
             <div class="item-meta">
               <span>{{ h.fecha | fechaCorta }}</span>
@@ -292,7 +292,7 @@
             </tr>
           </thead>
           <tbody>
-            @for (h of historial; track h.id) {
+            @for (h of historialPagina; track h.id) {
               <tr>
                 <td>{{ h.fecha | fechaCorta }}</td>
                 <td class="mono">{{ h.saldoTotal | currency:'MXN':'symbol-narrow':'1.2-2' }}</td>
@@ -339,6 +339,14 @@
           </tbody>
         </table>
       </div>
+      <app-paginador
+        [total]="historial.length"
+        [pagina]="pagHistorial.pagina"
+        [tam]="pagHistorial.tam"
+        etiqueta="Paginación del historial"
+        (paginaChange)="alCambiarPagHistorial($event)"
+        (tamChange)="alCambiarTamHistorial($event)"
+      />
     }
   </section>
 }

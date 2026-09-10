@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { ChangeDetectorRef, Component, OnDestroy, OnInit } from '@angular/core';
 import { CurrencyPipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
@@ -8,6 +8,8 @@ import { ConfirmDialogService } from '../../confirm-dialog.service';
 import { Cuenta, Gasto, GastoMensual } from '../../modelos';
 import { formatDineroInput, parseDinero, soloMontoKey } from '../../dinero.util';
 import { EnterAvanceDirective } from '../../enter-avance.directive';
+import { PaginadorComponent } from '../../compartido/paginador/paginador.component';
+import { EstadoPaginacion } from '../../compartido/paginar.util';
 import { CalendarioTdc, calendarioCompraTdc, pagosPorQuincena } from '../../tdc-calendario.util';
 
 /**
@@ -31,12 +33,14 @@ export interface CompraUnicaFila {
 @Component({
   selector: 'app-mensuales',
   standalone: true,
-  imports: [FormsModule, CurrencyPipe, EnterAvanceDirective, RouterLink],
+  imports: [FormsModule, CurrencyPipe, EnterAvanceDirective, RouterLink, PaginadorComponent],
   templateUrl: './mensuales.component.html',
   styleUrl: './mensuales.component.css',
 })
-export class MensualesComponent implements OnInit {
+export class MensualesComponent implements OnInit, OnDestroy {
   items: GastoMensual[] = [];
+  readonly pagFijos = new EstadoPaginacion();
+  readonly pagMeses = new EstadoPaginacion();
   cuentas: Cuenta[] = [];
   /** Compras TDC de contado (pago único) agrupadas por quincena de vencimiento. */
   comprasUnicas: { esta: CompraUnicaFila[]; siguiente: CompraUnicaFila[]; despues: CompraUnicaFila[] } = {
@@ -59,17 +63,40 @@ export class MensualesComponent implements OnInit {
   guardando = false;
   /** Flag de formulario listo (se actualiza al teclear). */
   formOk = false;
+  esMovil = false;
+  altaAbierta = false;
+
+  private media?: MediaQueryList;
+  private onMedia?: () => void;
 
   constructor(
     private api: ApiService,
     private auth: AuthService,
     private confirmDlg: ConfirmDialogService,
+    private cdr: ChangeDetectorRef,
   ) {}
 
   ngOnInit(): void {
+    this.media = window.matchMedia('(max-width: 720px)');
+    this.onMedia = () => {
+      this.esMovil = !!this.media?.matches;
+      this.cdr.markForCheck();
+    };
+    this.onMedia();
+    this.media.addEventListener('change', this.onMedia);
     this.cargar();
     this.cargarCuentas();
     this.refrescarFormOk();
+  }
+
+  ngOnDestroy(): void {
+    if (this.media && this.onMedia) {
+      this.media.removeEventListener('change', this.onMedia);
+    }
+  }
+
+  toggleAlta(): void {
+    this.altaAbierta = !this.altaAbierta;
   }
 
   /** Carlos: solo compras nuevas. Otros perfiles: flujo completo (saldo). */
@@ -84,6 +111,34 @@ export class MensualesComponent implements OnInit {
 
   get aMeses(): GastoMensual[] {
     return this.items.filter((i) => this.esAMeses(i));
+  }
+
+  get fijosPagina(): GastoMensual[] {
+    return this.pagFijos.slice(this.fijos);
+  }
+
+  get aMesesPagina(): GastoMensual[] {
+    return this.pagMeses.slice(this.aMeses);
+  }
+
+  alCambiarPagFijos(pagina: number): void {
+    this.pagFijos.alCambiarPagina(pagina, this.fijos.length);
+    this.cdr.markForCheck();
+  }
+
+  alCambiarTamFijos(tam: number): void {
+    this.pagFijos.alCambiarTam(tam, this.fijos.length);
+    this.cdr.markForCheck();
+  }
+
+  alCambiarPagMeses(pagina: number): void {
+    this.pagMeses.alCambiarPagina(pagina, this.aMeses.length);
+    this.cdr.markForCheck();
+  }
+
+  alCambiarTamMeses(tam: number): void {
+    this.pagMeses.alCambiarTam(tam, this.aMeses.length);
+    this.cdr.markForCheck();
   }
 
   get total(): number {
@@ -372,6 +427,7 @@ export class MensualesComponent implements OnInit {
   editar(g: GastoMensual): void {
     if (!g.id) return;
     this.editandoId = g.id;
+    if (this.esMovil) this.altaAbierta = true;
     this.form = {
       motivo: g.motivo || '',
       monto: formatDineroInput(String(g.monto ?? '')),
@@ -384,13 +440,19 @@ export class MensualesComponent implements OnInit {
     this.error = '';
     this.ok = '';
     this.refrescarFormOk();
+    this.cdr.markForCheck();
+    queueMicrotask(() => {
+      document.querySelector<HTMLElement>('form.alta')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    });
   }
 
   cancelarEdicion(): void {
     this.editandoId = null;
     this.form = { motivo: '', monto: '', aMeses: false, falta: '', diaPago: '' };
     this.error = '';
+    if (this.esMovil) this.altaAbierta = false;
     this.refrescarFormOk();
+    this.cdr.markForCheck();
   }
 
   get puedeGuardar(): boolean {
@@ -485,10 +547,12 @@ export class MensualesComponent implements OnInit {
           ? 'Plan guardado · no suma deuda extra (la deuda vive en Deudas)'
           : 'Gasto fijo agregado';
         this.cargar();
+        this.cdr.markForCheck();
       },
       error: (e) => {
         this.guardando = false;
         this.error = e?.error?.error || 'No se pudo guardar';
+        this.cdr.markForCheck();
       },
     });
   }

@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnInit } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnInit } from '@angular/core';
 import { CurrencyPipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ApiService } from '../../api.service';
@@ -7,6 +7,8 @@ import { Cuenta, Gasto } from '../../modelos';
 import { formatDineroInput, formatDineroInputFlexible, formatDineroNumero, parseDineroSuma, soloMontoKey } from '../../dinero.util';
 import { formatFechaCorta, fechaHoyLocal } from '../../fecha.util';
 import { EnterAvanceDirective } from '../../enter-avance.directive';
+import { PaginadorComponent } from '../../compartido/paginador/paginador.component';
+import { PaginasPorClave } from '../../compartido/paginar.util';
 import { calendarioCompraTdc, recomendarTdc, CalendarioTdc } from '../../tdc-calendario.util';
 
 export interface GastoFila {
@@ -32,12 +34,12 @@ export interface GrupoQuincena {
 @Component({
   selector: 'app-gastos',
   standalone: true,
-  imports: [FormsModule, CurrencyPipe, EnterAvanceDirective],
+  imports: [FormsModule, CurrencyPipe, EnterAvanceDirective, PaginadorComponent],
   templateUrl: './gastos.component.html',
   styleUrl: './gastos.component.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class GastosComponent implements OnInit {
+export class GastosComponent implements OnInit, OnDestroy {
   items: Gasto[] = [];
   cuentas: Cuenta[] = [];
   cuentasTdc: Cuenta[] = [];
@@ -63,7 +65,7 @@ export class GastosComponent implements OnInit {
     formaPago: 'EFECTIVO',
     cuentaId: null,
     aMeses: false,
-    meses: '12',
+    meses: '',
   };
   categorias = ['Yo', 'Familia', 'Vehiculos', 'Casa', 'Mama', 'Otro'];
   filtro = '';
@@ -73,12 +75,18 @@ export class GastosComponent implements OnInit {
   editandoId: number | null = null;
   guardando = false;
   hoy = fechaHoyLocal();
+  esMovil = false;
+  /** En móvil el alta va contraída para priorizar la lista. */
+  altaAbierta = false;
 
   private claveHoy = '';
   private filtroTimer: ReturnType<typeof setTimeout> | null = null;
   /** Filas por quincena; solo se montan en el DOM si el grupo está abierto. */
   private filasPorClave = new Map<string, GastoFila[]>();
   private abiertas = new Set<string>();
+  readonly paginas = new PaginasPorClave();
+  private media?: MediaQueryList;
+  private onMedia?: () => void;
 
   private readonly meses = [
     'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
@@ -92,12 +100,31 @@ export class GastosComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
+    this.media = window.matchMedia('(max-width: 720px)');
+    this.onMedia = () => {
+      this.esMovil = !!this.media?.matches;
+      this.cdr.markForCheck();
+    };
+    this.onMedia();
+    this.media.addEventListener('change', this.onMedia);
+
     this.hoy = fechaHoyLocal();
     this.form.fecha = this.hoy;
     this.claveHoy = this.claveQuincena(this.hoy);
     this.etiquetaQuincenaActual = this.etiquetaDeClave(this.claveHoy);
     this.cargar();
     this.cargarTarjetas();
+  }
+
+  ngOnDestroy(): void {
+    if (this.media && this.onMedia) {
+      this.media.removeEventListener('change', this.onMedia);
+    }
+    if (this.filtroTimer) clearTimeout(this.filtroTimer);
+  }
+
+  toggleAlta(): void {
+    this.altaAbierta = !this.altaAbierta;
   }
 
   /** Misma lista que Deudas → cuentas tipo TDC (activas). */
@@ -228,6 +255,24 @@ export class GastosComponent implements OnInit {
     this.cdr.markForCheck();
   }
 
+  itemsPagina(grupo: GrupoQuincena): GastoFila[] {
+    return this.paginas.slice(grupo.clave, grupo.items);
+  }
+
+  paginaDe(clave: string): number {
+    return this.paginas.paginaDe(clave);
+  }
+
+  alCambiarPaginaGrupo(clave: string, pagina: number, total: number): void {
+    this.paginas.setPagina(clave, pagina, total);
+    this.cdr.markForCheck();
+  }
+
+  alCambiarTamPagina(tam: number): void {
+    this.paginas.setTam(tam);
+    this.cdr.markForCheck();
+  }
+
   private sincronizarGruposAbiertos(): void {
     this.grupos = this.grupos.map((g) => {
       const abierta = this.abiertas.has(g.clave);
@@ -310,6 +355,7 @@ export class GastosComponent implements OnInit {
       if (!this.abiertas.size && claves[0]) this.abiertas.add(claves[0]);
     }
 
+    this.paginas.limpiar(claves);
     this.grupos = claves.map((clave) => {
       const items = map.get(clave) || [];
       const abierta = this.abiertas.has(clave);
@@ -385,6 +431,7 @@ export class GastosComponent implements OnInit {
     if (!original) return;
     this.error = '';
     this.editandoId = g.id;
+    if (this.esMovil) this.altaAbierta = true;
     const forma = ((original.formaPago || 'EFECTIVO').toUpperCase() === 'TARJETA'
       ? 'TARJETA'
       : 'EFECTIVO') as 'EFECTIVO' | 'TARJETA';
@@ -399,9 +446,12 @@ export class GastosComponent implements OnInit {
       formaPago: forma,
       cuentaId,
       aMeses: forma === 'TARJETA' && !!meses,
-      meses: meses ? String(meses) : '12',
+      meses: meses ? String(meses) : '',
     };
     this.cdr.markForCheck();
+    queueMicrotask(() => {
+      document.querySelector<HTMLElement>('form.alta')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    });
   }
 
   cancelarEdicion(): void {
@@ -416,8 +466,9 @@ export class GastosComponent implements OnInit {
       formaPago: 'EFECTIVO',
       cuentaId: null,
       aMeses: false,
-      meses: '12',
+      meses: '',
     };
+    if (this.esMovil) this.altaAbierta = false;
     this.cdr.markForCheck();
   }
 
@@ -503,10 +554,12 @@ export class GastosComponent implements OnInit {
             formaPago: formaGuardada,
             cuentaId: formaGuardada === 'TARJETA' ? cuentaGuardada : null,
             aMeses: false,
-            meses: '12',
+            meses: '',
           };
+          if (this.esMovil) this.altaAbierta = true;
         } else {
           this.cancelarEdicion();
+          if (this.esMovil) this.altaAbierta = false;
         }
         this.claveHoy = this.claveQuincena(this.hoy);
         this.etiquetaQuincenaActual = this.etiquetaDeClave(this.claveHoy);

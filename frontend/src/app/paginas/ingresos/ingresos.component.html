@@ -36,6 +36,20 @@
 
 @if (error) { <p class="error">{{ error }}</p> }
 
+@if (esMovil) {
+  <button
+    type="button"
+    class="toggle-alta"
+    [class.abierto]="altaAbierta || !!editandoId"
+    (click)="toggleAlta()"
+    [attr.aria-expanded]="altaAbierta || !!editandoId"
+  >
+    <span>{{ (altaAbierta || editandoId) ? (editandoId ? 'Editando ingreso' : 'Ocultar alta') : 'Agregar ingreso' }}</span>
+    <span class="chev" aria-hidden="true">{{ (altaAbierta || editandoId) ? '▾' : '▸' }}</span>
+  </button>
+}
+
+@if (!esMovil || altaAbierta || editandoId) {
 <form class="alta" enterAvance (ngSubmit)="guardar()">
   <label>Fecha
     <input type="date" [(ngModel)]="form.fecha" name="fecha" [max]="hoy" required />
@@ -76,25 +90,34 @@
     }
   </div>
 </form>
+}
 
 <div class="lista-scroll">
   @for (grupo of grupos; track grupo.clave) {
-    <section class="quincena" [class.abierta]="grupo.abierta">
-      <button
-        type="button"
-        class="quincena-cab"
-        (click)="toggleGrupo(grupo.clave)"
-        [attr.aria-expanded]="grupo.abierta"
-      >
-        <span class="quincena-tit">
-          <span class="chev" aria-hidden="true">{{ grupo.abierta ? '▾' : '▸' }}</span>
-          <h2>{{ grupo.etiqueta }}</h2>
-        </span>
-        <strong class="mono pos">{{ grupo.totalTxt }}</strong>
-      </button>
+    <section
+      class="quincena"
+      [id]="'grupo-' + grupo.clave"
+      [class.abierta]="grupo.abierta"
+      [class.sin-cab]="vista === 'quincena'"
+    >
+      @if (vista !== 'quincena') {
+        <button
+          type="button"
+          class="quincena-cab"
+          (click)="toggleGrupo(grupo.clave)"
+          [attr.aria-expanded]="grupo.abierta"
+        >
+          <span class="quincena-tit">
+            <span class="chev" aria-hidden="true">{{ grupo.abierta ? '▾' : '▸' }}</span>
+            <h2>{{ grupo.etiqueta }}</h2>
+            <small class="cuantos">{{ grupo.cuantos }}</small>
+          </span>
+          <strong class="mono pos">{{ grupo.totalTxt }}</strong>
+        </button>
+      }
       @if (grupo.abierta) {
         <ul class="items-lista">
-          @for (i of grupo.items; track i.id) {
+          @for (i of itemsPagina(grupo); track i.id) {
             <li [class.editando]="editandoId === i.id">
               <div class="item-meta">
                 <span>{{ i.fechaTxt }}</span>
@@ -127,7 +150,7 @@
               <tr><th>Fecha</th><th>Concepto</th><th>Monto</th><th></th></tr>
             </thead>
             <tbody>
-              @for (i of grupo.items; track i.id) {
+              @for (i of itemsPagina(grupo); track i.id) {
                 <tr [class.editando]="editandoId === i.id">
                   <td>{{ i.fechaTxt }}</td>
                   <td>{{ i.concepto }}</td>
@@ -150,6 +173,15 @@
             </tbody>
           </table>
         </div>
+        <app-paginador
+          [total]="grupo.cuantos"
+          [pagina]="paginaDe(grupo.clave)"
+          [tam]="paginas.tam"
+          [pegajoso]="false"
+          etiqueta="Paginación de ingresos"
+          (paginaChange)="alCambiarPaginaGrupo(grupo.clave, $event, grupo.cuantos)"
+          (tamChange)="alCambiarTamPagina($event)"
+        />
       }
     </section>
   } @empty {

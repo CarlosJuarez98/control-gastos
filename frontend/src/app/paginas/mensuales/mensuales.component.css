@@ -9,71 +9,97 @@
   flex: 0 0 auto;
   display: flex;
   flex-wrap: wrap;
-  gap: 0.75rem 1.25rem;
+  gap: 0.45rem 0.85rem;
   align-items: flex-end;
   justify-content: space-between;
-  margin-bottom: 0.85rem;
+  margin-bottom: 0.55rem;
 }
 
-.cab h1 { margin-bottom: 0.2rem; }
+.cab h1 {
+  margin-bottom: 0.2rem;
+  font-size: clamp(1.25rem, 2.4vw, 1.55rem);
+}
 .cab p { margin: 0; }
 
 .totales {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.55rem;
+  gap: 0.4rem;
 }
 
 .totales article {
-  min-width: 8.5rem;
-  padding: 0.55rem 0.85rem;
+  min-width: 7rem;
+  padding: 0.35rem 0.65rem;
   border: 1px solid var(--linea);
-  border-radius: 0.75rem;
+  border-radius: 0.6rem;
   background: var(--superficie);
-  animation: anim-suave var(--dur-media) var(--ease-out) both;
 }
-
-.totales article:nth-child(1) { animation-delay: 0.05s; }
-.totales article:nth-child(2) { animation-delay: 0.1s; }
 
 .totales span {
   display: block;
-  font-size: 0.72rem;
+  font-size: 0.65rem;
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--texto-suave);
-  margin-bottom: 0.2rem;
+  margin-bottom: 0.08rem;
 }
 
 .totales strong {
   font-family: var(--fuente-display);
-  font-size: 1.1rem;
+  font-size: 0.98rem;
 }
 
 .alta {
   flex: 0 0 auto;
   display: flex;
   flex-wrap: wrap;
-  gap: 0.75rem;
+  gap: 0.55rem;
   align-items: flex-end;
   background: var(--superficie);
   border: 1px solid var(--linea);
-  border-radius: 1rem;
-  padding: 0.85rem;
-  margin-bottom: 0.85rem;
+  border-radius: 0.85rem;
+  padding: 0.6rem 0.7rem;
+  margin-bottom: 0.55rem;
 }
 .alta label { display: grid; gap: 0.25rem; font-size: 0.85rem; color: var(--texto-suave); flex: 1; min-width: 150px; }
-.check-meses {
-  display: flex !important;
-  flex-direction: row !important;
-  align-items: center;
-  gap: 0.45rem;
-  min-width: auto !important;
-  flex: 0 0 auto !important;
+label.campo-toggle {
+  display: grid;
+  gap: 0.25rem;
+  font-size: 0.85rem;
+  color: var(--texto-suave);
+  min-width: 7.5rem;
+  flex: 0 0 auto;
   align-self: end;
-  padding-bottom: 0.55rem;
 }
-.check-meses input { width: auto; margin: 0; }
+.btn-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 2.55rem;
+  margin: 0;
+  padding: 0.6rem 0.75rem;
+  border-radius: 0.55rem;
+  border: 1px solid var(--campo-borde);
+  background: var(--campo-fondo);
+  color: var(--texto-suave);
+  font-weight: 650;
+  white-space: nowrap;
+  box-sizing: border-box;
+  transform: none;
+}
+.btn-toggle.activo {
+  background: color-mix(in srgb, var(--acento) 22%, var(--superficie));
+  border-color: var(--acento);
+  color: var(--texto);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--acento) 35%, transparent);
+}
+.btn-toggle:hover {
+  filter: none;
+  transform: none;
+  border-color: color-mix(in srgb, var(--acento) 40%, var(--linea));
+  color: var(--texto);
+}
 .hint-plan {
   flex: 1 1 100%;
   margin: -0.15rem 0 0;
@@ -86,6 +112,11 @@
   gap: 0.45rem;
   align-items: center;
   align-self: end;
+}
+.alta-acciones > button {
+  min-height: 2.55rem;
+  padding: 0.6rem 1rem;
+  box-sizing: border-box;
 }
 .lista li.editando {
   background: color-mix(in srgb, var(--acento) 8%, transparent);
@@ -329,6 +360,7 @@ button.cuota:hover {
     align-items: stretch;
   }
   .alta label { min-width: 0; width: 100%; }
+  label.campo-toggle { width: 100%; min-width: 0; }
   .alta-acciones { width: 100%; }
   .alta-acciones button { flex: 1 1 auto; }
   .item-info {

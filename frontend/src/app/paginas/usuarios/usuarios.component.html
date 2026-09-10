@@ -65,7 +65,7 @@
           </tr>
         </thead>
         <tbody>
-          @for (u of items; track u.id) {
+          @for (u of itemsPagina; track u.id) {
             <tr [class.inactivo]="!u.activo">
               <td>{{ u.usuario }}</td>
               <td>
@@ -131,7 +131,7 @@
     </div>
   } @else {
     <ul class="usuarios-lista">
-      @for (u of items; track u.id) {
+      @for (u of itemsPagina; track u.id) {
         <li [class.inactivo]="!u.activo" [class.editando]="editId === u.id">
           <div class="user-cab">
             <div class="user-id">
@@ -191,6 +191,16 @@
         <li class="vacio">No hay usuarios.</li>
       }
     </ul>
+  }
+  @if (items.length) {
+    <app-paginador
+      [total]="items.length"
+      [pagina]="pagLista.pagina"
+      [tam]="pagLista.tam"
+      etiqueta="Paginación de usuarios"
+      (paginaChange)="alCambiarPagLista($event)"
+      (tamChange)="alCambiarTamLista($event)"
+    />
   }
 </div>
 
