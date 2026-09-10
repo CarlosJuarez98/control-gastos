@@ -1,5 +1,5 @@
 ---
-description: Ramas local vs nube — trabajo diario y deploy OCI
+description: Ramas local vs nube + datos (código ≠ datos)
 alwaysApply: true
 ---
 
@@ -9,6 +9,11 @@ alwaysApply: true
 - **Rama de despliegue OCI:** `nube` (compose cloud-atp, `/api` relativo, SpaForward, docs DEPLOY-NUBE).
 - Cuando el usuario diga **"sube a la nube"**:
   1. Integrar: merge `local` → `nube` (solo lo que falte en `nube`).
-  2. Desplegar / sincronizar desde el estado de la rama `nube`.
+  2. Desplegar código desde el estado de la rama `nube`.
+  3. **No** sincronizar datos (local es sandbox; la nube manda en datos reales).
+- Datos solo si lo pide explícito:
+  - **"sube datos"** → local → ATP (`scripts/sync-datos-incremental.ps1`) — **excepcional**
+  - **"baja datos"** / **"baja de la nube"** → ATP → local (`scripts/sync-datos-desde-nube.ps1`) — **preferido** para contexto real
+- Preferencia (igual en los 3 repos): bajar de la nube para trabajar/probar; subir datos solo si el cambio debe vivir en prod a propósito. Nunca contaminar prod con pruebas locales.
 - No hacer cambios solo-nube en `local` salvo configs compartidas (proxy + `/api` relativo).
-- Ver `BRANCHES.md`.
+- Convenio de los 3 proyectos: `A:\Programas-java\SYNC-BIDIRECCIONAL.md`. Ver `BRANCHES.md`, `SYNC-DATOS.md`.

@@ -10,7 +10,8 @@
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
-  animation: entrar var(--dur-lenta) var(--ease-out) both;
+  /* forwards (no both): si la animación no corre, el shell sigue visible */
+  animation: entrar var(--dur-lenta) var(--ease-out) forwards;
   position: relative;
 }
 
@@ -266,17 +267,26 @@ main > *:not(router-outlet) {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  animation: pagina-entrar var(--dur-lenta) var(--ease-out) both;
+  animation: pagina-entrar var(--dur-lenta) var(--ease-out) forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .shell,
+  main > *:not(router-outlet) {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
 }
 
 @keyframes pagina-entrar {
-  from { opacity: 0; transform: translateY(14px); }
-  to { opacity: 1; transform: none; }
+  from { transform: translateY(14px); }
+  to { transform: none; }
 }
 
 @keyframes entrar {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: none; }
+  from { transform: translateY(10px); }
+  to { transform: none; }
 }
 
 @keyframes fade-in {

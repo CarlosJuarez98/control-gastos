@@ -1,5 +1,16 @@
+:host {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+  width: 100%;
+  align-self: stretch;
+}
+
 .login {
   position: relative;
+  flex: 1 1 auto;
+  width: 100%;
   min-height: 100%;
   min-height: 100dvh;
   display: grid;
@@ -121,7 +132,7 @@
 .hero {
   width: min(100%, 420px);
   text-align: center;
-  animation: entrar var(--dur-lenta) var(--ease-out) both;
+  animation: entrar var(--dur-lenta) var(--ease-out) forwards;
 }
 
 .marca {
@@ -147,7 +158,7 @@
   box-shadow: var(--sombra);
   backdrop-filter: blur(12px);
   overflow: hidden;
-  animation: entrar var(--dur-lenta) var(--ease-out) 0.08s both;
+  animation: entrar var(--dur-lenta) var(--ease-out) 0.08s forwards;
 }
 
 .card::before {
@@ -187,7 +198,7 @@ label {
   font-size: 0.85rem;
   font-weight: 600;
   color: var(--texto-suave);
-  animation: entrar 0.5s var(--ease-out) both;
+  animation: entrar 0.5s var(--ease-out) forwards;
 }
 
 label:nth-of-type(1) { animation-delay: 0.14s; }
@@ -235,7 +246,7 @@ label:nth-of-type(2) { animation-delay: 0.2s; }
   width: 100%;
   margin-top: 0.15rem;
   min-height: 2.75rem;
-  animation: entrar 0.5s var(--ease-out) 0.26s both;
+  animation: entrar 0.5s var(--ease-out) 0.26s forwards;
   box-shadow: 0 10px 28px color-mix(in srgb, var(--acento) 22%, transparent);
 }
 
@@ -251,8 +262,8 @@ label:nth-of-type(2) { animation-delay: 0.2s; }
 }
 
 @keyframes entrar {
-  from { opacity: 0; transform: translateY(12px); }
-  to { opacity: 1; transform: none; }
+  from { transform: translateY(12px); }
+  to { transform: none; }
 }
 
 @keyframes sacudir {
@@ -375,6 +386,7 @@ label:nth-of-type(2) { animation-delay: 0.2s; }
 }
 
 @media (prefers-reduced-motion: reduce) {
+  :host,
   .orb,
   .peso,
   .hero,
@@ -384,5 +396,7 @@ label:nth-of-type(2) { animation-delay: 0.2s; }
   label,
   .cta {
     animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
   }
 }

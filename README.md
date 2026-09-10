@@ -37,7 +37,7 @@ Seguridad: el navegador envía **SHA-256** (no la clave en claro); en Oracle sol
 Guía completa: [`DEPLOY-NUBE.md`](DEPLOY-NUBE.md).  
 Sync de datos (solo lo nuevo): [`SYNC-DATOS.md`](SYNC-DATOS.md).
 
-**Flujo:** local primero → cuando digas “sube a la nube”, se sube código (si cambió) + **datos nuevos** (incremental).
+**Flujo:** local primero → “sube a la nube” = **solo código**. Datos con “sube datos” / “baja datos” (`SYNC-DATOS.md`).
 
 - En **Ampere ARM** no uses Oracle XE en Docker → **ATP Always Free** + `docker-compose.cloud-atp.yml`
 - Opcional en VMs **amd64**: `docker-compose.cloud.yml` (XE en contenedor)

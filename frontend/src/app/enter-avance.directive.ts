@@ -5,6 +5,7 @@ import {
   HostListener,
   inject,
   AfterViewInit,
+  NgZone,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { fromEvent } from 'rxjs';
@@ -24,24 +25,75 @@ import { fechaHoyLocal } from './fecha.util';
 export class EnterAvanceDirective implements AfterViewInit {
   private readonly host = inject(ElementRef) as ElementRef<HTMLFormElement>;
   private readonly destroyRef = inject(DestroyRef);
+  private readonly zone = inject(NgZone);
   private readonly clearBtns = new WeakMap<HTMLInputElement, HTMLButtonElement>();
   private observer?: MutationObserver;
+  private refreshing = false;
+  private scheduled = false;
+
+  private readonly observeOptions: MutationObserverInit = {
+    childList: true,
+    subtree: true,
+    // No observar `hidden`: syncClearBtn lo cambia y reentraba el observer → freeze.
+    attributes: true,
+    attributeFilter: ['disabled', 'class'],
+  };
 
   ngAfterViewInit(): void {
     this.refrescarAyudas();
-    this.observer = new MutationObserver(() => this.refrescarAyudas());
-    this.observer.observe(this.host.nativeElement, {
-      childList: true,
-      subtree: true,
-      attributes: true,
-      attributeFilter: ['disabled', 'hidden', 'style', 'class'],
+    this.zone.runOutsideAngular(() => {
+      this.observer = new MutationObserver((mutations) => {
+        if (this.refreshing || this.scheduled) return;
+        if (!this.mutationsRelevantes(mutations)) return;
+        this.scheduled = true;
+        queueMicrotask(() => {
+          this.scheduled = false;
+          this.refrescarAyudas();
+        });
+      });
+      this.observer.observe(this.host.nativeElement, this.observeOptions);
     });
     this.destroyRef.onDestroy(() => this.observer?.disconnect());
   }
 
+  private mutationsRelevantes(mutations: MutationRecord[]): boolean {
+    for (const m of mutations) {
+      const t = m.target;
+      if (t instanceof Element) {
+        if (t.classList.contains('btn-clear-campo') || t.closest('.btn-clear-campo')) {
+          continue;
+        }
+        if (t.classList.contains('campo-clearable') && m.type === 'attributes' && m.attributeName === 'class') {
+          continue;
+        }
+      }
+      if (m.type === 'childList') {
+        const nodes = [...Array.from(m.addedNodes), ...Array.from(m.removedNodes)];
+        const soloAyudas = nodes.every(
+          (n) =>
+            n instanceof Element &&
+            (n.classList.contains('btn-clear-campo') ||
+              n.classList.contains('campo-clearable') ||
+              n.querySelector?.('.btn-clear-campo')),
+        );
+        if (nodes.length && soloAyudas) continue;
+      }
+      return true;
+    }
+    return false;
+  }
+
   private refrescarAyudas(): void {
-    this.asegurarClearEnForm();
-    this.syncEnterHints();
+    if (this.refreshing) return;
+    this.refreshing = true;
+    this.observer?.disconnect();
+    try {
+      this.asegurarClearEnForm();
+      this.syncEnterHints();
+    } finally {
+      this.refreshing = false;
+      this.observer?.observe(this.host.nativeElement, this.observeOptions);
+    }
   }
 
   @HostListener('keydown', ['$event'])
@@ -221,6 +273,8 @@ export class EnterAvanceDirective implements AfterViewInit {
   private esClearable(input: HTMLInputElement): boolean {
     if (input.disabled || input.readOnly) return false;
     if (input.dataset['noClear'] === '1') return false;
+    // Ya tiene control a la derecha (Ver/Ocultar); el ✕ chocaría.
+    if (input.closest('.campo-clave')) return false;
     const t = (input.type || 'text').toLowerCase();
     if (
       t === 'checkbox' ||
