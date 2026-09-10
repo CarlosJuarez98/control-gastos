@@ -1,4 +1,5 @@
-import { Component, OnInit, inject } from '@angular/core';
+import { ChangeDetectorRef, Component, OnDestroy, OnInit, inject } from '@angular/core';
+import { NgTemplateOutlet } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ApiService } from '../../api.service';
 import { AuthService } from '../../auth.service';
@@ -11,19 +12,22 @@ import { EnterAvanceDirective } from '../../enter-avance.directive';
 @Component({
   selector: 'app-usuarios',
   standalone: true,
-  imports: [FormsModule, EnterAvanceDirective],
+  imports: [FormsModule, EnterAvanceDirective, NgTemplateOutlet],
   templateUrl: './usuarios.component.html',
   styleUrl: './usuarios.component.css',
 })
-export class UsuariosComponent implements OnInit {
+export class UsuariosComponent implements OnInit, OnDestroy {
   private readonly api = inject(ApiService);
   private readonly auth = inject(AuthService);
   private readonly confirmDlg = inject(ConfirmDialogService);
+  private readonly cdr = inject(ChangeDetectorRef);
 
   items: UsuarioAcceso[] = [];
   error = '';
   ok = '';
   cargando = false;
+  esMovil = false;
+  altaAbierta = false;
 
   form = {
     usuario: '',
@@ -39,9 +43,25 @@ export class UsuariosComponent implements OnInit {
   formCrearOk = false;
   formEditOk = false;
 
+  private media?: MediaQueryList;
+  private onMedia?: () => void;
+
   ngOnInit(): void {
+    this.media = window.matchMedia('(max-width: 720px)');
+    this.onMedia = () => {
+      this.esMovil = !!this.media?.matches;
+      this.cdr.detectChanges();
+    };
+    this.onMedia();
+    this.media.addEventListener('change', this.onMedia);
     this.cargar();
     this.refrescarCrearOk();
+  }
+
+  ngOnDestroy(): void {
+    if (this.media && this.onMedia) {
+      this.media.removeEventListener('change', this.onMedia);
+    }
   }
 
   refrescarCrearOk(): void {
@@ -95,6 +115,7 @@ export class UsuariosComponent implements OnInit {
             this.cargando = false;
             this.ok = 'Usuario creado';
             this.form = { usuario: '', password: '', rol: 'USER' };
+            this.altaAbierta = false;
             this.refrescarCrearOk();
             this.cargar();
           },

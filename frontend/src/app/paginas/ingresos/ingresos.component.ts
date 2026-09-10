@@ -4,7 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { ApiService } from '../../api.service';
 import { ConfirmDialogService } from '../../confirm-dialog.service';
 import { Ingreso } from '../../modelos';
-import { formatDineroInput, formatDineroNumero, parseDinero, soloMontoKey } from '../../dinero.util';
+import { formatDineroInput, formatDineroInputFlexible, formatDineroNumero, parseDineroSuma, soloMontoKey } from '../../dinero.util';
 import { formatFechaCorta, fechaHoyLocal } from '../../fecha.util';
 import { EnterAvanceDirective } from '../../enter-avance.directive';
 
@@ -85,7 +85,14 @@ export class IngresosComponent implements OnInit {
   }
 
   alEscribirMonto(v: string): void {
-    this.form.monto = formatDineroInput(v);
+    this.form.monto = formatDineroInputFlexible(v);
+  }
+
+  /** Vista previa si hay varios montos con + o ; */
+  get montoSumaHint(): string | null {
+    const { total, partes } = parseDineroSuma(this.form.monto);
+    if (partes.length < 2 || total <= 0) return null;
+    return `Suma ${partes.length} montos = $${formatDineroNumero(total)}`;
   }
 
   alFiltrar(v: string): void {
@@ -265,8 +272,8 @@ export class IngresosComponent implements OnInit {
   get puedeGuardarMonto(): boolean {
     const txt = String(this.form.monto ?? '').trim();
     if (!txt) return false;
-    const n = parseDinero(txt);
-    return Number.isFinite(n) && n > 0;
+    const { total } = parseDineroSuma(txt);
+    return Number.isFinite(total) && total > 0;
   }
 
   get puedeGuardar(): boolean {
@@ -293,9 +300,10 @@ export class IngresosComponent implements OnInit {
     if (!this.montoOk()) {
       return;
     }
-    const monto = parseDinero(this.form.monto);
+    const { total: monto } = parseDineroSuma(this.form.monto);
+    const fechaGuardada = this.form.fecha;
     const body = {
-      fecha: this.form.fecha,
+      fecha: fechaGuardada,
       concepto: this.form.concepto,
       monto,
     };
@@ -304,10 +312,17 @@ export class IngresosComponent implements OnInit {
     const req = this.editandoId
       ? this.api.actualizarIngreso(this.editandoId, body)
       : this.api.crearIngreso(body);
+    const eraAlta = this.editandoId == null;
     req.subscribe({
       next: () => {
         this.guardando = false;
-        this.cancelarEdicion();
+        if (eraAlta) {
+          // Misma fecha lista para otro ingreso del día
+          this.editandoId = null;
+          this.form = { fecha: fechaGuardada, concepto: '', monto: '' };
+        } else {
+          this.cancelarEdicion();
+        }
         this.claveHoy = this.claveQuincena(this.hoy);
         this.etiquetaQuincenaActual = this.etiquetaDeClave(this.claveHoy);
         this.cargar();
@@ -328,7 +343,7 @@ export class IngresosComponent implements OnInit {
       this.cdr.markForCheck();
       return false;
     }
-    const monto = parseDinero(txt);
+    const { total: monto } = parseDineroSuma(txt);
     if (!Number.isFinite(monto) || monto <= 0) {
       this.error = 'El monto debe ser mayor a cero';
       this.enfocarMonto();

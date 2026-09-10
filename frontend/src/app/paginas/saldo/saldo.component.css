@@ -456,69 +456,221 @@ input[type='number'] {
 .estado-icono.demas { color: var(--ok); }
 .estado-icono.ok { color: var(--texto-suave); }
 
-/* Vertical en móvil: billetes en tarjetas 2×N + historial en cards */
+/* Vertical en móvil: pestañas Apps/Efectivo + filas compactas + barra fija */
 @media (max-width: 700px) {
-  .grid { grid-template-columns: 1fr; }
+  :host {
+    padding-bottom: 0;
+  }
+
+  .pagina-scroll.con-barra-movil {
+    padding-bottom: 0.35rem;
+    gap: 0.55rem;
+  }
+
+  .cab {
+    margin-bottom: 0.4rem;
+  }
+  .cab h1 {
+    font-size: 1.35rem;
+  }
+
+  .grid {
+    grid-template-columns: 1fr;
+  }
+  .grid.solo-seccion {
+    gap: 0;
+  }
+
   .comparacion {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 0.45rem;
-    padding: 0.7rem 0.75rem;
+    gap: 0.35rem 0.45rem;
+    padding: 0.55rem 0.65rem;
+    position: sticky;
+    top: 0;
+    z-index: 5;
   }
-  .comparacion article strong { font-size: 0.98rem; }
-  .bloque { padding: 0.85rem; }
+  .comparacion article strong {
+    font-size: 0.95rem;
+  }
+  .comparacion article span {
+    font-size: 0.68rem;
+    margin-bottom: 0.1rem;
+  }
+
+  .tabs-saldo {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.4rem;
+    flex: 0 0 auto;
+  }
+  .tab {
+    display: grid;
+    gap: 0.15rem;
+    padding: 0.55rem 0.65rem;
+    border: 1px solid var(--linea);
+    border-radius: 0.85rem;
+    background: var(--superficie);
+    color: var(--texto);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+  }
+  .tab.activo {
+    border-color: color-mix(in srgb, var(--acento) 50%, var(--linea));
+    background: color-mix(in srgb, var(--acento) 12%, var(--superficie));
+  }
+  .tab-tit {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--texto-suave);
+    font-weight: 600;
+  }
+  .tab .mono {
+    font-size: 0.95rem;
+  }
+  .tab .pista {
+    font-size: 0.88rem;
+  }
+
+  .bloque {
+    padding: 0.7rem 0.75rem;
+    gap: 0.45rem;
+  }
   .bloque-cab {
     flex-direction: row;
     align-items: baseline;
     justify-content: space-between;
     gap: 0.5rem;
-    margin-bottom: 0.75rem;
+    margin-bottom: 0.25rem;
   }
-  .bloque-cab h2 { font-size: 0.98rem; }
-  .denoms {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 0.55rem;
-  }
-  .denom-row {
-    display: grid;
-    grid-template-columns: 1fr;
-    justify-items: center;
-    align-content: center;
-    gap: 0.35rem;
-    margin: 0;
-    padding: 0.7rem 0.55rem 0.65rem;
-    border: 1px solid var(--linea);
-    border-radius: 0.85rem;
-    background: color-mix(in srgb, var(--superficie-2) 80%, transparent);
-    text-align: center;
-    font-size: 0.88rem;
-  }
-  .denom-row .valor {
-    font-weight: 700;
+  .bloque-cab h2 {
     font-size: 0.95rem;
-    letter-spacing: -0.02em;
   }
-  .denom-row .subtotal-denom {
-    text-align: center;
+
+  .campos-digital.compacto {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.45rem;
+  }
+  .campos-digital.compacto label {
+    gap: 0.2rem;
     font-size: 0.78rem;
-    width: 100%;
-    overflow: hidden;
-    text-overflow: ellipsis;
   }
-  .cant-input {
+  .campos-digital.compacto .dinero-input {
+    min-height: 2.45rem;
+    font-size: 1rem;
+    font-weight: 600;
+  }
+
+  .btn-ultimo,
+  .btn-siguiente {
+    width: 100%;
+    min-height: 2.35rem;
+    border-radius: 0.75rem;
+    border: 1px dashed color-mix(in srgb, var(--acento) 45%, var(--linea));
+    background: transparent;
+    color: var(--acento-2);
+    font: inherit;
+    font-weight: 600;
+    font-size: 0.88rem;
+    cursor: pointer;
+  }
+  .btn-siguiente {
+    border-style: solid;
+    background: color-mix(in srgb, var(--acento) 12%, var(--superficie));
+    color: var(--texto);
+  }
+
+  .denoms.filas {
+    grid-template-columns: 1fr;
+    gap: 0.3rem;
+  }
+  .denoms.filas .denom-row {
+    display: grid;
+    grid-template-columns: 4.8rem minmax(3.5rem, 5rem) 1fr;
+    align-items: center;
+    justify-items: stretch;
+    gap: 0.4rem;
+    margin: 0;
+    padding: 0.35rem 0.45rem;
+    border: 1px solid var(--linea);
+    border-radius: 0.65rem;
+    background: color-mix(in srgb, var(--superficie-2) 70%, transparent);
+    text-align: left;
+    font-size: 0.85rem;
+  }
+  .denoms.filas .denom-row .valor {
+    font-weight: 700;
+    font-size: 0.9rem;
+  }
+  .denoms.filas .denom-row .subtotal-denom {
+    text-align: right;
+    font-size: 0.78rem;
+  }
+  .denoms.filas .cant-input {
     width: 100% !important;
     max-width: none;
     min-width: 0;
-    min-height: 2.6rem;
-    padding: 0.45rem 0.35rem;
-    font-size: 1.05rem;
+    min-height: 2.2rem;
+    padding: 0.3rem 0.25rem;
+    font-size: 1rem;
     font-weight: 600;
   }
-  .btn-guardar {
-    width: 100%;
-    justify-self: stretch;
-    min-height: 2.75rem;
-    margin-top: 0.75rem;
+
+  .barra-guardar {
+    flex: 0 0 auto;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 0.55rem;
+    align-items: center;
+    padding: 0.55rem 0.65rem calc(0.55rem + env(safe-area-inset-bottom));
+    border-top: 1px solid var(--linea);
+    background: color-mix(in srgb, var(--superficie) 96%, transparent);
+    backdrop-filter: blur(8px);
   }
+  .barra-totales {
+    display: grid;
+    gap: 0.1rem;
+    font-size: 0.78rem;
+    color: var(--texto-suave);
+    min-width: 0;
+  }
+  .barra-totales strong {
+    color: var(--texto);
+    font-size: 0.95rem;
+  }
+  .barra-guardar .btn-guardar {
+    margin: 0;
+    min-height: 2.6rem;
+    padding: 0 1.1rem;
+    white-space: nowrap;
+  }
+
+  .toggle-historial {
+    display: flex;
+    width: 100%;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin: 0 0 0.45rem;
+    padding: 0.65rem 0.8rem;
+    border: 1px solid var(--linea);
+    border-radius: 0.85rem;
+    background: var(--superficie);
+    color: var(--texto);
+    font: inherit;
+    font-weight: 600;
+    text-align: left;
+    cursor: pointer;
+  }
+  .toggle-historial .chev {
+    color: var(--texto-suave);
+  }
+  .toggle-historial.abierto {
+    border-color: color-mix(in srgb, var(--acento) 40%, var(--linea));
+  }
+
   .tabla-wrap { display: none; }
   .items-lista {
     display: grid;

@@ -43,7 +43,7 @@
   <label>Concepto
     <input [(ngModel)]="form.concepto" name="concepto" required placeholder="Salario, Guardadito…" />
   </label>
-  <label>Monto
+  <label class="campo-monto">Monto
     <div class="monto-wrap">
       <span class="simbolo">$</span>
       <input
@@ -53,11 +53,14 @@
         [(ngModel)]="form.monto"
         name="monto"
         required
-        placeholder="0.00"
+        placeholder="100+50+25"
         (ngModelChange)="alEscribirMonto($event)"
         (keydown)="soloMonto($event)"
       />
     </div>
+    @if (montoSumaHint; as hint) {
+      <small class="monto-hint">{{ hint }}</small>
+    }
   </label>
   <div class="alta-acciones">
     <button type="submit" [disabled]="guardando || !puedeGuardar">
@@ -81,7 +84,6 @@
         <span class="quincena-tit">
           <span class="chev" aria-hidden="true">{{ grupo.abierta ? '▾' : '▸' }}</span>
           <h2>{{ grupo.etiqueta }}</h2>
-          <small>{{ grupo.cuantos }} {{ grupo.cuantos === 1 ? 'ingreso' : 'ingresos' }}</small>
         </span>
         <strong class="mono pos">{{ grupo.totalTxt }}</strong>
       </button>

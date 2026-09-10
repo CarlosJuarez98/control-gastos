@@ -2,7 +2,7 @@
   <h1>Saldo</h1>
 </section>
 
-<div class="pagina-scroll">
+<div class="pagina-scroll" [class.con-barra-movil]="esMovil">
 @if (error) { <p class="error">{{ error }}</p> }
 
 @if (exitoVisible) {
@@ -17,7 +17,7 @@
 
 <div class="comparacion" [class.ok-box]="cuadra && !cargandoEsperado && realComparacion > 0">
   <article>
-    <span>Debería tener</span>
+    <span>Debería</span>
     <strong class="mono">{{ esperado | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
   </article>
   <article>
@@ -51,200 +51,217 @@
   }
 </div>
 
-<form class="grid" enterAvance (ngSubmit)="guardar()">
-  <div class="bloque">
-    <div class="bloque-cab">
-      <h2>1. Lo que tengo en apps / bancos</h2>
-      <p class="subtotal">
-        @if (hayCapturaDigital) {
-          Total:
-          <strong class="mono">{{ totalDigital | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
-        } @else if (ultimoTotalDigital > 0) {
-          <span class="pista">Último {{ ultimoTotalDigital | currency:'MXN':'symbol-narrow':'1.2-2' }}</span>
-        } @else {
-          Total:
-          <strong class="mono">{{ 0 | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
-        }
-      </p>
-    </div>
-
-    @for (c of camposDigital; track c.key) {
-      <label>{{ c.label }}
-        <div class="monto-wrap">
-          <span class="simbolo">$</span>
-          <input
-            class="dinero-input"
-            type="text"
-            inputmode="decimal"
-            autocomplete="off"
-            [name]="c.key"
-            [(ngModel)]="textosDigital[c.key]"
-            (ngModelChange)="alEscribirDinero(c.key)"
-            (blur)="alSalirDinero(c.key)"
-            (keydown)="teclaDinero($event, $index)"
-          />
-        </div>
-      </label>
-    }
-  </div>
-
-  <div class="bloque bloque-efectivo">
-    <div class="bloque-cab">
-      <h2>2. Efectivo en mano</h2>
-      <p class="subtotal">
-        @if (hayCapturaEfectivo) {
-          Total:
-          <strong class="mono">{{ totalEfectivo | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
-        } @else if (ultimoTotalEfectivo > 0) {
-          <span class="pista">Último {{ ultimoTotalEfectivo | currency:'MXN':'symbol-narrow':'1.2-2' }}</span>
-        } @else {
-          Total:
-          <strong class="mono">{{ 0 | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
-        }
-      </p>
-    </div>
-    <div class="denoms">
-      @for (d of denominaciones; track d.valor; let i = $index) {
-        <label class="denom-row">
-          <span class="mono valor">{{ d.valor | currency:'MXN':'symbol-narrow':'1.0-2' }}</span>
-          <input
-            class="cant-input"
-            type="text"
-            inputmode="numeric"
-            autocomplete="off"
-            data-no-clear="1"
-            placeholder="0"
-            [(ngModel)]="d.cantidad"
-            [name]="'cant'+i"
-            [style.width.ch]="anchoCantidad(d.cantidad)"
-            (keydown)="teclaCantidad($event, i)"
-            (input)="alEscribirCantidad(d, $event)"
-            (blur)="normalizarCantidad(d)"
-          />
-          <span class="mono subtotal-denom">{{ d.valor * (d.cantidad || 0) | currency:'MXN':'symbol-narrow':'1.2-2' }}</span>
-        </label>
-      }
-    </div>
+@if (esMovil) {
+  <div class="tabs-saldo" role="tablist" aria-label="Apartados del conteo">
     <button
-      type="submit"
-      class="btn-guardar"
-      [disabled]="guardando || real <= 0"
+      type="button"
+      role="tab"
+      class="tab"
+      [class.activo]="seccionMovil === 'digital'"
+      [attr.aria-selected]="seccionMovil === 'digital'"
+      (click)="irSeccion('digital')"
     >
-      {{ guardando ? 'Guardando…' : 'Guardar comparación' }}
+      <span class="tab-tit">Apps</span>
+      <strong class="mono">
+        @if (hayCapturaDigital) {
+          {{ totalDigital | currency:'MXN':'symbol-narrow':'1.2-2' }}
+        } @else if (ultimoTotalDigital > 0) {
+          <span class="pista">{{ ultimoTotalDigital | currency:'MXN':'symbol-narrow':'1.2-2' }}</span>
+        } @else {
+          {{ 0 | currency:'MXN':'symbol-narrow':'1.2-2' }}
+        }
+      </strong>
+    </button>
+    <button
+      type="button"
+      role="tab"
+      class="tab"
+      [class.activo]="seccionMovil === 'efectivo'"
+      [attr.aria-selected]="seccionMovil === 'efectivo'"
+      (click)="irSeccion('efectivo')"
+    >
+      <span class="tab-tit">Efectivo</span>
+      <strong class="mono">
+        @if (hayCapturaEfectivo) {
+          {{ totalEfectivo | currency:'MXN':'symbol-narrow':'1.2-2' }}
+        } @else if (ultimoTotalEfectivo > 0) {
+          <span class="pista">{{ ultimoTotalEfectivo | currency:'MXN':'symbol-narrow':'1.2-2' }}</span>
+        } @else {
+          {{ 0 | currency:'MXN':'symbol-narrow':'1.2-2' }}
+        }
+      </strong>
     </button>
   </div>
+}
+
+<form class="grid" [class.solo-seccion]="esMovil" enterAvance (ngSubmit)="guardar()">
+  @if (!esMovil || seccionMovil === 'digital') {
+    <div class="bloque">
+      <div class="bloque-cab">
+        <h2>{{ esMovil ? 'Apps / bancos' : '1. Lo que tengo en apps / bancos' }}</h2>
+        <p class="subtotal">
+          @if (hayCapturaDigital) {
+            Total:
+            <strong class="mono">{{ totalDigital | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
+          } @else if (ultimoTotalDigital > 0) {
+            <span class="pista">Último {{ ultimoTotalDigital | currency:'MXN':'symbol-narrow':'1.2-2' }}</span>
+          } @else {
+            Total:
+            <strong class="mono">{{ 0 | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
+          }
+        </p>
+      </div>
+
+      @if (esMovil && ultimoCorte) {
+        <button type="button" class="btn-ultimo" (click)="usarUltimoDigital()">
+          Usar último corte (apps)
+        </button>
+      }
+
+      <div class="campos-digital" [class.compacto]="esMovil">
+        @for (c of camposDigital; track c.key) {
+          <label>{{ esMovil ? c.corto : c.label }}
+            <div class="monto-wrap">
+              <span class="simbolo">$</span>
+              <input
+                class="dinero-input"
+                type="text"
+                inputmode="decimal"
+                autocomplete="off"
+                [name]="c.key"
+                [(ngModel)]="textosDigital[c.key]"
+                (ngModelChange)="alEscribirDinero(c.key)"
+                (blur)="alSalirDinero(c.key)"
+                (keydown)="teclaDinero($event, $index)"
+              />
+            </div>
+          </label>
+        }
+      </div>
+
+      @if (esMovil) {
+        <button type="button" class="btn-siguiente" (click)="irSeccion('efectivo')">
+          Seguir a efectivo →
+        </button>
+      }
+    </div>
+  }
+
+  @if (!esMovil || seccionMovil === 'efectivo') {
+    <div class="bloque bloque-efectivo">
+      <div class="bloque-cab">
+        <h2>{{ esMovil ? 'Efectivo en mano' : '2. Efectivo en mano' }}</h2>
+        <p class="subtotal">
+          @if (hayCapturaEfectivo) {
+            Total:
+            <strong class="mono">{{ totalEfectivo | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
+          } @else if (ultimoTotalEfectivo > 0) {
+            <span class="pista">Último {{ ultimoTotalEfectivo | currency:'MXN':'symbol-narrow':'1.2-2' }}</span>
+          } @else {
+            Total:
+            <strong class="mono">{{ 0 | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
+          }
+        </p>
+      </div>
+      <div class="denoms" [class.filas]="esMovil">
+        @for (d of denominaciones; track d.valor; let i = $index) {
+          <label class="denom-row">
+            <span class="mono valor">{{ d.valor | currency:'MXN':'symbol-narrow':'1.0-2' }}</span>
+            <input
+              class="cant-input"
+              type="text"
+              inputmode="numeric"
+              autocomplete="off"
+              data-no-clear="1"
+              placeholder="0"
+              [(ngModel)]="d.cantidad"
+              [name]="'cant'+i"
+              [style.width.ch]="esMovil ? null : anchoCantidad(d.cantidad)"
+              (keydown)="teclaCantidad($event, i)"
+              (input)="alEscribirCantidad(d, $event)"
+              (blur)="normalizarCantidad(d)"
+            />
+            <span class="mono subtotal-denom">{{ d.valor * (d.cantidad || 0) | currency:'MXN':'symbol-narrow':'1.2-2' }}</span>
+          </label>
+        }
+      </div>
+      @if (!esMovil) {
+        <button
+          type="submit"
+          class="btn-guardar"
+          [disabled]="guardando || real <= 0"
+        >
+          {{ guardando ? 'Guardando…' : 'Guardar comparación' }}
+        </button>
+      }
+    </div>
+  }
 </form>
 
 @if (historial.length) {
   <section class="historial">
-    <h2>Historial de cortes</h2>
+    @if (esMovil) {
+      <button
+        type="button"
+        class="toggle-historial"
+        [class.abierto]="historialAbierto"
+        (click)="historialAbierto = !historialAbierto"
+        [attr.aria-expanded]="historialAbierto"
+      >
+        <span>Historial ({{ historial.length }})</span>
+        <span class="chev" aria-hidden="true">{{ historialAbierto ? '▾' : '▸' }}</span>
+      </button>
+    } @else {
+      <h2>Historial de cortes</h2>
+    }
 
-    <ul class="items-lista">
-      @for (h of historial; track h.id) {
-        <li>
-          <div class="item-meta">
-            <span>{{ h.fecha | fechaCorta }}</span>
-            @if (estadoDiff(h) === 'falta') {
-              <span class="estado-icono falta" title="Faltó" aria-label="Faltó">
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M12 5v12M7 13l5 5 5-5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
+    @if (!esMovil || historialAbierto) {
+      <ul class="items-lista">
+        @for (h of historial; track h.id) {
+          <li>
+            <div class="item-meta">
+              <span>{{ h.fecha | fechaCorta }}</span>
+              @if (estadoDiff(h) === 'falta') {
+                <span class="estado-icono falta" title="Faltó" aria-label="Faltó">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M12 5v12M7 13l5 5 5-5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                </span>
+              } @else if (estadoDiff(h) === 'demas') {
+                <span class="estado-icono demas" title="De más" aria-label="De más">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M12 19V7M7 11l5-5 5 5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                </span>
+              } @else {
+                <span class="estado-icono ok" title="Cuadró" aria-label="Cuadró">=</span>
+              }
+            </div>
+            <div class="item-metrics">
+              <div>
+                <span>Debería</span>
+                <strong class="mono">{{ h.saldoTotal | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
+              </div>
+              <div>
+                <span>Tuve</span>
+                <strong class="mono">{{ realDe(h) | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
+              </div>
+              <div>
+                <span>Diferencia</span>
+                <strong
+                  class="mono"
+                  [class.diff-falta]="diffDe(h) < 0"
+                  [class.diff-demas]="diffDe(h) > 0"
+                >{{ diffDe(h) | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
+              </div>
+            </div>
+            <div class="item-fila">
+              <span class="item-hint">
+                @if (estadoDiff(h) === 'falta') { Faltó }
+                @else if (estadoDiff(h) === 'demas') { De más }
+                @else { Cuadró }
               </span>
-            } @else if (estadoDiff(h) === 'demas') {
-              <span class="estado-icono demas" title="De más" aria-label="De más">
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M12 19V7M7 11l5-5 5 5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
-              </span>
-            } @else {
-              <span class="estado-icono ok" title="Cuadró" aria-label="Cuadró">=</span>
-            }
-          </div>
-          <div class="item-metrics">
-            <div>
-              <span>Debería</span>
-              <strong class="mono">{{ h.saldoTotal | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
-            </div>
-            <div>
-              <span>Tuve</span>
-              <strong class="mono">{{ realDe(h) | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
-            </div>
-            <div>
-              <span>Diff</span>
-              <strong
-                class="mono"
-                [class.diff-falta]="diffDe(h) < 0"
-                [class.diff-demas]="diffDe(h) > 0"
-              >{{ diffDe(h) | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
-            </div>
-          </div>
-          <div class="item-fila">
-            <span class="item-hint">
-              @if (estadoDiff(h) === 'falta') { Faltó }
-              @else if (estadoDiff(h) === 'demas') { De más }
-              @else { Cuadró }
-            </span>
-            <div class="acciones">
-              <button type="button" class="icono" title="Editar" aria-label="Editar" (click)="abrirEditar(h)">
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M4 20h4.5L19 9.5 14.5 5 4 15.5V20z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
-                  <path d="M12.5 7l4.5 4.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
-                </svg>
-              </button>
-              <button type="button" class="icono" title="Eliminar" aria-label="Eliminar" (click)="eliminarCorte(h)">
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                </svg>
-              </button>
-            </div>
-          </div>
-        </li>
-      }
-    </ul>
-
-    <div class="tabla-wrap scroll-nest">
-      <table>
-        <thead>
-          <tr>
-            <th>Fecha</th>
-            <th>Debería tener</th>
-            <th>Tuve (real)</th>
-            <th>Diferencia</th>
-            <th>Estado</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody>
-          @for (h of historial; track h.id) {
-            <tr>
-              <td>{{ h.fecha | fechaCorta }}</td>
-              <td class="mono">{{ h.saldoTotal | currency:'MXN':'symbol-narrow':'1.2-2' }}</td>
-              <td class="mono">{{ realDe(h) | currency:'MXN':'symbol-narrow':'1.2-2' }}</td>
-              <td
-                class="mono"
-                [class.diff-falta]="diffDe(h) < 0"
-                [class.diff-demas]="diffDe(h) > 0"
-              >
-                {{ diffDe(h) | currency:'MXN':'symbol-narrow':'1.2-2' }}
-              </td>
-              <td class="estado-cell">
-                @if (estadoDiff(h) === 'falta') {
-                  <span class="estado-icono falta" title="Faltó" aria-label="Faltó">
-                    <svg viewBox="0 0 24 24" aria-hidden="true">
-                      <path d="M12 5v12M7 13l5 5 5-5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
-                    </svg>
-                  </span>
-                } @else if (estadoDiff(h) === 'demas') {
-                  <span class="estado-icono demas" title="De más" aria-label="De más">
-                    <svg viewBox="0 0 24 24" aria-hidden="true">
-                      <path d="M12 19V7M7 11l5-5 5 5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
-                    </svg>
-                  </span>
-                } @else {
-                  <span class="estado-icono ok" title="Cuadró" aria-label="Cuadró">=</span>
-                }
-              </td>
-              <td class="acciones">
+              <div class="acciones">
                 <button type="button" class="icono" title="Editar" aria-label="Editar" (click)="abrirEditar(h)">
                   <svg viewBox="0 0 24 24" aria-hidden="true">
                     <path d="M4 20h4.5L19 9.5 14.5 5 4 15.5V20z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
@@ -256,16 +273,99 @@
                     <path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
                   </svg>
                 </button>
-              </td>
+              </div>
+            </div>
+          </li>
+        }
+      </ul>
+
+      <div class="tabla-wrap scroll-nest">
+        <table>
+          <thead>
+            <tr>
+              <th>Fecha</th>
+              <th>Debería tener</th>
+              <th>Tuve (real)</th>
+              <th>Diferencia</th>
+              <th>Estado</th>
+              <th></th>
             </tr>
-          }
-        </tbody>
-      </table>
-    </div>
+          </thead>
+          <tbody>
+            @for (h of historial; track h.id) {
+              <tr>
+                <td>{{ h.fecha | fechaCorta }}</td>
+                <td class="mono">{{ h.saldoTotal | currency:'MXN':'symbol-narrow':'1.2-2' }}</td>
+                <td class="mono">{{ realDe(h) | currency:'MXN':'symbol-narrow':'1.2-2' }}</td>
+                <td
+                  class="mono"
+                  [class.diff-falta]="diffDe(h) < 0"
+                  [class.diff-demas]="diffDe(h) > 0"
+                >
+                  {{ diffDe(h) | currency:'MXN':'symbol-narrow':'1.2-2' }}
+                </td>
+                <td class="estado-cell">
+                  @if (estadoDiff(h) === 'falta') {
+                    <span class="estado-icono falta" title="Faltó" aria-label="Faltó">
+                      <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M12 5v12M7 13l5 5 5-5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+                      </svg>
+                    </span>
+                  } @else if (estadoDiff(h) === 'demas') {
+                    <span class="estado-icono demas" title="De más" aria-label="De más">
+                      <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M12 19V7M7 11l5-5 5 5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+                      </svg>
+                    </span>
+                  } @else {
+                    <span class="estado-icono ok" title="Cuadró" aria-label="Cuadró">=</span>
+                  }
+                </td>
+                <td class="acciones">
+                  <button type="button" class="icono" title="Editar" aria-label="Editar" (click)="abrirEditar(h)">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M4 20h4.5L19 9.5 14.5 5 4 15.5V20z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+                      <path d="M12.5 7l4.5 4.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                    </svg>
+                  </button>
+                  <button type="button" class="icono" title="Eliminar" aria-label="Eliminar" (click)="eliminarCorte(h)">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                  </button>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
   </section>
 }
 
 </div>
+
+@if (esMovil) {
+  <div class="barra-guardar">
+    <div class="barra-totales">
+      <span>Tengo <strong class="mono">{{ real | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong></span>
+      <span
+        [class.diff-falta]="diferencia < 0 && realComparacion > 0"
+        [class.diff-demas]="diferencia > 0 && realComparacion > 0"
+      >
+        Diferencia <strong class="mono">{{ diferencia | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
+      </span>
+    </div>
+    <button
+      type="button"
+      class="btn-guardar"
+      [disabled]="guardando || real <= 0"
+      (click)="guardar()"
+    >
+      {{ guardando ? 'Guardando…' : 'Guardar' }}
+    </button>
+  </div>
+}
 
 @if (editando) {
   <div class="overlay" (click)="cancelarEditar()" role="presentation">
@@ -297,7 +397,7 @@
         </label>
         <p class="subtotal">
           Real: <strong class="mono">{{ realEditando() | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
-          · Diff:
+          · Diferencia:
           <strong
             class="mono"
             [class.diff-falta]="diffEditando() < 0"

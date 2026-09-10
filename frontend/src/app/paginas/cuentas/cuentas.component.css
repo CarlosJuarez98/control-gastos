@@ -115,10 +115,9 @@
   font-size: 0.9rem;
 }
 
-/* Hueco ≈ una deuda, luego el panel */
+/* Detalle pegado a la deuda elegida (sin hueco) */
 .espacio-deuda {
-  height: 3.5rem;
-  background: transparent;
+  display: none;
 }
 
 .detalle-inline {
@@ -132,6 +131,7 @@
 .detalle-inline .detalle {
   border-radius: 0 0 1rem 1rem;
   margin: 0;
+  border-top: none;
   border-left: none;
   border-right: none;
   border-bottom: none;
@@ -334,6 +334,78 @@ tr.editando td {
 
 .error { flex: 0 0 auto; color: var(--peligro); margin: 0 0 0.5rem; }
 
+.toggle-alta,
+.seccion-toggle {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin: 0 0 0.55rem;
+  padding: 0.7rem 0.85rem;
+  border: 1px solid var(--linea);
+  border-radius: 0.85rem;
+  background: var(--superficie);
+  color: var(--texto);
+  font: inherit;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+.toggle-alta .chev,
+.seccion-toggle .chev {
+  color: var(--texto-suave);
+  font-size: 0.85rem;
+}
+.toggle-alta.abierto,
+.seccion-toggle.abierto {
+  border-color: color-mix(in srgb, var(--acento) 45%, var(--linea));
+}
+.seccion-toggle {
+  margin-top: 0.55rem;
+  margin-bottom: 0.35rem;
+  background: color-mix(in srgb, var(--superficie-2) 85%, transparent);
+  font-size: 0.9rem;
+}
+.seccion-toggle small {
+  display: block;
+  margin-top: 0.15rem;
+  font-weight: 500;
+  color: var(--texto-suave);
+}
+.saldo-destacado {
+  font-size: 0.92rem;
+}
+.saldo-destacado .mono {
+  font-size: 1.15rem;
+}
+.fila-rapida {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.55rem;
+  width: 100%;
+}
+.fila-rapida label {
+  min-width: 0;
+}
+.alta-rapida {
+  border-color: color-mix(in srgb, var(--acento) 35%, var(--linea));
+}
+.movil-opciones {
+  display: grid;
+  gap: 0.65rem;
+  margin-bottom: 0.35rem;
+  padding: 0.65rem 0.75rem;
+  border: 1px dashed var(--linea);
+  border-radius: 0.85rem;
+}
+.movil-opciones .nombre-cuenta,
+.movil-opciones .tipo-cuenta {
+  max-width: none;
+  width: 100%;
+  min-width: 0;
+}
+
 @media (max-width: 860px) {
   :host {
     height: 100%;
@@ -363,17 +435,47 @@ tr.editando td {
     overflow: visible;
   }
 
-  .espacio-deuda {
-    height: 2.75rem;
+  .cuentas > li[id^="cuenta-"] {
+    scroll-margin-top: 0.75rem;
+    scroll-margin-bottom: 0.35rem;
+  }
+
+  .cuentas > li.activa > a,
+  .cuentas > li.activa .fila-cuenta {
+    border-bottom: none;
+  }
+
+  .detalle-inline .detalle {
+    padding: 0.35rem 0.65rem 0.65rem;
+    gap: 0.35rem;
   }
 
   .detalle {
-    padding: 0.85rem 0.75rem 1rem;
+    padding: 0.75rem 0.65rem 0.85rem;
   }
 
   .detalle-cab {
     flex-direction: column;
     align-items: stretch;
+    margin-bottom: 0.25rem;
+    gap: 0.25rem;
+  }
+
+  .detalle-cab:empty {
+    display: none;
+    margin: 0;
+  }
+
+  .saldo-compacto {
+    margin: 0 0 0.15rem;
+    font-size: 0.82rem;
+  }
+
+  .detalle .alta,
+  .detalle .alta-mov {
+    margin-bottom: 0.35rem;
+    padding: 0.55rem 0.65rem;
+    gap: 0.45rem;
   }
 
   .detalle-acciones {
@@ -395,7 +497,8 @@ tr.editando td {
   }
 
   .detalle .alta button,
-  .detalle-acciones .peligro {
+  .detalle-acciones .peligro,
+  .movil-opciones .peligro {
     width: 100%;
   }
 
@@ -405,6 +508,19 @@ tr.editando td {
   }
 
   .alta label { min-width: 0; width: 100%; }
+
+  .seccion-toggle {
+    margin-top: 0.35rem;
+    margin-bottom: 0.2rem;
+    padding: 0.55rem 0.7rem;
+  }
+
+  .cab h1 {
+    font-size: 1.35rem;
+  }
+  .cab p {
+    font-size: 0.88rem;
+  }
 }
 
 @media (orientation: landscape) and (max-height: 520px) {

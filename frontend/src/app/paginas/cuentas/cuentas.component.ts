@@ -1,4 +1,4 @@
-import { ChangeDetectorRef, Component, ElementRef, OnDestroy, OnInit, ViewChild } from '@angular/core';
+import { ChangeDetectorRef, Component, ElementRef, OnDestroy, OnInit } from '@angular/core';
 import { CurrencyPipe, NgTemplateOutlet } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
@@ -17,8 +17,6 @@ import { EnterAvanceDirective } from '../../enter-avance.directive';
   styleUrl: './cuentas.component.css',
 })
 export class CuentasComponent implements OnInit, OnDestroy {
-  @ViewChild('panelDetalle') panelDetalle?: ElementRef<HTMLElement>;
-
   cuentas: Cuenta[] = [];
   seleccionada?: Cuenta;
   movimientos: Movimiento[] = [];
@@ -57,9 +55,17 @@ export class CuentasComponent implements OnInit, OnDestroy {
   saldoDisponible: number | null = null;
   /** En móvil el detalle va debajo de la deuda elegida. */
   esMovil = false;
+  /** En móvil el alta de cuenta va contraída (poco uso frente a abonos). */
+  altaNuevaAbierta = false;
+  /** Secciones secundarias del detalle en móvil. */
+  movilOpcionesAbiertas = false;
+  movilCalendarioAbierto = false;
+  movilHistorialAbierto = false;
 
   private media?: MediaQueryList;
   private onMedia?: () => void;
+  /** Al cerrar, re-centrar esta deuda sin saltar al inicio. */
+  private anclarTrasCerrarId: number | null = null;
 
   constructor(
     private api: ApiService,
@@ -67,6 +73,7 @@ export class CuentasComponent implements OnInit, OnDestroy {
     private router: Router,
     private confirmDlg: ConfirmDialogService,
     private cdr: ChangeDetectorRef,
+    private host: ElementRef<HTMLElement>,
   ) {}
 
   ngOnInit(): void {
@@ -87,9 +94,24 @@ export class CuentasComponent implements OnInit, OnDestroy {
       const id = p.get('id');
       if (id) this.abrir(+id);
       else {
+        const anclarId = this.anclarTrasCerrarId;
+        this.anclarTrasCerrarId = null;
+        const hostEl = this.host.nativeElement;
+        const topGuardado = hostEl.scrollTop;
         this.seleccionada = undefined;
         this.movimientos = [];
         this.nombreEdit = '';
+        this.movilOpcionesAbiertas = false;
+        this.movilCalendarioAbierto = false;
+        this.movilHistorialAbierto = false;
+        if (this.esMovil && anclarId != null) {
+          this.cdr.detectChanges();
+          requestAnimationFrame(() => {
+            const max = Math.max(0, hostEl.scrollHeight - hostEl.clientHeight);
+            hostEl.scrollTop = Math.min(topGuardado, max);
+            this.anclarCuentaEnVista(anclarId);
+          });
+        }
       }
     });
   }
@@ -108,6 +130,27 @@ export class CuentasComponent implements OnInit, OnDestroy {
       return '/cuentas';
     }
     return ['/cuentas', c.id];
+  }
+
+  /** Marca ancla de scroll solo al cerrar (no en cada CD). */
+  alClicCuenta(c: Cuenta): void {
+    if (this.esMovil && c.id && this.seleccionada?.id === c.id) {
+      this.anclarTrasCerrarId = c.id;
+    }
+  }
+
+  toggleAltaNueva(): void {
+    this.altaNuevaAbierta = !this.altaNuevaAbierta;
+  }
+
+  private anclarCuentaEnVista(id: number): void {
+    const aplicar = () => {
+      const fila = this.host.nativeElement.querySelector(`#cuenta-${id}`) as HTMLElement | null;
+      if (fila) {
+        fila.scrollIntoView({ behavior: 'auto', block: 'nearest', inline: 'nearest' });
+      }
+    };
+    requestAnimationFrame(() => requestAnimationFrame(aplicar));
   }
 
   etiquetaTipo(t: string): string {
@@ -381,19 +424,19 @@ export class CuentasComponent implements OnInit, OnDestroy {
 
   abrir(id: number): void {
     this.cancelarEdicionMov();
+    this.movilOpcionesAbiertas = false;
+    this.movilCalendarioAbierto = false;
+    this.movilHistorialAbierto = false;
     this.api.cuenta(id).subscribe({
       next: (c) => {
         this.seleccionada = c;
         this.sincronizarTdcEdit(c);
         this.error = '';
         this.api.movimientos(id).subscribe({ next: (m) => (this.movimientos = m) });
-        // En móvil: el panel queda bajo la deuda; asegurar que se vea
-        setTimeout(() => {
-          this.panelDetalle?.nativeElement?.scrollIntoView({
-            behavior: 'smooth',
-            block: 'nearest',
-          });
-        }, 120);
+        // En móvil: anclar la deuda (no el fondo del panel) para registrar sin saltar
+        if (this.esMovil) {
+          setTimeout(() => this.anclarCuentaEnVista(id), 80);
+        }
       },
       error: (e) => {
         this.seleccionada = undefined;
@@ -454,6 +497,7 @@ export class CuentasComponent implements OnInit, OnDestroy {
         this.nuevaDiaCorte = '';
         this.nuevaDiaLimite = '';
         this.nuevaLimite = '';
+        this.altaNuevaAbierta = false;
         this.refrescarFormNuevaOk();
         this.cargarCuentas();
         this.cargarSaldoDisponible();
@@ -560,6 +604,9 @@ export class CuentasComponent implements OnInit, OnDestroy {
       tipo: (m.tipo || 'ABONO').toUpperCase(),
     };
     this.montoMov = formatDineroNumero(Number(m.monto) || 0);
+    if (this.esMovil) {
+      this.movilHistorialAbierto = true;
+    }
     this.refrescarFormMovOk();
   }
 
