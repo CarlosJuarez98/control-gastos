@@ -4,7 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { ApiService } from '../../api.service';
 import { ConfirmDialogService } from '../../confirm-dialog.service';
 import { Cuenta, Gasto } from '../../modelos';
-import { formatDineroInput, formatDineroNumero, parseDinero, soloMontoKey } from '../../dinero.util';
+import { formatDineroInput, formatDineroInputFlexible, formatDineroNumero, parseDineroSuma, soloMontoKey } from '../../dinero.util';
 import { formatFechaCorta, fechaHoyLocal } from '../../fecha.util';
 import { EnterAvanceDirective } from '../../enter-avance.directive';
 import { calendarioCompraTdc, recomendarTdc, CalendarioTdc } from '../../tdc-calendario.util';
@@ -165,7 +165,14 @@ export class GastosComponent implements OnInit {
   }
 
   alEscribirMonto(v: string): void {
-    this.form.monto = formatDineroInput(v);
+    this.form.monto = formatDineroInputFlexible(v);
+  }
+
+  /** Vista previa si hay varios montos con + o ; */
+  get montoSumaHint(): string | null {
+    const { total, partes } = parseDineroSuma(this.form.monto);
+    if (partes.length < 2 || total <= 0) return null;
+    return `Suma ${partes.length} montos = $${formatDineroNumero(total)}`;
   }
 
   /** Debounce del filtro para no reagrupar en cada tecla. */
@@ -344,8 +351,8 @@ export class GastosComponent implements OnInit {
   get puedeGuardarMonto(): boolean {
     const txt = String(this.form.monto ?? '').trim();
     if (!txt) return false;
-    const n = parseDinero(txt);
-    return Number.isFinite(n) && n > 0;
+    const { total } = parseDineroSuma(txt);
+    return Number.isFinite(total) && total > 0;
   }
 
   get puedeGuardar(): boolean {
@@ -419,7 +426,7 @@ export class GastosComponent implements OnInit {
     if (!this.montoOk()) {
       return;
     }
-    const monto = parseDinero(this.form.monto);
+    const { total: monto } = parseDineroSuma(this.form.monto);
     if (this.form.formaPago === 'TARJETA') {
       if (!this.form.cuentaId) {
         this.error = this.cuentasTdc.length
@@ -462,13 +469,33 @@ export class GastosComponent implements OnInit {
 
     this.guardando = true;
     this.cdr.markForCheck();
+    const fechaGuardada = this.form.fecha;
+    const categoriaGuardada = this.form.categoria;
+    const formaGuardada = this.form.formaPago;
+    const cuentaGuardada = this.form.cuentaId;
     const req = this.editandoId
       ? this.api.actualizarGasto(this.editandoId, body)
       : this.api.crearGasto(body);
+    const eraAlta = this.editandoId == null;
     req.subscribe({
       next: () => {
         this.guardando = false;
-        this.cancelarEdicion();
+        if (eraAlta) {
+          // Misma fecha (y categoría/pago) lista para otro gasto del día
+          this.editandoId = null;
+          this.form = {
+            fecha: fechaGuardada,
+            categoria: categoriaGuardada,
+            monto: '',
+            motivo: '',
+            formaPago: formaGuardada,
+            cuentaId: formaGuardada === 'TARJETA' ? cuentaGuardada : null,
+            aMeses: false,
+            meses: '12',
+          };
+        } else {
+          this.cancelarEdicion();
+        }
         this.claveHoy = this.claveQuincena(this.hoy);
         this.etiquetaQuincenaActual = this.etiquetaDeClave(this.claveHoy);
         this.cargar();
@@ -490,7 +517,7 @@ export class GastosComponent implements OnInit {
       this.cdr.markForCheck();
       return false;
     }
-    const monto = parseDinero(txt);
+    const { total: monto } = parseDineroSuma(txt);
     if (!Number.isFinite(monto) || monto <= 0) {
       this.error = 'El monto debe ser mayor a cero';
       this.enfocarMonto();

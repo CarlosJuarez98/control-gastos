@@ -12,66 +12,81 @@
 
 @if (error) { <p class="error">{{ error }}</p> }
 
-<form class="alta" enterAvance (ngSubmit)="crearCuenta()">
-  <label>Nombre
-    <input
-      [(ngModel)]="nueva.nombre"
-      (ngModelChange)="refrescarFormNuevaOk()"
-      name="nombre"
-      required
-    />
-  </label>
-  <label>Tipo
-    <select [(ngModel)]="nueva.tipo" name="tipo">
-      @for (t of tipos; track t) { <option [value]="t">{{ etiquetaTipo(t) }}</option> }
-    </select>
-  </label>
-  <label class="campo-saldo">
-    <span class="campo-titulo">
-      Saldo
-      @if ((nueva.tipo || '').toUpperCase() === 'PRESTAMO_OTORGADO' && saldoDisponible != null) {
-        <span class="pill-disponible">Disponible {{ saldoDisponible | currency:'MXN':'symbol-narrow':'1.2-2' }}</span>
-      }
-    </span>
-    <div class="monto-wrap">
-      <span class="simbolo">$</span>
+@if (esMovil) {
+  <button
+    type="button"
+    class="toggle-alta"
+    [class.abierto]="altaNuevaAbierta"
+    (click)="toggleAltaNueva()"
+    [attr.aria-expanded]="altaNuevaAbierta"
+  >
+    <span>{{ altaNuevaAbierta ? 'Ocultar nueva cuenta' : 'Nueva cuenta' }}</span>
+    <span class="chev" aria-hidden="true">{{ altaNuevaAbierta ? '▾' : '▸' }}</span>
+  </button>
+}
+
+@if (!esMovil || altaNuevaAbierta) {
+  <form class="alta" enterAvance (ngSubmit)="crearCuenta()">
+    <label>Nombre
       <input
-        type="text"
-        inputmode="decimal"
-        autocomplete="off"
-        [(ngModel)]="saldoNueva"
-        name="saldo"
-        placeholder="0.00"
-        (ngModelChange)="alEscribirSaldoNueva($event)"
-        (keydown)="soloMonto($event)"
+        [(ngModel)]="nueva.nombre"
+        (ngModelChange)="refrescarFormNuevaOk()"
+        name="nombre"
+        required
       />
-    </div>
-  </label>
-  @if (nuevaConCalendario) {
-    <label>Corte
-      <input type="text" inputmode="numeric" pattern="[0-9]*" [(ngModel)]="nuevaDiaCorte" name="nuevaDiaCorte" placeholder="15" autocomplete="off" />
     </label>
-    <label>Pago
-      <input type="text" inputmode="numeric" pattern="[0-9]*" [(ngModel)]="nuevaDiaLimite" name="nuevaDiaLimite" placeholder="5" autocomplete="off" />
+    <label>Tipo
+      <select [(ngModel)]="nueva.tipo" name="tipo">
+        @for (t of tipos; track t) { <option [value]="t">{{ etiquetaTipo(t) }}</option> }
+      </select>
     </label>
-    <label>Límite crédito
+    <label class="campo-saldo">
+      <span class="campo-titulo">
+        Saldo
+        @if ((nueva.tipo || '').toUpperCase() === 'PRESTAMO_OTORGADO' && saldoDisponible != null) {
+          <span class="pill-disponible">Disponible {{ saldoDisponible | currency:'MXN':'symbol-narrow':'1.2-2' }}</span>
+        }
+      </span>
       <div class="monto-wrap">
         <span class="simbolo">$</span>
         <input
           type="text"
           inputmode="decimal"
           autocomplete="off"
-          [(ngModel)]="nuevaLimite"
-          name="nuevaLimite"
-          placeholder="opcional"
-          (ngModelChange)="alEscribirLimiteNuevo($event)"
+          [(ngModel)]="saldoNueva"
+          name="saldo"
+          placeholder="0.00"
+          (ngModelChange)="alEscribirSaldoNueva($event)"
           (keydown)="soloMonto($event)"
         />
       </div>
     </label>
-  }
-  <button type="submit" [disabled]="!formNuevaOk">Nueva cuenta</button>
-</form>
+    @if (nuevaConCalendario) {
+      <label>Corte
+        <input type="text" inputmode="numeric" pattern="[0-9]*" [(ngModel)]="nuevaDiaCorte" name="nuevaDiaCorte" placeholder="15" autocomplete="off" />
+      </label>
+      <label>Pago
+        <input type="text" inputmode="numeric" pattern="[0-9]*" [(ngModel)]="nuevaDiaLimite" name="nuevaDiaLimite" placeholder="5" autocomplete="off" />
+      </label>
+      <label>Límite crédito
+        <div class="monto-wrap">
+          <span class="simbolo">$</span>
+          <input
+            type="text"
+            inputmode="decimal"
+            autocomplete="off"
+            [(ngModel)]="nuevaLimite"
+            name="nuevaLimite"
+            placeholder="opcional"
+            (ngModelChange)="alEscribirLimiteNuevo($event)"
+            (keydown)="soloMonto($event)"
+          />
+        </div>
+      </label>
+    }
+    <button type="submit" [disabled]="!formNuevaOk">Nueva cuenta</button>
+  </form>
+}
 
 <div class="layout" [class.movil]="esMovil">
   <div class="lista-cuentas">
@@ -83,8 +98,8 @@
             <h4>{{ grupo.etiqueta }}</h4>
             <ul class="cuentas">
               @for (c of grupo.cuentas; track c.id) {
-                <li [class.activa]="seleccionada?.id === c.id">
-                  <a [routerLink]="linkCuenta(c)">
+                <li [id]="'cuenta-' + c.id" [class.activa]="seleccionada?.id === c.id">
+                  <a [routerLink]="linkCuenta(c)" (click)="alClicCuenta(c)">
                     <strong>{{ c.nombre }}</strong>
                     @if (esConCalendario(c) && (c.diaCorte || c.diaLimitePago)) {
                       <small class="meta-tdc">{{ textoCalendario(c.diaCorte, c.diaLimitePago) }}</small>
@@ -94,8 +109,7 @@
                 </li>
                 @if (esMovil && seleccionada?.id === c.id) {
                   <li class="detalle-inline">
-                    <div class="espacio-deuda" aria-hidden="true"></div>
-                    <div class="detalle" #panelDetalle>
+                    <div class="detalle">
                       <ng-container *ngTemplateOutlet="detalleTpl" />
                     </div>
                   </li>
@@ -116,8 +130,8 @@
         <h3>Prestamista</h3>
         <ul class="cuentas">
           @for (c of meDebenPendientes; track c.id) {
-            <li [class.activa]="seleccionada?.id === c.id">
-              <a [routerLink]="linkCuenta(c)">
+            <li [id]="'cuenta-' + c.id" [class.activa]="seleccionada?.id === c.id">
+              <a [routerLink]="linkCuenta(c)" (click)="alClicCuenta(c)">
                 <strong>{{ c.nombre }}</strong>
                 <small>{{ etiquetaTipo(c.tipo) }}</small>
                 <span class="mono pos">{{ c.saldoActual | currency:'MXN':'symbol-narrow':'1.2-2' }}</span>
@@ -125,8 +139,7 @@
             </li>
             @if (esMovil && seleccionada?.id === c.id) {
               <li class="detalle-inline">
-                <div class="espacio-deuda" aria-hidden="true"></div>
-                <div class="detalle" #panelDetalle>
+                <div class="detalle">
                   <ng-container *ngTemplateOutlet="detalleTpl" />
                 </div>
               </li>
@@ -141,9 +154,9 @@
         <h3>Saldadas</h3>
         <ul class="cuentas">
           @for (c of cuentasSaldadas; track c.id) {
-            <li [class.activa]="seleccionada?.id === c.id" class="saldada">
+            <li [id]="'cuenta-' + c.id" [class.activa]="seleccionada?.id === c.id" class="saldada">
               <div class="fila-cuenta">
-                <a [routerLink]="linkCuenta(c)">
+                <a [routerLink]="linkCuenta(c)" (click)="alClicCuenta(c)">
                   <strong>{{ c.nombre }}</strong>
                   <small>{{ etiquetaTipo(c.tipo) }}</small>
                   @if (esConCalendario(c) && (c.diaCorte || c.diaLimitePago)) {
@@ -160,8 +173,7 @@
             </li>
             @if (esMovil && seleccionada?.id === c.id) {
               <li class="detalle-inline">
-                <div class="espacio-deuda" aria-hidden="true"></div>
-                <div class="detalle" #panelDetalle>
+                <div class="detalle">
                   <ng-container *ngTemplateOutlet="detalleTpl" />
                 </div>
               </li>
@@ -173,7 +185,7 @@
   </div>
 
   @if (!esMovil) {
-    <div class="detalle detalle-lateral" #panelDetalle>
+    <div class="detalle detalle-lateral">
       @if (seleccionada) {
         <ng-container *ngTemplateOutlet="detalleTpl" />
       } @else {
@@ -185,113 +197,58 @@
 
 <ng-template #detalleTpl>
   @if (seleccionada) {
-    <div class="detalle-cab">
-      <div class="detalle-titulo">
-        <label class="nombre-cuenta">Nombre
-          <input
-            type="text"
-            [(ngModel)]="nombreEdit"
-            name="nombreCuenta"
-            autocomplete="off"
-            maxlength="80"
-            [disabled]="guardandoNombre"
-            (blur)="guardarNombre()"
-            (keydown.enter)="$event.preventDefault(); $any($event.target).blur()"
-          />
-        </label>
-        <p class="saldo-linea">
-          Saldo actual:
-          <strong class="mono">{{ seleccionada.saldoActual | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
-          @if (seleccionPrestamista && saldoDisponible != null) {
-            <span class="pill-disponible">Disponible {{ saldoDisponible | currency:'MXN':'symbol-narrow':'1.2-2' }}</span>
-          }
-          @if (esConCalendario(seleccionada) && creditoDisponibleDe(seleccionada) != null) {
-            <span class="pill-disponible">Crédito libre {{ creditoDisponibleDe(seleccionada) | currency:'MXN':'symbol-narrow':'1.2-2' }}</span>
-          }
-        </p>
-      </div>
-      <div class="detalle-acciones">
-        <label class="tipo-cuenta">Categoría
-          <select
-            [ngModel]="seleccionada.tipo"
-            (ngModelChange)="cambiarTipo($event)"
-            name="tipoCuenta"
-          >
-            @for (t of tipos; track t) { <option [value]="t">{{ etiquetaTipo(t) }}</option> }
-          </select>
-        </label>
-        @if (puedeEliminarCuenta) {
-          <button type="button" class="peligro" (click)="eliminarCuenta()">Eliminar cuenta</button>
-        }
-      </div>
-    </div>
-
-    @if (esConCalendario(seleccionada)) {
-      <form class="alta tdc-datos" enterAvance (ngSubmit)="guardarDatosCalendario()">
-        <label>Corte
-          <input type="text" inputmode="numeric" pattern="[0-9]*" [(ngModel)]="tdcEdit.diaCorte" name="diaCorte" placeholder="día 1–31" autocomplete="off" />
-        </label>
-        <label>Pago
-          <input type="text" inputmode="numeric" pattern="[0-9]*" [(ngModel)]="tdcEdit.diaLimitePago" name="diaLimite" placeholder="día 1–31" autocomplete="off" />
-        </label>
-        <label>Límite de crédito
-          <div class="monto-wrap">
-            <span class="simbolo">$</span>
+    @if (!esMovil) {
+      <div class="detalle-cab">
+        <div class="detalle-titulo">
+          <label class="nombre-cuenta">Nombre
             <input
               type="text"
-              inputmode="decimal"
+              [(ngModel)]="nombreEdit"
+              name="nombreCuenta"
               autocomplete="off"
-              [(ngModel)]="tdcEdit.limiteCredito"
-              name="limiteCredito"
-              placeholder="0.00"
-              (ngModelChange)="alEscribirLimiteEdit($event)"
-              (keydown)="soloMonto($event)"
+              maxlength="80"
+              [disabled]="guardandoNombre"
+              (blur)="guardarNombre()"
+              (keydown.enter)="$event.preventDefault(); $any($event.target).blur()"
             />
-          </div>
-        </label>
-        <button type="submit" [disabled]="guardandoTdc">
-          {{ guardandoTdc ? 'Guardando…' : 'Guardar corte / pago' }}
-        </button>
-        @if (textoCalendario(tdcEdit.diaCorte, tdcEdit.diaLimitePago); as cal) {
-          @if (cal) {
-            <p class="hint-tdc">{{ cal }}</p>
+          </label>
+          <p class="saldo-linea">
+            Saldo actual:
+            <strong class="mono">{{ seleccionada.saldoActual | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
+            @if (seleccionPrestamista && saldoDisponible != null) {
+              <span class="pill-disponible">Disponible {{ saldoDisponible | currency:'MXN':'symbol-narrow':'1.2-2' }}</span>
+            }
+            @if (esConCalendario(seleccionada) && creditoDisponibleDe(seleccionada) != null) {
+              <span class="pill-disponible">Crédito libre {{ creditoDisponibleDe(seleccionada) | currency:'MXN':'symbol-narrow':'1.2-2' }}</span>
+            }
+          </p>
+        </div>
+        <div class="detalle-acciones">
+          <label class="tipo-cuenta">Categoría
+            <select
+              [ngModel]="seleccionada.tipo"
+              (ngModelChange)="cambiarTipo($event)"
+              name="tipoCuenta"
+            >
+              @for (t of tipos; track t) { <option [value]="t">{{ etiquetaTipo(t) }}</option> }
+            </select>
+          </label>
+          @if (puedeEliminarCuenta) {
+            <button type="button" class="peligro" (click)="eliminarCuenta()">Eliminar cuenta</button>
           }
-        }
-      </form>
+        </div>
+      </div>
     }
 
-    <form class="alta" enterAvance (ngSubmit)="agregarMovimiento()">
-      <label>Fecha
-        <input type="date" [(ngModel)]="mov.fecha" name="mfecha" [max]="hoy" required />
-      </label>
-      <label>Tipo
-        <select [(ngModel)]="mov.tipo" name="mtipo" (ngModelChange)="onTipoMovChange($event)">
-          @for (t of tiposMov; track t) { <option [value]="t">{{ etiquetaMov(t) }}</option> }
-        </select>
-      </label>
-      @if (usandoDeudaHoy) {
-        <label>Deuda que marca hoy
-          <div class="monto-wrap">
-            <span class="simbolo">$</span>
-            <input
-              type="text"
-              inputmode="decimal"
-              autocomplete="off"
-              [(ngModel)]="montoMov"
-              name="mmonto"
-              required
-              placeholder="0.00"
-              (ngModelChange)="alEscribirMonto($event)"
-              (keydown)="soloMonto($event)"
-            />
-          </div>
-        </label>
-      } @else {
+    <form class="alta alta-mov" [class.alta-rapida]="esMovil" enterAvance (ngSubmit)="agregarMovimiento()">
+      @if (esMovil) {
         <label class="campo-saldo">
           <span class="campo-titulo">
-            Monto
-            @if (seleccionPrestamista && saldoDisponible != null && (mov.tipo === 'CARGO' || mov.tipo === 'ABONO' || mov.tipo === 'REEMBOLSO')) {
-              <span class="pill-disponible">Disponible {{ saldoDisponible | currency:'MXN':'symbol-narrow':'1.2-2' }}</span>
+            {{ usandoDeudaHoy ? 'Deuda que marca hoy' : 'Monto' }}
+            @if (seleccionPrestamista && saldoDisponible != null) {
+              <span class="pill-disponible">Disp. {{ saldoDisponible | currency:'MXN':'symbol-narrow':'1.2-2' }}</span>
+            } @else if (esConCalendario(seleccionada) && creditoDisponibleDe(seleccionada) != null) {
+              <span class="pill-disponible">Libre {{ creditoDisponibleDe(seleccionada) | currency:'MXN':'symbol-narrow':'1.2-2' }}</span>
             }
           </span>
           <div class="monto-wrap">
@@ -309,6 +266,66 @@
             />
           </div>
         </label>
+        <div class="fila-rapida">
+          <label>Tipo
+            <select [(ngModel)]="mov.tipo" name="mtipo" (ngModelChange)="onTipoMovChange($event)">
+              @for (t of tiposMov; track t) { <option [value]="t">{{ etiquetaMov(t) }}</option> }
+            </select>
+          </label>
+          <label>Fecha
+            <input type="date" [(ngModel)]="mov.fecha" name="mfecha" [max]="hoy" required />
+          </label>
+        </div>
+      } @else {
+        <label>Fecha
+          <input type="date" [(ngModel)]="mov.fecha" name="mfecha" [max]="hoy" required />
+        </label>
+        <label>Tipo
+          <select [(ngModel)]="mov.tipo" name="mtipo" (ngModelChange)="onTipoMovChange($event)">
+            @for (t of tiposMov; track t) { <option [value]="t">{{ etiquetaMov(t) }}</option> }
+          </select>
+        </label>
+        @if (usandoDeudaHoy) {
+          <label>Deuda que marca hoy
+            <div class="monto-wrap">
+              <span class="simbolo">$</span>
+              <input
+                type="text"
+                inputmode="decimal"
+                autocomplete="off"
+                [(ngModel)]="montoMov"
+                name="mmonto"
+                required
+                placeholder="0.00"
+                (ngModelChange)="alEscribirMonto($event)"
+                (keydown)="soloMonto($event)"
+              />
+            </div>
+          </label>
+        } @else {
+          <label class="campo-saldo">
+            <span class="campo-titulo">
+              Monto
+              @if (seleccionPrestamista && saldoDisponible != null && (mov.tipo === 'CARGO' || mov.tipo === 'ABONO' || mov.tipo === 'REEMBOLSO')) {
+                <span class="pill-disponible">Disponible {{ saldoDisponible | currency:'MXN':'symbol-narrow':'1.2-2' }}</span>
+              }
+            </span>
+            <div class="monto-wrap">
+              <span class="simbolo">$</span>
+              <input
+                type="text"
+                inputmode="decimal"
+                autocomplete="off"
+                [(ngModel)]="montoMov"
+                name="mmonto"
+                required
+                placeholder="0.00"
+                (ngModelChange)="alEscribirMonto($event)"
+                (keydown)="soloMonto($event)"
+              />
+            </div>
+          </label>
+        }
       }
       <button type="submit" [disabled]="!formMovOk">
         {{ editMovId ? 'Guardar cambios' : 'Registrar movimiento' }}
@@ -330,35 +347,161 @@
     }
 
     @if (esMovil) {
-      <ul class="movs-lista">
-        @for (m of movimientos; track m.id) {
-          <li [class.editando]="editMovId === m.id">
-            <div class="mov-meta">
-              <span>{{ m.fecha | fechaCorta }}</span>
-              <span class="mov-tipo">{{ etiquetaMov(m.tipo) }}</span>
-            </div>
-            <div class="mov-fila">
-              <strong class="mono">{{ m.monto | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
-              <div class="acciones-mov">
-                <button type="button" class="icono" title="Editar" aria-label="Editar" (click)="editarMovimiento(m)">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M4 20h4.5L19 9.5 14.5 5 4 15.5V20z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
-                    <path d="M12.5 7l4.5 4.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
-                  </svg>
-                </button>
-                <button type="button" class="icono peligro" title="Borrar" aria-label="Borrar" (click)="eliminarMovimiento(m)">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                  </svg>
-                </button>
+      @if (esConCalendario(seleccionada)) {
+        <button
+          type="button"
+          class="seccion-toggle"
+          [class.abierto]="movilCalendarioAbierto"
+          (click)="movilCalendarioAbierto = !movilCalendarioAbierto"
+          [attr.aria-expanded]="movilCalendarioAbierto"
+        >
+          <span>
+            Corte / pago
+            @if (textoCalendario(tdcEdit.diaCorte, tdcEdit.diaLimitePago); as cal) {
+              @if (cal) { <small>{{ cal }}</small> }
+            }
+          </span>
+          <span class="chev" aria-hidden="true">{{ movilCalendarioAbierto ? '▾' : '▸' }}</span>
+        </button>
+        @if (movilCalendarioAbierto) {
+          <form class="alta tdc-datos" enterAvance (ngSubmit)="guardarDatosCalendario()">
+            <label>Corte
+              <input type="text" inputmode="numeric" pattern="[0-9]*" [(ngModel)]="tdcEdit.diaCorte" name="diaCorte" placeholder="día 1–31" autocomplete="off" />
+            </label>
+            <label>Pago
+              <input type="text" inputmode="numeric" pattern="[0-9]*" [(ngModel)]="tdcEdit.diaLimitePago" name="diaLimite" placeholder="día 1–31" autocomplete="off" />
+            </label>
+            <label>Límite de crédito
+              <div class="monto-wrap">
+                <span class="simbolo">$</span>
+                <input
+                  type="text"
+                  inputmode="decimal"
+                  autocomplete="off"
+                  [(ngModel)]="tdcEdit.limiteCredito"
+                  name="limiteCredito"
+                  placeholder="0.00"
+                  (ngModelChange)="alEscribirLimiteEdit($event)"
+                  (keydown)="soloMonto($event)"
+                />
               </div>
-            </div>
-          </li>
-        } @empty {
-          <li class="vacio">Sin movimientos</li>
+            </label>
+            <button type="submit" [disabled]="guardandoTdc">
+              {{ guardandoTdc ? 'Guardando…' : 'Guardar corte / pago' }}
+            </button>
+          </form>
         }
-      </ul>
+      }
+
+      <button
+        type="button"
+        class="seccion-toggle"
+        [class.abierto]="movilOpcionesAbiertas"
+        (click)="movilOpcionesAbiertas = !movilOpcionesAbiertas"
+        [attr.aria-expanded]="movilOpcionesAbiertas"
+      >
+        <span>Cuenta (nombre / categoría)</span>
+        <span class="chev" aria-hidden="true">{{ movilOpcionesAbiertas ? '▾' : '▸' }}</span>
+      </button>
+      @if (movilOpcionesAbiertas) {
+        <div class="detalle-acciones movil-opciones">
+          <label class="nombre-cuenta">Nombre
+            <input
+              type="text"
+              [(ngModel)]="nombreEdit"
+              name="nombreCuentaMovil"
+              autocomplete="off"
+              maxlength="80"
+              [disabled]="guardandoNombre"
+              (blur)="guardarNombre()"
+              (keydown.enter)="$event.preventDefault(); $any($event.target).blur()"
+            />
+          </label>
+          <label class="tipo-cuenta">Categoría
+            <select
+              [ngModel]="seleccionada.tipo"
+              (ngModelChange)="cambiarTipo($event)"
+              name="tipoCuentaMovil"
+            >
+              @for (t of tipos; track t) { <option [value]="t">{{ etiquetaTipo(t) }}</option> }
+            </select>
+          </label>
+          @if (puedeEliminarCuenta) {
+            <button type="button" class="peligro" (click)="eliminarCuenta()">Eliminar cuenta</button>
+          }
+        </div>
+      }
+
+      <button
+        type="button"
+        class="seccion-toggle"
+        [class.abierto]="movilHistorialAbierto"
+        (click)="movilHistorialAbierto = !movilHistorialAbierto"
+        [attr.aria-expanded]="movilHistorialAbierto"
+      >
+        <span>Historial ({{ movimientos.length }})</span>
+        <span class="chev" aria-hidden="true">{{ movilHistorialAbierto ? '▾' : '▸' }}</span>
+      </button>
+      @if (movilHistorialAbierto) {
+        <ul class="movs-lista">
+          @for (m of movimientos; track m.id) {
+            <li [class.editando]="editMovId === m.id">
+              <div class="mov-meta">
+                <span>{{ m.fecha | fechaCorta }}</span>
+                <span class="mov-tipo">{{ etiquetaMov(m.tipo) }}</span>
+              </div>
+              <div class="mov-fila">
+                <strong class="mono">{{ m.monto | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
+                <div class="acciones-mov">
+                  <button type="button" class="icono" title="Editar" aria-label="Editar" (click)="editarMovimiento(m)">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M4 20h4.5L19 9.5 14.5 5 4 15.5V20z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+                      <path d="M12.5 7l4.5 4.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                    </svg>
+                  </button>
+                  <button type="button" class="icono peligro" title="Borrar" aria-label="Borrar" (click)="eliminarMovimiento(m)">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            </li>
+          } @empty {
+            <li class="vacio">Sin movimientos</li>
+          }
+        </ul>
+      }
     } @else {
+      @if (esConCalendario(seleccionada)) {
+        <form class="alta tdc-datos" enterAvance (ngSubmit)="guardarDatosCalendario()">
+          <label>Corte
+            <input type="text" inputmode="numeric" pattern="[0-9]*" [(ngModel)]="tdcEdit.diaCorte" name="diaCorte" placeholder="día 1–31" autocomplete="off" />
+          </label>
+          <label>Pago
+            <input type="text" inputmode="numeric" pattern="[0-9]*" [(ngModel)]="tdcEdit.diaLimitePago" name="diaLimite" placeholder="día 1–31" autocomplete="off" />
+          </label>
+          <label>Límite de crédito
+            <div class="monto-wrap">
+              <span class="simbolo">$</span>
+              <input
+                type="text"
+                inputmode="decimal"
+                autocomplete="off"
+                [(ngModel)]="tdcEdit.limiteCredito"
+                name="limiteCredito"
+                placeholder="0.00"
+                (ngModelChange)="alEscribirLimiteEdit($event)"
+                (keydown)="soloMonto($event)"
+              />
+            </div>
+          </label>
+          <button type="submit" [disabled]="guardandoTdc">
+            {{ guardandoTdc ? 'Guardando…' : 'Guardar corte / pago' }}
+          </button>
+        </form>
+      }
+
       <div class="movs-wrap">
         <table class="tabla-movs">
           <thead>

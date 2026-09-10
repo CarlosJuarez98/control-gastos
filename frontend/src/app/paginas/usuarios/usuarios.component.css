@@ -7,15 +7,40 @@
 
 .cab {
   flex: 0 0 auto;
-  margin-bottom: 0.85rem;
+  margin-bottom: 0.65rem;
 }
 
 .cab .hint {
-  margin: 0.35rem 0 0;
+  margin: 0.25rem 0 0;
   color: var(--texto-suave);
-  font-size: 0.9rem;
+  font-size: 0.88rem;
   max-width: 40rem;
   line-height: 1.35;
+}
+
+.toggle-alta {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin: 0 0 0.55rem;
+  padding: 0.7rem 0.85rem;
+  border: 1px solid var(--linea);
+  border-radius: 0.85rem;
+  background: var(--superficie);
+  color: var(--texto);
+  font: inherit;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+.toggle-alta .chev {
+  color: var(--texto-suave);
+  font-size: 0.85rem;
+}
+.toggle-alta.abierto {
+  border-color: color-mix(in srgb, var(--acento) 45%, var(--linea));
 }
 
 .alta, .reset {
@@ -52,8 +77,8 @@
   white-space: nowrap;
 }
 
-.error { color: var(--peligro); }
-.ok { color: var(--ok); }
+.error { color: var(--peligro); margin: 0 0 0.45rem; }
+.ok { color: var(--ok); margin: 0 0 0.45rem; }
 
 .lista-scroll {
   flex: 1 1 auto;
@@ -105,7 +130,18 @@ tr.inactivo td { color: var(--texto-suave); }
 }
 
 .reset.edit {
-  grid-template-columns: 1fr 1fr auto auto;
+  grid-template-columns: 1fr 1fr auto;
+}
+
+.edit-acciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  align-items: end;
+}
+
+.edit-acciones button {
+  height: 2.55rem;
 }
 
 .opcional {
@@ -119,31 +155,134 @@ tr.inactivo td { color: var(--texto-suave); }
   padding: 1.2rem;
 }
 
-@media (max-width: 720px) {
-  .alta {
-    grid-template-columns: 1fr 1fr;
-  }
-
-  .alta button {
-    grid-column: 1 / -1;
-  }
-
-  .reset {
-    grid-template-columns: 1fr;
-  }
-
-  .reset.edit {
-    grid-template-columns: 1fr;
-  }
-
-  .acciones {
-    flex-wrap: wrap;
-  }
+/* —— Lista móvil (tarjetas) —— */
+.usuarios-lista {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.55rem;
 }
 
-@media (max-width: 720px) and (orientation: portrait) {
+.usuarios-lista > li {
+  background: var(--superficie);
+  border: 1px solid var(--linea);
+  border-radius: 0.9rem;
+  padding: 0.7rem 0.8rem;
+  display: grid;
+  gap: 0.55rem;
+}
+
+.usuarios-lista > li.inactivo {
+  opacity: 0.72;
+}
+
+.usuarios-lista > li.editando {
+  border-color: color-mix(in srgb, var(--acento) 40%, var(--linea));
+}
+
+.user-cab {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.65rem;
+}
+
+.user-id {
+  min-width: 0;
+  display: grid;
+  gap: 0.15rem;
+}
+
+.user-id strong {
+  font-size: 1.05rem;
+  letter-spacing: -0.02em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.estado {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--ok);
+}
+.estado.off {
+  color: var(--texto-suave);
+}
+
+.rol-fila {
+  display: grid;
+  gap: 0.25rem;
+  font-size: 0.82rem;
+  color: var(--texto-suave);
+}
+
+.rol-fila select {
+  width: 100%;
+  height: 2.4rem;
+}
+
+.usuarios-lista .reset.edit {
+  margin: 0;
+  padding: 0.65rem;
+  grid-template-columns: 1fr;
+  gap: 0.5rem;
+}
+
+.usuarios-lista .edit-acciones {
+  width: 100%;
+}
+
+.usuarios-lista .edit-acciones button {
+  flex: 1 1 auto;
+  height: 2.4rem;
+}
+
+@media (max-width: 720px) {
+  :host {
+    height: 100%;
+    max-height: 100%;
+    overflow-y: auto;
+    overflow-x: clip;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-y: contain;
+    padding-bottom: max(1.25rem, env(safe-area-inset-bottom));
+  }
+
+  .cab {
+    margin-bottom: 0.45rem;
+  }
+
+  .cab h1 {
+    font-size: 1.35rem;
+  }
+
+  .cab .hint {
+    font-size: 0.82rem;
+  }
+
   .alta {
     grid-template-columns: 1fr;
+    gap: 0.45rem;
+    padding: 0.65rem 0.75rem;
+    margin-bottom: 0.55rem;
+  }
+
+  .alta label {
+    gap: 0.2rem;
+    font-size: 0.8rem;
+  }
+
+  .alta input,
+  .alta select,
+  .alta button {
+    height: 2.4rem;
+  }
+
+  .lista-scroll {
+    flex: 0 0 auto;
+    overflow: visible;
+    min-height: unset;
   }
 }
 

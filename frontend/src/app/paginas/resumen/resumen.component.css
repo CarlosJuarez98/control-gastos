@@ -188,12 +188,16 @@
 }
 
 .barra-v.fill-v.ingresos {
-  background: var(--ok);
+  background: linear-gradient(180deg, #6fd4ad 0%, var(--ok) 100%);
 }
 
-.barra-v.fill-v.gastos,
+.barra-v.fill-v.gastos {
+  background: linear-gradient(180deg, #f08a8a 0%, var(--peligro) 100%);
+}
+
 .barra-v.fill-v.deuda {
-  background: var(--peligro);
+  /* Distinto de gastos: ámbar marca = compromiso / por pagar */
+  background: linear-gradient(180deg, #f5b87a 0%, var(--acento-2) 100%);
 }
 
 .etiqueta {
@@ -309,11 +313,11 @@
 }
 
 .fill-deuda {
-  background: var(--peligro);
+  background: linear-gradient(90deg, var(--acento-2), color-mix(in srgb, var(--acento-2) 70%, var(--peligro)));
 }
 
 .fill-prestamista {
-  background: var(--ok);
+  background: linear-gradient(90deg, #6fd4ad, var(--ok));
 }
 
 .ver-todas {

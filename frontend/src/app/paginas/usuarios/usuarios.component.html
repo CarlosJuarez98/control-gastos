@@ -1,140 +1,224 @@
 <section class="cab">
   <div>
     <h1>Usuarios</h1>
-    <p class="hint">Esta tabla es la lista de logins. El <strong>nombre de usuario</strong> es el dueño (propietario) de gastos, ingresos y deudas.</p>
   </div>
 </section>
 
 @if (error) { <p class="error">{{ error }}</p> }
 @if (ok) { <p class="ok">{{ ok }}</p> }
 
-<form class="alta" enterAvance (ngSubmit)="crear()">
-  <label>Usuario
-    <input
-      [(ngModel)]="form.usuario"
-      (ngModelChange)="refrescarCrearOk()"
-      name="usuario"
-      required
-      placeholder="ej. maria"
-      autocomplete="off"
-    />
-  </label>
-  <label>Contraseña
-    <input
-      [(ngModel)]="form.password"
-      (ngModelChange)="refrescarCrearOk()"
-      name="password"
-      type="password"
-      required
-      autocomplete="new-password"
-    />
-  </label>
-  <label>Rol
-    <select [(ngModel)]="form.rol" name="rol">
-      <option value="USER">USER</option>
-      <option value="ADMIN">ADMIN</option>
-    </select>
-  </label>
-  <button type="submit" [disabled]="cargando || !formCrearOk">Crear usuario</button>
-</form>
+@if (esMovil) {
+  <button
+    type="button"
+    class="toggle-alta"
+    [class.abierto]="altaAbierta"
+    (click)="altaAbierta = !altaAbierta"
+    [attr.aria-expanded]="altaAbierta"
+  >
+    <span>{{ altaAbierta ? 'Ocultar alta' : 'Crear usuario' }}</span>
+    <span class="chev" aria-hidden="true">{{ altaAbierta ? '▾' : '▸' }}</span>
+  </button>
+}
+
+@if (!esMovil || altaAbierta) {
+  <form class="alta" enterAvance (ngSubmit)="crear()">
+    <label>Usuario
+      <input
+        [(ngModel)]="form.usuario"
+        (ngModelChange)="refrescarCrearOk()"
+        name="usuario"
+        required
+        placeholder="ej. maria"
+        autocomplete="off"
+      />
+    </label>
+    <label>Contraseña
+      <input
+        [(ngModel)]="form.password"
+        (ngModelChange)="refrescarCrearOk()"
+        name="password"
+        type="password"
+        required
+        autocomplete="new-password"
+      />
+    </label>
+    <label>Rol
+      <select [(ngModel)]="form.rol" name="rol">
+        <option value="USER">USER</option>
+        <option value="ADMIN">ADMIN</option>
+      </select>
+    </label>
+    <button type="submit" [disabled]="cargando || !formCrearOk">Crear usuario</button>
+  </form>
+}
 
 <div class="lista-scroll">
-  <div class="tabla-wrap scroll-nest">
-    <table>
-      <thead>
-        <tr>
-          <th>Usuario</th>
-          <th>Rol</th>
-          <th>Estado</th>
-          <th>Acciones</th>
-        </tr>
-      </thead>
-      <tbody>
-        @for (u of items; track u.id) {
-          <tr [class.inactivo]="!u.activo">
-            <td>{{ u.usuario }}</td>
-            <td>
-              <select
-                [ngModel]="u.rol"
-                (ngModelChange)="cambiarRol(u, $event)"
-                [name]="'rol-' + u.id"
-                [title]="esUnicoAdminActivo(u) ? 'Crea otro ADMIN antes de quitar este rol' : ''"
-              >
-                <option value="USER" [disabled]="!puedeQuitarAdmin(u)">USER</option>
-                <option value="ADMIN">ADMIN</option>
-              </select>
-            </td>
-            <td>{{ u.activo ? 'Activo' : 'Inactivo' }}</td>
-            <td>
-              <div class="acciones">
-                <button type="button" class="icono" title="Editar" aria-label="Editar" (click)="abrirEdicion(u)">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M4 20h4.5L19 9.5 14.5 5 4 15.5V20z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
-                    <path d="M12.5 7l4.5 4.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
-                  </svg>
-                </button>
-                <button
-                  type="button"
-                  class="icono"
-                  [disabled]="!puedeDesactivar(u)"
-                  [title]="tituloActivo(u)"
-                  [attr.aria-label]="tituloActivo(u)"
-                  (click)="toggleActivo(u)"
+  @if (!esMovil) {
+    <div class="tabla-wrap scroll-nest">
+      <table>
+        <thead>
+          <tr>
+            <th>Usuario</th>
+            <th>Rol</th>
+            <th>Estado</th>
+            <th>Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (u of items; track u.id) {
+            <tr [class.inactivo]="!u.activo">
+              <td>{{ u.usuario }}</td>
+              <td>
+                <select
+                  [ngModel]="u.rol"
+                  (ngModelChange)="cambiarRol(u, $event)"
+                  [name]="'rol-' + u.id"
+                  [title]="esUnicoAdminActivo(u) ? 'Crea otro ADMIN antes de quitar este rol' : ''"
                 >
-                  @if (u.activo) {
+                  <option value="USER" [disabled]="!puedeQuitarAdmin(u)">USER</option>
+                  <option value="ADMIN">ADMIN</option>
+                </select>
+              </td>
+              <td>{{ u.activo ? 'Activo' : 'Inactivo' }}</td>
+              <td>
+                <div class="acciones">
+                  <button type="button" class="icono" title="Editar" aria-label="Editar" (click)="abrirEdicion(u)">
                     <svg viewBox="0 0 24 24" aria-hidden="true">
-                      <path d="M8 6h3v12H8zM13 6h3v12h-3z" fill="currentColor"/>
-                    </svg>
-                  } @else {
-                    <svg viewBox="0 0 24 24" aria-hidden="true">
-                      <path d="M8 5.5v13l11-6.5L8 5.5z" fill="currentColor"/>
-                    </svg>
-                  }
-                </button>
-                @if (!esYo(u) && !(esUnicoAdminActivo(u))) {
-                  <button type="button" class="icono peligro" title="Eliminar" aria-label="Eliminar" (click)="eliminar(u)">
-                    <svg viewBox="0 0 24 24" aria-hidden="true">
-                      <path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                      <path d="M4 20h4.5L19 9.5 14.5 5 4 15.5V20z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+                      <path d="M12.5 7l4.5 4.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
                     </svg>
                   </button>
-                }
-              </div>
-            </td>
-          </tr>
-          @if (editId === u.id) {
-            <tr class="reset-row">
-              <td colspan="4">
-                <form class="reset edit" enterAvance (ngSubmit)="guardarEdicion(u)">
-                  <label>Nombre de usuario
-                    <input
-                      type="text"
-                      [(ngModel)]="editUsuario"
-                      (ngModelChange)="refrescarEditOk(u)"
-                      name="editUsuario"
-                      required
-                      autocomplete="off"
-                    />
-                  </label>
-                  <label>Nueva contraseña <span class="opcional">(opcional)</span>
-                    <input
-                      type="password"
-                      [(ngModel)]="editPassword"
-                      (ngModelChange)="refrescarEditOk(u)"
-                      name="editPassword"
-                      autocomplete="new-password"
-                      placeholder="Dejar vacío para no cambiar"
-                    />
-                  </label>
-                  <button type="submit" [disabled]="cargando || !formEditOk">Guardar</button>
-                  <button type="button" class="secundario" (click)="cerrarEdicion()">Cancelar</button>
-                </form>
+                  <button
+                    type="button"
+                    class="icono"
+                    [disabled]="!puedeDesactivar(u)"
+                    [title]="tituloActivo(u)"
+                    [attr.aria-label]="tituloActivo(u)"
+                    (click)="toggleActivo(u)"
+                  >
+                    @if (u.activo) {
+                      <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M8 6h3v12H8zM13 6h3v12h-3z" fill="currentColor"/>
+                      </svg>
+                    } @else {
+                      <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M8 5.5v13l11-6.5L8 5.5z" fill="currentColor"/>
+                      </svg>
+                    }
+                  </button>
+                  @if (!esYo(u) && !(esUnicoAdminActivo(u))) {
+                    <button type="button" class="icono peligro" title="Eliminar" aria-label="Eliminar" (click)="eliminar(u)">
+                      <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                      </svg>
+                    </button>
+                  }
+                </div>
               </td>
             </tr>
+            @if (editId === u.id) {
+              <tr class="reset-row">
+                <td colspan="4">
+                  <ng-container *ngTemplateOutlet="editTpl; context: { $implicit: u }" />
+                </td>
+              </tr>
+            }
+          } @empty {
+            <tr><td colspan="4" class="vacio">No hay usuarios.</td></tr>
           }
-        } @empty {
-          <tr><td colspan="4" class="vacio">No hay usuarios.</td></tr>
-        }
-      </tbody>
-    </table>
-  </div>
+        </tbody>
+      </table>
+    </div>
+  } @else {
+    <ul class="usuarios-lista">
+      @for (u of items; track u.id) {
+        <li [class.inactivo]="!u.activo" [class.editando]="editId === u.id">
+          <div class="user-cab">
+            <div class="user-id">
+              <strong>{{ u.usuario }}</strong>
+              <span class="estado" [class.off]="!u.activo">{{ u.activo ? 'Activo' : 'Inactivo' }}</span>
+            </div>
+            <div class="acciones">
+              <button type="button" class="icono" title="Editar" aria-label="Editar" (click)="abrirEdicion(u)">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M4 20h4.5L19 9.5 14.5 5 4 15.5V20z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+                  <path d="M12.5 7l4.5 4.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                </svg>
+              </button>
+              <button
+                type="button"
+                class="icono"
+                [disabled]="!puedeDesactivar(u)"
+                [title]="tituloActivo(u)"
+                [attr.aria-label]="tituloActivo(u)"
+                (click)="toggleActivo(u)"
+              >
+                @if (u.activo) {
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M8 6h3v12H8zM13 6h3v12h-3z" fill="currentColor"/>
+                  </svg>
+                } @else {
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M8 5.5v13l11-6.5L8 5.5z" fill="currentColor"/>
+                  </svg>
+                }
+              </button>
+              @if (!esYo(u) && !(esUnicoAdminActivo(u))) {
+                <button type="button" class="icono peligro" title="Eliminar" aria-label="Eliminar" (click)="eliminar(u)">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                  </svg>
+                </button>
+              }
+            </div>
+          </div>
+          <label class="rol-fila">Rol
+            <select
+              [ngModel]="u.rol"
+              (ngModelChange)="cambiarRol(u, $event)"
+              [name]="'rol-m-' + u.id"
+              [title]="esUnicoAdminActivo(u) ? 'Crea otro ADMIN antes de quitar este rol' : ''"
+            >
+              <option value="USER" [disabled]="!puedeQuitarAdmin(u)">USER</option>
+              <option value="ADMIN">ADMIN</option>
+            </select>
+          </label>
+          @if (editId === u.id) {
+            <ng-container *ngTemplateOutlet="editTpl; context: { $implicit: u }" />
+          }
+        </li>
+      } @empty {
+        <li class="vacio">No hay usuarios.</li>
+      }
+    </ul>
+  }
 </div>
+
+<ng-template #editTpl let-u>
+  <form class="reset edit" enterAvance (ngSubmit)="guardarEdicion(u)">
+    <label>Nombre de usuario
+      <input
+        type="text"
+        [(ngModel)]="editUsuario"
+        (ngModelChange)="refrescarEditOk(u)"
+        name="editUsuario"
+        required
+        autocomplete="off"
+      />
+    </label>
+    <label>Nueva contraseña <span class="opcional">(opcional)</span>
+      <input
+        type="password"
+        [(ngModel)]="editPassword"
+        (ngModelChange)="refrescarEditOk(u)"
+        name="editPassword"
+        autocomplete="new-password"
+        placeholder="Dejar vacío para no cambiar"
+      />
+    </label>
+    <div class="edit-acciones">
+      <button type="submit" [disabled]="cargando || !formEditOk">Guardar</button>
+      <button type="button" class="secundario" (click)="cerrarEdicion()">Cancelar</button>
+    </div>
+  </form>
+</ng-template>

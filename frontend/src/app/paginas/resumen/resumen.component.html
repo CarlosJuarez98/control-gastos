@@ -59,7 +59,7 @@
     </article>
     <article>
       <span>Deuda</span>
-      <strong class="mono neg">{{ data.deudaTotal | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
+      <strong class="mono aviso">{{ data.deudaTotal | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
     </article>
     <article>
       <span>Prestamista</span>
@@ -98,7 +98,7 @@
             <div class="barra-v fill-v deuda" [style.height.%]="pctFlujo(data.deudaTotal)"></div>
           </div>
           <span class="etiqueta">Deuda</span>
-          <span class="mono valor neg">{{ data.deudaTotal | currency:'MXN':'symbol-narrow':'1.2-2' }}</span>
+          <span class="mono valor aviso">{{ data.deudaTotal | currency:'MXN':'symbol-narrow':'1.2-2' }}</span>
         </div>
       </div>
     </section>
@@ -143,7 +143,7 @@
           <li>
             <div class="fila">
               <a [routerLink]="['/cuentas', c.id]">{{ c.nombre }}</a>
-              <span class="mono neg">{{ c.saldoActual | currency:'MXN':'symbol-narrow':'1.2-2' }}</span>
+              <span class="mono aviso">{{ c.saldoActual | currency:'MXN':'symbol-narrow':'1.2-2' }}</span>
             </div>
             <div class="track">
               <div class="fill fill-deuda" [style.width.%]="(c.saldoActual / maxCuenta()) * 100"></div>

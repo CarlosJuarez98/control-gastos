@@ -391,7 +391,14 @@ export class EnterAvanceDirective implements AfterViewInit {
     if (!enMonto && name !== 'monto' && name !== 'mmonto') return false;
 
     const txt = String(input.value ?? '').trim();
-    const n = Number(txt.replace(/,/g, '').replace(/[^\d.]/g, ''));
-    return !txt || !Number.isFinite(n) || n <= 0;
+    // Misma regla que parseDineroSuma: un monto o varios con + / ;
+    const limpio = /[+]|;/.test(txt)
+      ? txt
+          .split(/[+;]/)
+          .map((p) => Number(p.replace(/,/g, '').replace(/[^\d.]/g, '')))
+          .filter((n) => Number.isFinite(n) && n > 0)
+          .reduce((a, b) => a + b, 0)
+      : Number(txt.replace(/,/g, '').replace(/[^\d.]/g, ''));
+    return !txt || !Number.isFinite(limpio) || limpio <= 0;
   }
 }

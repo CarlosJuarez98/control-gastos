@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { ChangeDetectorRef, Component, OnDestroy, OnInit } from '@angular/core';
 import { CurrencyPipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ApiService } from '../../api.service';
@@ -9,6 +9,7 @@ import { FechaCortaPipe, formatFechaCorta } from '../../fecha.util';
 import { EnterAvanceDirective } from '../../enter-avance.directive';
 
 type DigitalKey = 'dineroBbva' | 'dineroMercadoLibre' | 'dineroNu' | 'dineroDidi';
+type SeccionMovil = 'digital' | 'efectivo' | null;
 
 @Component({
   selector: 'app-saldo',
@@ -17,7 +18,7 @@ type DigitalKey = 'dineroBbva' | 'dineroMercadoLibre' | 'dineroNu' | 'dineroDidi
   templateUrl: './saldo.component.html',
   styleUrl: './saldo.component.css',
 })
-export class SaldoComponent implements OnInit {
+export class SaldoComponent implements OnInit, OnDestroy {
   saldo: SaldoSnapshot = {
     fecha: this.hoy(),
     saldoTotal: 0,
@@ -42,11 +43,11 @@ export class SaldoComponent implements OnInit {
   editEsperado = '';
   guardandoEdit = false;
 
-  readonly camposDigital: { key: DigitalKey; label: string }[] = [
-    { key: 'dineroBbva', label: 'BBVA' },
-    { key: 'dineroMercadoLibre', label: 'Mercado Libre / MP' },
-    { key: 'dineroNu', label: 'Nu' },
-    { key: 'dineroDidi', label: 'Didi' },
+  readonly camposDigital: { key: DigitalKey; label: string; corto: string }[] = [
+    { key: 'dineroBbva', label: 'BBVA', corto: 'BBVA' },
+    { key: 'dineroMercadoLibre', label: 'Mercado Libre / MP', corto: 'MP' },
+    { key: 'dineroNu', label: 'Nu', corto: 'Nu' },
+    { key: 'dineroDidi', label: 'Didi', corto: 'Didi' },
   ];
 
   textosDigital: Record<DigitalKey, string> = {
@@ -73,12 +74,28 @@ export class SaldoComponent implements OnInit {
    */
   private conteoEfectivoActivo = false;
 
+  esMovil = false;
+  seccionMovil: SeccionMovil = 'digital';
+  historialAbierto = false;
+
+  private media?: MediaQueryList;
+  private onMedia?: () => void;
+
   constructor(
     private api: ApiService,
-    private confirmDlg: ConfirmDialogService
+    private confirmDlg: ConfirmDialogService,
+    private cdr: ChangeDetectorRef,
   ) {}
 
   ngOnInit(): void {
+    this.media = window.matchMedia('(max-width: 700px)');
+    this.onMedia = () => {
+      this.esMovil = !!this.media?.matches;
+      this.cdr.detectChanges();
+    };
+    this.onMedia();
+    this.media.addEventListener('change', this.onMedia);
+
     this.api.saldo().subscribe({
       next: (r) => {
         this.historial = r.historial ?? [];
@@ -103,6 +120,32 @@ export class SaldoComponent implements OnInit {
       },
       error: (e) => (this.error = e?.error?.error || 'Error al cargar saldo'),
     });
+  }
+
+  ngOnDestroy(): void {
+    if (this.media && this.onMedia) {
+      this.media.removeEventListener('change', this.onMedia);
+    }
+    if (this.exitoTimer) {
+      clearTimeout(this.exitoTimer);
+      this.exitoTimer = null;
+    }
+  }
+
+  /** Abre el apartado; si ya está abierto, lo contrae. */
+  irSeccion(s: Exclude<SeccionMovil, null>): void {
+    this.seccionMovil = this.seccionMovil === s ? null : s;
+  }
+
+  /** Rellena apps/bancos con los montos del último corte. */
+  usarUltimoDigital(): void {
+    const c = this.ultimoCorte;
+    if (!c) return;
+    for (const campo of this.camposDigital) {
+      const v = this.n(c[campo.key]);
+      this.textosDigital[campo.key] = v > 0 ? formatDineroNumero(v) : '';
+      this.alEscribirDinero(campo.key);
+    }
   }
 
   /** Efectivo + digital de un corte guardado. */

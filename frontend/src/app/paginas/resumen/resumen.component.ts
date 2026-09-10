@@ -25,17 +25,17 @@ export class ResumenComponent implements OnInit {
   mesesOpciones: { valor: string; etiqueta: string }[] = [];
 
   readonly colores = [
-    '#3dbea0',
-    '#f0a45d',
-    '#6ea8fe',
-    '#e57373',
-    '#c9a0ff',
-    '#5dce9a',
-    '#ffb74d',
-    '#80cbc4',
-    '#f48fb1',
-    '#90caf9',
-    '#aed581',
+    '#3dbea0', // teal marca
+    '#f0a45d', // ámbar marca
+    '#6ea8fe', // azul suave
+    '#e57373', // coral (gastos)
+    '#5dce9a', // verde ok
+    '#8eb4c7', // gris-azulado
+    '#e8b86d', // oro suave
+    '#7eb8a8', // sage
+    '#d4a0a0', // rosa apagado
+    '#9bb7d4', // celeste
+    '#a8c5a0', // verde suave
   ];
 
   private readonly nombresMes = [
