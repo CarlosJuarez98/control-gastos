@@ -116,18 +116,6 @@ button.total-btn.activo {
   -moz-appearance: textfield;
   appearance: textfield;
 }
-.monto-hint {
-  display: block;
-  margin-top: 0.2rem;
-  font-size: 0.78rem;
-  font-weight: 600;
-  color: var(--acento-2);
-}
-.monto-hint.suave {
-  font-weight: 500;
-  color: var(--texto-suave);
-  opacity: 0.9;
-}
 
 .monto-wrap input::-webkit-outer-spin-button,
 .monto-wrap input::-webkit-inner-spin-button {

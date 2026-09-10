@@ -66,9 +66,6 @@
         (click)="insertarMasMonto()"
       >+</button>
     </div>
-    @if (montoSumaHint; as hint) {
-      <small class="monto-hint">{{ hint }}</small>
-    }
   </label>
   <div class="alta-acciones">
     <button type="submit" [disabled]="guardando || !puedeGuardar">

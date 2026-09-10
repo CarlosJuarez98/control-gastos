@@ -90,16 +90,21 @@ export class IngresosComponent implements OnInit {
 
   /** En móvil el teclado decimal no trae +; botón del campo. */
   insertarMasMonto(): void {
-    const cur = String(this.form.monto ?? '').trimEnd();
-    if (!cur || /[+;]$/.test(cur)) return;
-    this.form.monto = formatDineroInputFlexible(cur + '+');
-  }
-
-  /** Vista previa si hay varios montos con + o ; */
-  get montoSumaHint(): string | null {
-    const { total, partes } = parseDineroSuma(this.form.monto);
-    if (partes.length < 2 || total <= 0) return null;
-    return `Suma ${partes.length} montos = $${formatDineroNumero(total)}`;
+    let cur = String(this.form.monto ?? '').trimEnd();
+    if (!cur) return;
+    if (!/[+;]$/.test(cur)) {
+      this.form.monto = formatDineroInputFlexible(cur + '+');
+    }
+    this.cdr.detectChanges();
+    const valor = this.form.monto;
+    setTimeout(() => {
+      const el = document.querySelector<HTMLInputElement>('form.alta input[name="monto"]');
+      if (!el) return;
+      el.focus();
+      const len = valor.length;
+      el.setSelectionRange(len, len);
+      el.scrollLeft = el.scrollWidth;
+    }, 0);
   }
 
   alFiltrar(v: string): void {
