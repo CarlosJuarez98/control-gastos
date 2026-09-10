@@ -106,13 +106,14 @@
     <div class="denoms">
       @for (d of denominaciones; track d.valor; let i = $index) {
         <label class="denom-row">
-          <span class="mono valor">{{ d.valor | currency:'MXN':'symbol-narrow':'1.2-2' }}</span>
+          <span class="mono valor">{{ d.valor | currency:'MXN':'symbol-narrow':'1.0-2' }}</span>
           <input
             class="cant-input"
             type="text"
             inputmode="numeric"
             autocomplete="off"
             data-no-clear="1"
+            placeholder="0"
             [(ngModel)]="d.cantidad"
             [name]="'cant'+i"
             [style.width.ch]="anchoCantidad(d.cantidad)"
@@ -137,6 +138,70 @@
 @if (historial.length) {
   <section class="historial">
     <h2>Historial de cortes</h2>
+
+    <ul class="items-lista">
+      @for (h of historial; track h.id) {
+        <li>
+          <div class="item-meta">
+            <span>{{ h.fecha | fechaCorta }}</span>
+            @if (estadoDiff(h) === 'falta') {
+              <span class="estado-icono falta" title="Faltó" aria-label="Faltó">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M12 5v12M7 13l5 5 5-5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </span>
+            } @else if (estadoDiff(h) === 'demas') {
+              <span class="estado-icono demas" title="De más" aria-label="De más">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M12 19V7M7 11l5-5 5 5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </span>
+            } @else {
+              <span class="estado-icono ok" title="Cuadró" aria-label="Cuadró">=</span>
+            }
+          </div>
+          <div class="item-metrics">
+            <div>
+              <span>Debería</span>
+              <strong class="mono">{{ h.saldoTotal | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
+            </div>
+            <div>
+              <span>Tuve</span>
+              <strong class="mono">{{ realDe(h) | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
+            </div>
+            <div>
+              <span>Diff</span>
+              <strong
+                class="mono"
+                [class.diff-falta]="diffDe(h) < 0"
+                [class.diff-demas]="diffDe(h) > 0"
+              >{{ diffDe(h) | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
+            </div>
+          </div>
+          <div class="item-fila">
+            <span class="item-hint">
+              @if (estadoDiff(h) === 'falta') { Faltó }
+              @else if (estadoDiff(h) === 'demas') { De más }
+              @else { Cuadró }
+            </span>
+            <div class="acciones">
+              <button type="button" class="icono" title="Editar" aria-label="Editar" (click)="abrirEditar(h)">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M4 20h4.5L19 9.5 14.5 5 4 15.5V20z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+                  <path d="M12.5 7l4.5 4.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                </svg>
+              </button>
+              <button type="button" class="icono" title="Eliminar" aria-label="Eliminar" (click)="eliminarCorte(h)">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+        </li>
+      }
+    </ul>
+
     <div class="tabla-wrap scroll-nest">
       <table>
         <thead>

@@ -2,14 +2,13 @@
 
 Objetivo: abrir la app desde cualquier lugar (celular / otra red) sin dejar la PC encendida.
 
-## Ramas git (local / 
-ube)
+## Ramas git (local / nube)
 
 Ver **`BRANCHES.md`**.
 
 - Desarrollo diario en la rama **`local`**.
 - Deploy a OCI desde la rama **`nube`**.
-- Al decir **"sube a la nube"**: merge `local` → `nube`, luego deploy/sync desde `nube`.
+- Al decir **"sube a la nube"**: merge `local` → `nube`, luego deploy de **código** (sin sync de datos).
 
 ## Realidad en Ampere (ARM)
 
@@ -29,9 +28,10 @@ Opcional: `docker-compose.cloud.yml` (Oracle XE en Docker) solo tiene sentido en
 
 1. Trabajas solo en **local**.
 2. Cuando indiques **“sube a la nube”**:
-   - se redespliega código **si cambió**
-   - se sincronizan **solo datos nuevos** (incremental) → ver `SYNC-DATOS.md`
-3. La nube no se toca hasta que lo pidas.
+   - se redespliega **código** si cambió
+   - **no** se sincronizan datos (nube = datos reales; local = pruebas)
+3. Datos solo si pides **“sube datos”** o **“baja datos”** → `SYNC-DATOS.md`
+4. La nube no se toca hasta que lo pidas.
 
 ## Multi-usuario
 

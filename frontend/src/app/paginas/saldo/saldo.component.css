@@ -125,28 +125,33 @@
 .denoms {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 0.4rem 0.85rem;
+  gap: 0.45rem 1rem;
   align-content: start;
 }
 
 .denom-row {
   display: grid;
-  grid-template-columns: 4.8rem minmax(2.5ch, auto) 1fr;
+  grid-template-columns: 5.2rem minmax(3.2rem, 4.5rem) minmax(0, 1fr);
   align-items: center;
-  gap: 0.3rem;
+  gap: 0.45rem;
   margin: 0;
   font-size: 0.82rem;
   color: var(--texto-suave);
+  min-width: 0;
 }
 
 .denom-row .valor {
   color: var(--texto);
+  white-space: nowrap;
 }
 
 .denom-row .subtotal-denom {
   text-align: right;
   font-size: 0.78rem;
   color: var(--texto-suave);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .bloque-full { grid-column: 1 / -1; }
@@ -337,9 +342,72 @@ input[type='number'] {
 
 .historial h2 {
   font-size: 1.05rem;
-  margin: 0 0 0.35rem;
+  margin: 0 0 0.55rem;
   font-weight: 600;
   color: var(--texto);
+}
+
+.items-lista {
+  display: none;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  gap: 0.55rem;
+}
+
+.items-lista > li {
+  background: var(--superficie);
+  border: 1px solid var(--linea);
+  border-radius: 1rem;
+  padding: 0.85rem 0.9rem;
+}
+
+.item-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  color: var(--texto-suave);
+  font-size: 0.88rem;
+  margin-bottom: 0.55rem;
+}
+
+.item-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.45rem;
+  margin-bottom: 0.65rem;
+}
+
+.item-metrics > div {
+  display: grid;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.item-metrics span {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--texto-suave);
+}
+
+.item-metrics strong {
+  font-size: 0.92rem;
+  overflow-wrap: anywhere;
+}
+
+.item-fila {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.item-hint {
+  font-size: 0.82rem;
+  color: var(--texto-suave);
+  font-weight: 600;
 }
 
 .tabla-wrap {
@@ -375,6 +443,7 @@ input[type='number'] {
   font-size: 1.15rem;
   font-weight: 800;
   line-height: 1;
+  flex-shrink: 0;
 }
 
 .estado-icono svg {
@@ -387,8 +456,8 @@ input[type='number'] {
 .estado-icono.demas { color: var(--ok); }
 .estado-icono.ok { color: var(--texto-suave); }
 
-/* Vertical en móvil: bloques uno bajo otro; billetes en 2 columnas */
-@media (max-width: 700px) and (orientation: portrait) {
+/* Vertical en móvil: billetes en tarjetas 2×N + historial en cards */
+@media (max-width: 700px) {
   .grid { grid-template-columns: 1fr; }
   .comparacion {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -396,11 +465,68 @@ input[type='number'] {
     padding: 0.7rem 0.75rem;
   }
   .comparacion article strong { font-size: 0.98rem; }
-  .denoms { grid-template-columns: 1fr 1fr; }
   .bloque { padding: 0.85rem; }
+  .bloque-cab {
+    flex-direction: row;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+  }
+  .bloque-cab h2 { font-size: 0.98rem; }
+  .denoms {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.55rem;
+  }
+  .denom-row {
+    display: grid;
+    grid-template-columns: 1fr;
+    justify-items: center;
+    align-content: center;
+    gap: 0.35rem;
+    margin: 0;
+    padding: 0.7rem 0.55rem 0.65rem;
+    border: 1px solid var(--linea);
+    border-radius: 0.85rem;
+    background: color-mix(in srgb, var(--superficie-2) 80%, transparent);
+    text-align: center;
+    font-size: 0.88rem;
+  }
+  .denom-row .valor {
+    font-weight: 700;
+    font-size: 0.95rem;
+    letter-spacing: -0.02em;
+  }
+  .denom-row .subtotal-denom {
+    text-align: center;
+    font-size: 0.78rem;
+    width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .cant-input {
+    width: 100% !important;
+    max-width: none;
+    min-width: 0;
+    min-height: 2.6rem;
+    padding: 0.45rem 0.35rem;
+    font-size: 1.05rem;
+    font-weight: 600;
+  }
+  .btn-guardar {
+    width: 100%;
+    justify-self: stretch;
+    min-height: 2.75rem;
+    margin-top: 0.75rem;
+  }
+  .tabla-wrap { display: none; }
+  .items-lista {
+    display: grid;
+  }
+  .historial h2 { margin-bottom: 0.65rem; }
 }
 
-/* Horizontal en teléfono: lado a lado y más compacto */
+/* Horizontal en teléfono: más compacto, billetes en 2 cols si cabe */
 @media (orientation: landscape) and (max-height: 520px) {
   .cab { margin-bottom: 0.35rem; }
   .pagina-scroll { gap: 0.5rem; }
@@ -421,15 +547,41 @@ input[type='number'] {
   }
   .bloque-cab { margin-bottom: 0.25rem; }
   .denoms {
-    grid-template-columns: 1fr 1fr;
-    gap: 0.25rem 0.55rem;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.4rem;
   }
-  .denom-row { font-size: 0.78rem; }
+  .denom-row {
+    display: grid;
+    grid-template-columns: 1fr;
+    justify-items: center;
+    gap: 0.2rem;
+    padding: 0.45rem 0.35rem;
+    border: 1px solid var(--linea);
+    border-radius: 0.65rem;
+    background: color-mix(in srgb, var(--superficie-2) 80%, transparent);
+    text-align: center;
+    font-size: 0.75rem;
+  }
+  .denom-row .valor { font-weight: 700; font-size: 0.82rem; }
+  .denom-row .subtotal-denom { text-align: center; font-size: 0.7rem; }
+  .cant-input {
+    width: 100% !important;
+    max-width: none;
+    min-height: 2.1rem;
+    padding: 0.3rem;
+    font-size: 0.95rem;
+  }
   .btn-guardar {
     margin-top: 0.35rem;
     padding: 0.55rem 0.9rem;
+    width: 100%;
   }
-  .historial h2 { font-size: 0.95rem; margin-bottom: 0.25rem; }
+  .historial h2 { font-size: 0.95rem; margin-bottom: 0.35rem; }
+  .tabla-wrap { display: none; max-height: none; }
+  .items-lista { display: grid; }
+  .item-metrics { gap: 0.3rem; }
+  .item-metrics strong { font-size: 0.82rem; }
+  .items-lista > li { padding: 0.65rem 0.75rem; }
 }
 
 @media (min-width: 701px) and (max-width: 900px) {
