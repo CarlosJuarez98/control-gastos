@@ -114,6 +114,8 @@
 
 .bloque-cab h2 {
   margin: 0;
+  font-weight: 600;
+  color: var(--texto);
 }
 
 .bloque-cab .subtotal {
@@ -152,6 +154,8 @@
 .bloque h2 {
   font-size: 1rem;
   margin: 0;
+  font-weight: 600;
+  color: var(--texto);
 }
 
 .ayuda {
@@ -166,30 +170,9 @@
   color: var(--texto-suave);
 }
 
-.monto-wrap {
-  display: flex;
-  align-items: center;
-  gap: 0.35rem;
-  background: var(--superficie-2);
-  border: 1px solid var(--linea);
-  border-radius: 0.55rem;
-  padding: 0 0.65rem;
-}
-
 .monto-wrap .simbolo {
-  color: var(--ok);
-  font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
-
-.monto-wrap input {
-  border: none;
-  background: transparent;
-  padding: 0.6rem 0;
-  width: 100%;
-}
-
-.monto-wrap input:focus { outline: none; }
 
 /* Por si queda algún input number */
 input[type='number']::-webkit-outer-spin-button,
@@ -256,9 +239,19 @@ input[type='number'] {
   gap: 0.65rem;
 }
 
-.dialog h3 { margin: 0 0 0.25rem; }
+.dialog h3 {
+  margin: 0 0 0.25rem;
+  font-weight: 600;
+  color: var(--texto);
+}
 
-.dialog label {
+.dialog-form {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.dialog label,
+.dialog-form label {
   display: grid;
   gap: 0.25rem;
   font-size: 0.85rem;
@@ -345,6 +338,8 @@ input[type='number'] {
 .historial h2 {
   font-size: 1.05rem;
   margin: 0 0 0.35rem;
+  font-weight: 600;
+  color: var(--texto);
 }
 
 .tabla-wrap {

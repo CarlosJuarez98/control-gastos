@@ -23,18 +23,20 @@
       </button>
     </div>
   </div>
-  <input
-    class="buscar"
-    [ngModel]="filtro"
-    (ngModelChange)="alFiltrar($event)"
-    name="filtroIngresos"
-    placeholder="Filtrar por concepto…"
-  />
+  <form class="buscar-wrap" enterAvance data-enter-last="search" (ngSubmit)="$event.preventDefault()">
+    <input
+      class="buscar"
+      [ngModel]="filtro"
+      (ngModelChange)="alFiltrar($event)"
+      name="filtroIngresos"
+      placeholder="Filtrar por concepto…"
+    />
+  </form>
 </section>
 
 @if (error) { <p class="error">{{ error }}</p> }
 
-<form class="alta" (ngSubmit)="guardar()">
+<form class="alta" enterAvance (ngSubmit)="guardar()">
   <label>Fecha
     <input type="date" [(ngModel)]="form.fecha" name="fecha" [max]="hoy" required />
   </label>
@@ -58,7 +60,7 @@
     </div>
   </label>
   <div class="alta-acciones">
-    <button type="submit" [disabled]="guardando">
+    <button type="submit" [disabled]="guardando || !puedeGuardar">
       {{ guardando ? 'Guardando…' : (editandoId ? 'Guardar cambios' : 'Agregar ingreso') }}
     </button>
     @if (editandoId) {

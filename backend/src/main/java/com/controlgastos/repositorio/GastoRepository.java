@@ -13,6 +13,8 @@ public interface GastoRepository extends JpaRepository<Gasto, Long> {
     List<Gasto> findByPropietarioAndFechaBetweenOrderByFechaDescIdDesc(
             String propietario, LocalDate desde, LocalDate hasta);
 
+    java.util.Optional<Gasto> findByMovimientoId(Long movimientoId);
+
     @Query("select coalesce(sum(g.monto), 0) from Gasto g where g.propietario = ?1")
     BigDecimal sumaTotal(String propietario);
 

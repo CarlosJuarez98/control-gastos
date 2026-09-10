@@ -5,7 +5,8 @@ import { ApiService } from '../../api.service';
 import { ConfirmDialogService } from '../../confirm-dialog.service';
 import { Ingreso } from '../../modelos';
 import { formatDineroInput, formatDineroNumero, parseDinero, soloMontoKey } from '../../dinero.util';
-import { formatFechaCorta } from '../../fecha.util';
+import { formatFechaCorta, fechaHoyLocal } from '../../fecha.util';
+import { EnterAvanceDirective } from '../../enter-avance.directive';
 
 export interface IngresoFila {
   id?: number;
@@ -27,7 +28,7 @@ export interface GrupoQuincena {
 @Component({
   selector: 'app-ingresos',
   standalone: true,
-  imports: [FormsModule, CurrencyPipe],
+  imports: [FormsModule, CurrencyPipe, EnterAvanceDirective],
   templateUrl: './ingresos.component.html',
   styleUrl: './ingresos.component.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -39,9 +40,9 @@ export class IngresosComponent implements OnInit {
   totalQuincenaActual = 0;
   etiquetaQuincenaActual = '';
 
-  hoy = this.fechaLocal();
+  hoy = fechaHoyLocal();
   form: { fecha: string; concepto: string; monto: string } = {
-    fecha: this.hoy,
+    fecha: fechaHoyLocal(),
     concepto: '',
     monto: '',
   };
@@ -68,7 +69,7 @@ export class IngresosComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
-    this.hoy = this.fechaLocal();
+    this.hoy = fechaHoyLocal();
     this.form.fecha = this.hoy;
     this.claveHoy = this.claveQuincena(this.hoy);
     this.etiquetaQuincenaActual = this.etiquetaDeClave(this.claveHoy);
@@ -76,10 +77,7 @@ export class IngresosComponent implements OnInit {
   }
 
   private fechaLocal(d = new Date()): string {
-    const y = d.getFullYear();
-    const m = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    return `${y}-${m}-${day}`;
+    return fechaHoyLocal(d);
   }
 
   soloMonto(ev: KeyboardEvent): void {
@@ -249,7 +247,7 @@ export class IngresosComponent implements OnInit {
     this.error = '';
     this.editandoId = i.id;
     this.form = {
-      fecha: original.fecha,
+      fecha: (original.fecha || '').slice(0, 10) || fechaHoyLocal(),
       concepto: original.concepto,
       monto: formatDineroInput(String(original.monto)),
     };
@@ -259,31 +257,50 @@ export class IngresosComponent implements OnInit {
   cancelarEdicion(): void {
     this.editandoId = null;
     this.error = '';
-    this.hoy = this.fechaLocal();
+    this.hoy = fechaHoyLocal();
     this.form = { fecha: this.hoy, concepto: '', monto: '' };
     this.cdr.markForCheck();
   }
 
+  get puedeGuardarMonto(): boolean {
+    const txt = String(this.form.monto ?? '').trim();
+    if (!txt) return false;
+    const n = parseDinero(txt);
+    return Number.isFinite(n) && n > 0;
+  }
+
+  get puedeGuardar(): boolean {
+    return !!this.form.concepto?.trim() && this.puedeGuardarMonto;
+  }
+
   guardar(): void {
-    if (this.guardando) return;
+    if (this.guardando || !this.puedeGuardar) return;
     this.error = '';
-    this.hoy = this.fechaLocal();
-    if (!this.form.concepto || !this.form.fecha) return;
+    this.hoy = fechaHoyLocal();
+    if (!this.form.fecha) {
+      this.form.fecha = this.hoy;
+    }
+    if (!this.form.concepto) {
+      this.error = 'Completa fecha y concepto';
+      this.cdr.markForCheck();
+      return;
+    }
     if (this.form.fecha > this.hoy) {
       this.error = 'La fecha no puede ser mayor a hoy';
+      this.cdr.markForCheck();
+      return;
+    }
+    if (!this.montoOk()) {
       return;
     }
     const monto = parseDinero(this.form.monto);
-    if (!monto || monto <= 0) {
-      this.error = 'El monto debe ser mayor a cero';
-      return;
-    }
     const body = {
       fecha: this.form.fecha,
       concepto: this.form.concepto,
       monto,
     };
     this.guardando = true;
+    this.cdr.markForCheck();
     const req = this.editandoId
       ? this.api.actualizarIngreso(this.editandoId, body)
       : this.api.crearIngreso(body);
@@ -300,6 +317,32 @@ export class IngresosComponent implements OnInit {
         this.error = e?.error?.error || 'No se pudo guardar';
         this.cdr.markForCheck();
       },
+    });
+  }
+
+  private montoOk(): boolean {
+    const txt = String(this.form.monto ?? '').trim();
+    if (!txt) {
+      this.error = 'El monto no puede ir vacío';
+      this.enfocarMonto();
+      this.cdr.markForCheck();
+      return false;
+    }
+    const monto = parseDinero(txt);
+    if (!Number.isFinite(monto) || monto <= 0) {
+      this.error = 'El monto debe ser mayor a cero';
+      this.enfocarMonto();
+      this.cdr.markForCheck();
+      return false;
+    }
+    return true;
+  }
+
+  private enfocarMonto(): void {
+    queueMicrotask(() => {
+      const el = document.querySelector<HTMLInputElement>('form.alta input[name="monto"]');
+      el?.focus();
+      el?.select();
     });
   }
 

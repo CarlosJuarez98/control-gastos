@@ -86,7 +86,8 @@ button.total-btn.activo {
   line-height: 1.25;
 }
 
-.buscar { max-width: 280px; }
+.buscar-wrap { max-width: 280px; width: 100%; min-width: 0; }
+.buscar { max-width: none; width: 100%; }
 
 .alta {
   flex: 0 0 auto;
@@ -103,38 +104,63 @@ button.total-btn.activo {
 }
 
 .alta label { display: grid; gap: 0.25rem; font-size: 0.85rem; color: var(--texto-suave); min-width: 120px; flex: 1; }
-.monto-wrap {
-  display: flex;
-  align-items: center;
-  gap: 0.35rem;
-  background: var(--superficie-2);
-  border: 1px solid var(--linea);
-  border-radius: 0.55rem;
-  padding: 0 0.65rem;
-}
-.monto-wrap .simbolo {
-  color: var(--ok);
-  font-weight: 700;
-}
 .monto-wrap input {
-  border: none;
-  background: transparent;
-  padding: 0.55rem 0;
-  width: 100%;
   -moz-appearance: textfield;
   appearance: textfield;
 }
-.monto-wrap input:focus { outline: none; }
 .monto-wrap input::-webkit-outer-spin-button,
 .monto-wrap input::-webkit-inner-spin-button {
   -webkit-appearance: none;
   margin: 0;
 }
-.hint-pago {
-  flex: 0 0 auto;
-  margin: -0.25rem 0 0.75rem;
-  font-size: 0.88rem;
+.hint-tdc-rec {
+  flex: 1 1 100%;
+  margin: -0.15rem 0 0.15rem;
+  font-size: 0.82rem;
   color: var(--texto-suave);
+  line-height: 1.35;
+}
+.hint-tdc-rec strong {
+  color: var(--texto);
+  font-weight: 700;
+}
+.usar-rec {
+  margin-left: 0.35rem;
+  padding: 0.15rem 0.55rem;
+  border: 1px solid color-mix(in srgb, var(--acento) 45%, var(--linea));
+  border-radius: 0.45rem;
+  background: color-mix(in srgb, var(--acento) 10%, var(--superficie));
+  color: var(--acento);
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.usar-rec:hover {
+  filter: brightness(1.05);
+}
+.check-meses {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center;
+  gap: 0.45rem;
+  min-width: auto !important;
+  flex: 0 0 auto !important;
+  align-self: end;
+  padding-bottom: 0.55rem;
+}
+.check-meses input {
+  width: auto;
+  margin: 0;
+}
+input.sin-spin,
+input.sin-spin::-webkit-outer-spin-button,
+input.sin-spin::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  appearance: none;
+  margin: 0;
+}
+input.sin-spin {
+  -moz-appearance: textfield;
 }
 .alta-acciones {
   display: flex;
@@ -215,7 +241,8 @@ button.quincena-cab:hover {
   font-size: 0.95rem;
   text-transform: capitalize;
   margin: 0;
-  font-weight: 700;
+  font-weight: 600;
+  color: var(--texto);
 }
 
 .quincena-cab small {
@@ -376,6 +403,7 @@ button:disabled { opacity: 0.65; cursor: not-allowed; transform: none; filter: n
   .alta label { min-width: 0; width: 100%; }
   .alta-acciones { width: 100%; }
   .alta-acciones button { flex: 1 1 auto; width: 100%; }
+  .buscar-wrap { max-width: none; width: 100%; }
   .buscar { max-width: none; width: 100%; }
   .quincena-tit {
     flex-direction: column;

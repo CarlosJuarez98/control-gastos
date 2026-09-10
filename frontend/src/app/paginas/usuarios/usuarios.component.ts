@@ -6,11 +6,12 @@ import { ConfirmDialogService } from '../../confirm-dialog.service';
 import { UsuarioAcceso } from '../../modelos';
 import { sha256Hex } from '../../password-digest';
 import { firstValueFrom } from 'rxjs';
+import { EnterAvanceDirective } from '../../enter-avance.directive';
 
 @Component({
   selector: 'app-usuarios',
   standalone: true,
-  imports: [FormsModule],
+  imports: [FormsModule, EnterAvanceDirective],
   templateUrl: './usuarios.component.html',
   styleUrl: './usuarios.component.css',
 })
@@ -34,8 +35,36 @@ export class UsuariosComponent implements OnInit {
   editUsuario = '';
   editPassword = '';
 
+  /** Actualizado en cada tecleo para que el botón reaccione siempre. */
+  formCrearOk = false;
+  formEditOk = false;
+
   ngOnInit(): void {
     this.cargar();
+    this.refrescarCrearOk();
+  }
+
+  refrescarCrearOk(): void {
+    this.formCrearOk = !!(this.form.usuario || '').trim() && !!this.form.password;
+  }
+
+  refrescarEditOk(u: UsuarioAcceso): void {
+    const nombre = (this.editUsuario || '').trim();
+    if (!nombre) {
+      this.formEditOk = false;
+      return;
+    }
+    const nombreCambio = nombre.toLowerCase() !== (u.usuario || '').toLowerCase();
+    const claveCambio = !!this.editPassword;
+    this.formEditOk = nombreCambio || claveCambio;
+  }
+
+  get puedeCrear(): boolean {
+    return this.formCrearOk;
+  }
+
+  puedeGuardarEdicion(u: UsuarioAcceso): boolean {
+    return this.editId === u.id && this.formEditOk;
   }
 
   cargar(): void {
@@ -48,7 +77,7 @@ export class UsuariosComponent implements OnInit {
   async crear(): Promise<void> {
     this.error = '';
     this.ok = '';
-    if (!this.form.usuario.trim() || !this.form.password) {
+    if (!this.puedeCrear) {
       this.error = 'Usuario y contraseña son obligatorios';
       return;
     }
@@ -66,6 +95,7 @@ export class UsuariosComponent implements OnInit {
             this.cargando = false;
             this.ok = 'Usuario creado';
             this.form = { usuario: '', password: '', rol: 'USER' };
+            this.refrescarCrearOk();
             this.cargar();
           },
           error: (e) => {
@@ -85,12 +115,14 @@ export class UsuariosComponent implements OnInit {
     this.editPassword = '';
     this.error = '';
     this.ok = '';
+    this.refrescarEditOk(u);
   }
 
   cerrarEdicion(): void {
     this.editId = null;
     this.editUsuario = '';
     this.editPassword = '';
+    this.formEditOk = false;
   }
 
   async guardarEdicion(u: UsuarioAcceso): Promise<void> {
@@ -132,6 +164,10 @@ export class UsuariosComponent implements OnInit {
   }
 
   async toggleActivo(u: UsuarioAcceso): Promise<void> {
+    if (!this.puedeDesactivar(u)) {
+      this.error = this.tituloActivo(u);
+      return;
+    }
     const accion = u.activo ? 'desactivar' : 'activar';
     const ok = await this.confirmDlg.ask(`¿Seguro que quieres ${accion} a “${u.usuario}”?`, {
       titulo: `${accion[0].toUpperCase()}${accion.slice(1)} usuario`,
@@ -159,6 +195,45 @@ export class UsuariosComponent implements OnInit {
 
   esYo(u: UsuarioAcceso): boolean {
     return !!this.auth.usuario && this.auth.usuario.toLowerCase() === u.usuario.toLowerCase();
+  }
+
+  /** Admins con sesión activa (pueden administrar la app). */
+  adminsActivos(): number {
+    return this.items.filter(
+      (u) => u.activo && String(u.rol).toUpperCase() === 'ADMIN',
+    ).length;
+  }
+
+  esUnicoAdminActivo(u: UsuarioAcceso): boolean {
+    return (
+      u.activo &&
+      String(u.rol).toUpperCase() === 'ADMIN' &&
+      this.adminsActivos() <= 1
+    );
+  }
+
+  /** Pausar solo si no deja el sistema sin admin. */
+  puedeDesactivar(u: UsuarioAcceso): boolean {
+    if (!u.activo) return true;
+    if (this.esUnicoAdminActivo(u)) return false;
+    if (this.esYo(u)) return false;
+    return true;
+  }
+
+  tituloActivo(u: UsuarioAcceso): string {
+    if (!u.activo) return 'Activar';
+    if (this.esUnicoAdminActivo(u)) {
+      return 'No se puede pausar: es el único administrador';
+    }
+    if (this.esYo(u)) return 'No puedes pausar tu propio usuario';
+    return 'Desactivar';
+  }
+
+  puedeQuitarAdmin(u: UsuarioAcceso): boolean {
+    if (String(u.rol).toUpperCase() !== 'ADMIN') return true;
+    if (this.esUnicoAdminActivo(u)) return false;
+    if (this.esYo(u)) return false;
+    return true;
   }
 
   async eliminar(u: UsuarioAcceso): Promise<void> {

@@ -3,6 +3,7 @@ import { CurrencyPipe, DecimalPipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { ApiService } from '../../api.service';
+import { PagosQuincenaService } from '../../pagos-quincena.service';
 import { Resumen } from '../../modelos';
 
 @Component({
@@ -16,6 +17,8 @@ export class ResumenComponent implements OnInit {
   data?: Resumen;
   error = '';
   cargando = false;
+  /** A pagar en la quincena actual (fijos, cuotas, TDC de contado / deudas). */
+  pagoEstaQuincena = 0;
 
   /** yyyy-MM */
   mesSeleccionado = '';
@@ -40,12 +43,16 @@ export class ResumenComponent implements OnInit {
     'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
   ];
 
-  constructor(private api: ApiService) {}
+  constructor(
+    private api: ApiService,
+    private pagosQuincena: PagosQuincenaService,
+  ) {}
 
   ngOnInit(): void {
     this.mesesOpciones = this.generarMeses();
     this.mesSeleccionado = this.mesActual();
     this.cargar();
+    this.cargarPagoQuincena();
   }
 
   get etiquetaMes(): string {
@@ -95,6 +102,13 @@ export class ResumenComponent implements OnInit {
         this.error = e?.error?.error || 'No se pudo cargar el resumen';
         this.cargando = false;
       },
+    });
+  }
+
+  private cargarPagoQuincena(): void {
+    this.pagosQuincena.cargarTotales().subscribe({
+      next: (t) => (this.pagoEstaQuincena = t.esta),
+      error: () => (this.pagoEstaQuincena = 0),
     });
   }
 

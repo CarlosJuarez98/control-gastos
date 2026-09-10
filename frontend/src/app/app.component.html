@@ -7,6 +7,7 @@
   @if (mostrarNav) {
     <header class="top">
       <div class="brand">
+        <span class="brand-icon" aria-hidden="true">$</span>
         <p class="brand-mark">Control de gastos</p>
       </div>
       <nav aria-label="Secciones">
@@ -42,7 +43,7 @@
     <p class="perfil-hint">Cambia tu nombre de usuario o contraseña.</p>
     @if (perfilError) { <p class="error">{{ perfilError }}</p> }
     @if (perfilOk) { <p class="ok">{{ perfilOk }}</p> }
-    <form class="perfil-form" (ngSubmit)="guardarPerfil()">
+    <form class="perfil-form" enterAvance (ngSubmit)="guardarPerfil()">
       <label>Usuario
         <input [(ngModel)]="perfilUsuario" name="perfilUsuario" required autocomplete="username" />
       </label>
@@ -55,7 +56,7 @@
           placeholder="Dejar vacío para no cambiar"
         />
       </label>
-      <button type="submit" [disabled]="perfilCargando">Guardar</button>
+      <button type="submit" [disabled]="perfilCargando || !puedeGuardarPerfil">Guardar</button>
     </form>
   </aside>
 }

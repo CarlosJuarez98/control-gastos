@@ -38,6 +38,10 @@ public class Gasto {
     @Column(name = "movimiento_id")
     private Long movimientoId;
 
+    /** Plazo MSI si se compró a meses con TDC (null/1 = de contado). */
+    @Column(name = "MESES")
+    private Integer meses;
+
     @Column(name = "PROPIETARIO", length = 80)
     private String propietario;
 
@@ -57,6 +61,8 @@ public class Gasto {
     public void setCuenta(Cuenta cuenta) { this.cuenta = cuenta; }
     public Long getMovimientoId() { return movimientoId; }
     public void setMovimientoId(Long movimientoId) { this.movimientoId = movimientoId; }
+    public Integer getMeses() { return meses; }
+    public void setMeses(Integer meses) { this.meses = meses; }
     public String getPropietario() { return propietario; }
     public void setPropietario(String propietario) { this.propietario = propietario; }
 

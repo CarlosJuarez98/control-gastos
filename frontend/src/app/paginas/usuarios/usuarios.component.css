@@ -84,6 +84,11 @@
   align-items: center;
 }
 
+.acciones .icono:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
 .reset button {
   padding: 0.4rem 0.7rem;
   font-size: 0.85rem;

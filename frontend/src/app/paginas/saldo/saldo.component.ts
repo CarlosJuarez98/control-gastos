@@ -6,13 +6,14 @@ import { ConfirmDialogService } from '../../confirm-dialog.service';
 import { Denominacion, SaldoSnapshot } from '../../modelos';
 import { formatDineroInput, formatDineroNumero, parseDinero, soloMontoKey } from '../../dinero.util';
 import { FechaCortaPipe, formatFechaCorta } from '../../fecha.util';
+import { EnterAvanceDirective } from '../../enter-avance.directive';
 
 type DigitalKey = 'dineroBbva' | 'dineroMercadoLibre' | 'dineroNu' | 'dineroDidi';
 
 @Component({
   selector: 'app-saldo',
   standalone: true,
-  imports: [FormsModule, CurrencyPipe, FechaCortaPipe],
+  imports: [FormsModule, CurrencyPipe, FechaCortaPipe, EnterAvanceDirective],
   templateUrl: './saldo.component.html',
   styleUrl: './saldo.component.css',
 })
@@ -258,21 +259,9 @@ export class SaldoComponent implements OnInit {
     if (!/^\d$/.test(ev.key)) ev.preventDefault();
   }
 
-  /** Enter → siguiente cantidad; solo dígitos. */
-  teclaCantidad(ev: KeyboardEvent, indice: number): void {
-    if (ev.key === 'Enter') {
-      ev.preventDefault();
-      this.normalizarCantidad(this.denominaciones[indice]);
-      const inputs = Array.from(
-        document.querySelectorAll<HTMLInputElement>('input.cant-input')
-      );
-      const siguiente = inputs[indice + 1];
-      if (siguiente) {
-        siguiente.focus();
-        siguiente.select();
-      }
-      return;
-    }
+  /** Solo dígitos en cantidades de billetes. */
+  teclaCantidad(ev: KeyboardEvent, _indice: number): void {
+    if (ev.key === 'Enter') return; // lo maneja enterAvance
     this.soloDigitos(ev);
   }
 
@@ -294,29 +283,13 @@ export class SaldoComponent implements OnInit {
   }
 
   soloMonto(ev: KeyboardEvent): void {
+    if (ev.key === 'Enter') return; // lo maneja enterAvance
     soloMontoKey(ev);
   }
 
-  /** Enter → siguiente monto digital. */
-  teclaDinero(ev: KeyboardEvent, indice: number): void {
-    if (ev.key === 'Enter') {
-      ev.preventDefault();
-      const key = this.camposDigital[indice]?.key;
-      if (key) this.alSalirDinero(key);
-      const inputs = Array.from(
-        document.querySelectorAll<HTMLInputElement>('input.dinero-input')
-      );
-      const siguiente = inputs[indice + 1];
-      if (siguiente) {
-        siguiente.focus();
-        siguiente.select();
-      } else {
-        const primeraCant = document.querySelector<HTMLInputElement>('input.cant-input');
-        primeraCant?.focus();
-        primeraCant?.select();
-      }
-      return;
-    }
+  /** Filtra teclas de monto; Enter lo maneja enterAvance. */
+  teclaDinero(ev: KeyboardEvent, _indice: number): void {
+    if (ev.key === 'Enter') return;
     this.soloMonto(ev);
   }
 

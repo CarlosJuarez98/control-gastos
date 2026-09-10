@@ -4,11 +4,12 @@ import { RouterLink, RouterLinkActive, RouterOutlet, Router } from '@angular/rou
 import { ConfirmDialogComponent } from './confirm-dialog.component';
 import { AuthService } from './auth.service';
 import { sha256Hex } from './password-digest';
+import { EnterAvanceDirective } from './enter-avance.directive';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, ConfirmDialogComponent, FormsModule],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, ConfirmDialogComponent, FormsModule, EnterAvanceDirective],
   templateUrl: './app.component.html',
   styleUrl: './app.component.css',
 })
@@ -22,6 +23,14 @@ export class AppComponent {
   perfilError = '';
   perfilOk = '';
   perfilCargando = false;
+
+  get puedeGuardarPerfil(): boolean {
+    const usuario = (this.perfilUsuario || '').trim();
+    if (!usuario) return false;
+    const nombreCambio = usuario.toLowerCase() !== (this.auth.usuario || '').toLowerCase();
+    const claveCambio = !!this.perfilPassword;
+    return nombreCambio || claveCambio;
+  }
 
   /** Pull-to-refresh en móvil. */
   pullDistancia = 0;
@@ -144,11 +153,15 @@ export class AppComponent {
   async guardarPerfil(): Promise<void> {
     this.perfilError = '';
     this.perfilOk = '';
-    const usuario = this.perfilUsuario.trim();
-    if (!usuario) {
-      this.perfilError = 'El nombre de usuario es obligatorio';
+    if (!this.puedeGuardarPerfil || this.perfilCargando) {
+      if (!(this.perfilUsuario || '').trim()) {
+        this.perfilError = 'El nombre de usuario es obligatorio';
+      } else if (!this.puedeGuardarPerfil) {
+        this.perfilError = 'No hay cambios que guardar';
+      }
       return;
     }
+    const usuario = this.perfilUsuario.trim();
     const body: { usuario?: string; password?: string } = {};
     if (usuario.toLowerCase() !== (this.auth.usuario || '').toLowerCase()) {
       body.usuario = usuario;
@@ -160,10 +173,6 @@ export class AppComponent {
         this.perfilError = 'No se pudo preparar la contraseña';
         return;
       }
-    }
-    if (!body.usuario && !body.password) {
-      this.perfilError = 'No hay cambios que guardar';
-      return;
     }
     this.perfilCargando = true;
     this.auth.actualizarPerfil(body).subscribe({

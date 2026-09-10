@@ -15,5 +15,6 @@ public record ResumenResponse(
         BigDecimal totalFisico,
         List<Map<String, Object>> gastosPorCategoria,
         List<Map<String, Object>> topCuentas,
-        List<Map<String, Object>> prestamistas
+        List<Map<String, Object>> prestamistas,
+        List<Map<String, Object>> historialAnual
 ) {}

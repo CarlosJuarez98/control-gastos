@@ -5,7 +5,9 @@ import { ApiService } from '../../api.service';
 import { ConfirmDialogService } from '../../confirm-dialog.service';
 import { Cuenta, Gasto } from '../../modelos';
 import { formatDineroInput, formatDineroNumero, parseDinero, soloMontoKey } from '../../dinero.util';
-import { formatFechaCorta } from '../../fecha.util';
+import { formatFechaCorta, fechaHoyLocal } from '../../fecha.util';
+import { EnterAvanceDirective } from '../../enter-avance.directive';
+import { calendarioCompraTdc, recomendarTdc, CalendarioTdc } from '../../tdc-calendario.util';
 
 export interface GastoFila {
   id?: number;
@@ -15,6 +17,7 @@ export interface GastoFila {
   motivo?: string;
   montoTxt: string;
   pago: string;
+  meses?: number | null;
 }
 
 export interface GrupoQuincena {
@@ -29,7 +32,7 @@ export interface GrupoQuincena {
 @Component({
   selector: 'app-gastos',
   standalone: true,
-  imports: [FormsModule, CurrencyPipe],
+  imports: [FormsModule, CurrencyPipe, EnterAvanceDirective],
   templateUrl: './gastos.component.html',
   styleUrl: './gastos.component.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -50,13 +53,17 @@ export class GastosComponent implements OnInit {
     motivo: string;
     formaPago: 'EFECTIVO' | 'TARJETA';
     cuentaId: number | null;
+    aMeses: boolean;
+    meses: string;
   } = {
-    fecha: this.fechaLocal(),
+    fecha: fechaHoyLocal(),
     categoria: 'Yo',
     monto: '',
     motivo: '',
     formaPago: 'EFECTIVO',
     cuentaId: null,
+    aMeses: false,
+    meses: '12',
   };
   categorias = ['Yo', 'Familia', 'Vehiculos', 'Casa', 'Mama', 'Otro'];
   filtro = '';
@@ -65,7 +72,7 @@ export class GastosComponent implements OnInit {
   error = '';
   editandoId: number | null = null;
   guardando = false;
-  hoy = this.fechaLocal();
+  hoy = fechaHoyLocal();
 
   private claveHoy = '';
   private filtroTimer: ReturnType<typeof setTimeout> | null = null;
@@ -85,11 +92,16 @@ export class GastosComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
-    this.hoy = this.fechaLocal();
+    this.hoy = fechaHoyLocal();
     this.form.fecha = this.hoy;
     this.claveHoy = this.claveQuincena(this.hoy);
     this.etiquetaQuincenaActual = this.etiquetaDeClave(this.claveHoy);
     this.cargar();
+    this.cargarTarjetas();
+  }
+
+  /** Misma lista que Deudas → cuentas tipo TDC (activas). */
+  private cargarTarjetas(): void {
     this.api.cuentas().subscribe({
       next: (r) => {
         this.cuentas = r;
@@ -108,11 +120,44 @@ export class GastosComponent implements OnInit {
     });
   }
 
+  alCambiarFormaPago(): void {
+    this.form.cuentaId = null;
+    this.form.aMeses = false;
+    if (this.form.formaPago === 'TARJETA') {
+      this.cargarTarjetas();
+    }
+  }
+
+  /** TDC con más días hasta el pago del ciclo de la fecha del gasto. */
+  get recomendacionTdc(): CalendarioTdc | null {
+    if (this.form.formaPago !== 'TARJETA') return null;
+    return recomendarTdc(this.cuentasTdc, this.form.fecha);
+  }
+
+  /** Compra de contado (no a meses): ciclo de pago según corte de la TDC elegida. */
+  get calendarioPagoUnico(): CalendarioTdc | null {
+    if (this.form.formaPago !== 'TARJETA' || this.form.aMeses) return null;
+    if (this.form.cuentaId == null) return null;
+    const c = this.cuentasTdc.find((x) => x.id === this.form.cuentaId);
+    if (!c) return null;
+    return calendarioCompraTdc(c, this.form.fecha);
+  }
+
+  etiquetaOpcionTdc(c: Cuenta): string {
+    const cal = calendarioCompraTdc(c, this.form.fecha);
+    if (!cal) return c.nombre || 'TDC';
+    return `${c.nombre} · paga ${cal.etiquetaPagoCorta} (${cal.diasHastaPago}d)`;
+  }
+
+  usarRecomendacionTdc(): void {
+    const id = this.recomendacionTdc?.cuenta?.id;
+    if (id == null) return;
+    this.form.cuentaId = id;
+    this.cdr.markForCheck();
+  }
+
   private fechaLocal(d = new Date()): string {
-    const y = d.getFullYear();
-    const m = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    return `${y}-${m}-${day}`;
+    return fechaHoyLocal(d);
   }
 
   soloMonto(ev: KeyboardEvent): void {
@@ -221,6 +266,7 @@ export class GastosComponent implements OnInit {
         motivo: g.motivo,
         montoTxt: `$${formatDineroNumero(monto)}`,
         pago: this.etiquetaPago(g),
+        meses: g.meses && g.meses > 1 ? g.meses : null,
       });
       totales.set(clave, (totales.get(clave) || 0) + monto);
     }
@@ -287,9 +333,31 @@ export class GastosComponent implements OnInit {
   private etiquetaPago(g: Gasto): string {
     const forma = (g.formaPago || 'EFECTIVO').toUpperCase();
     if (forma === 'TARJETA') {
-      return g.cuenta?.nombre ? `Tarjeta · ${g.cuenta.nombre}` : 'Tarjeta';
+      const base = g.cuenta?.nombre ? `Tarjeta · ${g.cuenta.nombre}` : 'Tarjeta';
+      if (g.meses && g.meses > 1) return `${base} · ${g.meses} meses`;
+      return base;
     }
     return 'Efectivo';
+  }
+
+  /** Vista previa de la cuota MSI. */
+  get puedeGuardarMonto(): boolean {
+    const txt = String(this.form.monto ?? '').trim();
+    if (!txt) return false;
+    const n = parseDinero(txt);
+    return Number.isFinite(n) && n > 0;
+  }
+
+  get puedeGuardar(): boolean {
+    if (!this.puedeGuardarMonto) return false;
+    if (this.form.formaPago === 'TARJETA') {
+      if (!this.form.cuentaId) return false;
+      if (this.form.aMeses) {
+        const m = Number(String(this.form.meses).replace(/\D/g, ''));
+        if (!m || m < 2 || m > 48) return false;
+      }
+    }
+    return true;
   }
 
   editar(g: GastoFila): void {
@@ -301,13 +369,18 @@ export class GastosComponent implements OnInit {
     const forma = ((original.formaPago || 'EFECTIVO').toUpperCase() === 'TARJETA'
       ? 'TARJETA'
       : 'EFECTIVO') as 'EFECTIVO' | 'TARJETA';
+    const meses = original.meses && original.meses > 1 ? original.meses : null;
+    const cuentaId = forma === 'TARJETA' ? (original.cuentaId ?? original.cuenta?.id ?? null) : null;
+    this.cargarTarjetas();
     this.form = {
-      fecha: (original.fecha || '').slice(0, 10),
+      fecha: (original.fecha || '').slice(0, 10) || fechaHoyLocal(),
       categoria: original.categoria || 'Yo',
       monto: formatDineroInput(String(original.monto)),
       motivo: original.motivo || '',
       formaPago: forma,
-      cuentaId: forma === 'TARJETA' ? (original.cuentaId ?? original.cuenta?.id ?? null) : null,
+      cuentaId,
+      aMeses: forma === 'TARJETA' && !!meses,
+      meses: meses ? String(meses) : '12',
     };
     this.cdr.markForCheck();
   }
@@ -315,7 +388,7 @@ export class GastosComponent implements OnInit {
   cancelarEdicion(): void {
     this.editandoId = null;
     this.error = '';
-    this.hoy = this.fechaLocal();
+    this.hoy = fechaHoyLocal();
     this.form = {
       fecha: this.hoy,
       categoria: 'Yo',
@@ -323,36 +396,59 @@ export class GastosComponent implements OnInit {
       motivo: '',
       formaPago: 'EFECTIVO',
       cuentaId: null,
+      aMeses: false,
+      meses: '12',
     };
     this.cdr.markForCheck();
   }
 
   guardar(): void {
-    if (this.guardando) return;
+    if (this.guardando || !this.puedeGuardar) return;
     this.error = '';
-    this.hoy = this.fechaLocal();
+    this.hoy = fechaHoyLocal();
     this.claveHoy = this.claveQuincena(this.hoy);
     this.etiquetaQuincenaActual = this.etiquetaDeClave(this.claveHoy);
-    if (!this.form.fecha || this.form.fecha > this.hoy) {
+    if (!this.form.fecha) {
+      this.form.fecha = this.hoy;
+    }
+    if (this.form.fecha > this.hoy) {
       this.error = 'La fecha no puede ser mayor a hoy';
+      this.cdr.markForCheck();
+      return;
+    }
+    if (!this.montoOk()) {
       return;
     }
     const monto = parseDinero(this.form.monto);
-    if (!monto || monto <= 0) {
-      this.error = 'El monto debe ser mayor a cero';
-      return;
-    }
     if (this.form.formaPago === 'TARJETA') {
       if (!this.form.cuentaId) {
-        this.error = 'Elige la TDC con la que pagaste';
+        this.error = this.cuentasTdc.length
+          ? 'Elige una TDC de la lista'
+          : 'No hay tarjetas TDC en Deudas; crea una con tipo TDC';
+        this.cdr.markForCheck();
         return;
       }
       const tdc = this.cuentasTdc.some((c) => c.id === this.form.cuentaId);
       if (!tdc) {
         this.error = 'Solo puedes pagar con una tarjeta de crédito (TDC)';
+        this.cdr.markForCheck();
         return;
       }
+      if (this.form.aMeses) {
+        const m = Number(String(this.form.meses).replace(/\D/g, ''));
+        if (!m || m < 2 || m > 48) {
+          this.error = 'El plazo a meses debe ser entre 2 y 48';
+          this.cdr.markForCheck();
+          return;
+        }
+        this.form.meses = String(m);
+      }
     }
+
+    const meses =
+      this.form.formaPago === 'TARJETA' && this.form.aMeses
+        ? Number(this.form.meses)
+        : null;
 
     const body: Gasto = {
       fecha: this.form.fecha,
@@ -361,9 +457,11 @@ export class GastosComponent implements OnInit {
       monto,
       formaPago: this.form.formaPago,
       cuentaId: this.form.formaPago === 'TARJETA' ? this.form.cuentaId : null,
+      meses,
     };
 
     this.guardando = true;
+    this.cdr.markForCheck();
     const req = this.editandoId
       ? this.api.actualizarGasto(this.editandoId, body)
       : this.api.crearGasto(body);
@@ -380,6 +478,33 @@ export class GastosComponent implements OnInit {
         this.error = e?.error?.error || 'No se pudo guardar';
         this.cdr.markForCheck();
       },
+    });
+  }
+
+  /** Monto obligatorio y > 0; enfoca el campo si falla. */
+  private montoOk(): boolean {
+    const txt = String(this.form.monto ?? '').trim();
+    if (!txt) {
+      this.error = 'El monto no puede ir vacío';
+      this.enfocarMonto();
+      this.cdr.markForCheck();
+      return false;
+    }
+    const monto = parseDinero(txt);
+    if (!Number.isFinite(monto) || monto <= 0) {
+      this.error = 'El monto debe ser mayor a cero';
+      this.enfocarMonto();
+      this.cdr.markForCheck();
+      return false;
+    }
+    return true;
+  }
+
+  private enfocarMonto(): void {
+    queueMicrotask(() => {
+      const el = document.querySelector<HTMLInputElement>('form.alta input[name="monto"]');
+      el?.focus();
+      el?.select();
     });
   }
 

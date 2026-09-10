@@ -123,11 +123,14 @@ public class UsuarioAdminService {
     public UsuarioDto cambiarActivo(Long id, boolean activo, String actor) {
         UsuarioAcceso entity = buscar(id);
         if (!activo) {
+            // Primero: nunca dejar el sistema sin admin activo (aunque sea tu propio perfil).
+            if (entity.esAdmin() && entity.isActivo() && contarAdminsActivos() <= 1) {
+                throw new ResponseStatusException(
+                        HttpStatus.BAD_REQUEST,
+                        "No se puede pausar: es el único administrador. Crea otro ADMIN antes.");
+            }
             if (entity.getUsuario().equalsIgnoreCase(actor)) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "No puedes desactivar tu propio usuario");
-            }
-            if (entity.esAdmin() && contarAdminsActivos() <= 1) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Debe quedar al menos un admin activo");
             }
         }
         entity.setActivo(activo);
@@ -142,7 +145,9 @@ public class UsuarioAdminService {
                 && UsuarioAcceso.ROL_USER.equals(nuevoRol)
                 && entity.isActivo()
                 && contarAdminsActivos() <= 1) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Debe quedar al menos un admin activo");
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "No se puede quitar el rol ADMIN: es el único administrador activo");
         }
         if (entity.getUsuario().equalsIgnoreCase(actor)
                 && UsuarioAcceso.ROL_USER.equals(nuevoRol)) {
@@ -159,7 +164,9 @@ public class UsuarioAdminService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "No puedes eliminar tu propio usuario");
         }
         if (entity.esAdmin() && entity.isActivo() && contarAdminsActivos() <= 1) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Debe quedar al menos un admin activo");
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "No se puede eliminar: es el único administrador activo");
         }
         if (tieneDatos(entity.getUsuario())) {
             throw new ResponseStatusException(

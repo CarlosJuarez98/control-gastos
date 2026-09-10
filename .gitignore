@@ -14,3 +14,4 @@ wallet/
 _migrate/
 **/Wallet*.zip
 _import/excel-raw.json
+deploy-tmp/

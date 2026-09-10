@@ -22,26 +22,10 @@
   margin-bottom: 0.75rem;
 }
 .alta label { display: grid; gap: 0.25rem; font-size: 0.82rem; color: var(--texto-suave); flex: 1; min-width: 110px; }
-.monto-wrap {
-  display: flex;
-  align-items: center;
-  gap: 0.35rem;
-  background: var(--superficie-2);
-  border: 1px solid var(--linea);
-  border-radius: 0.55rem;
-  padding: 0 0.65rem;
-}
-.monto-wrap .simbolo {
-  color: var(--ok);
-  font-weight: 700;
-}
 .monto-wrap input {
-  border: none;
-  background: transparent;
-  padding: 0.55rem 0;
-  width: 100%;
+  -moz-appearance: textfield;
+  appearance: textfield;
 }
-.monto-wrap input:focus { outline: none; }
 
 .layout {
   flex: 1 1 auto;
@@ -60,13 +44,28 @@
 }
 
 .grupo h3 {
-  font-size: 0.75rem;
+  font-size: 0.78rem;
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--texto-suave);
   margin: 0 0 0.4rem 0.15rem;
   font-family: var(--fuente-cuerpo);
-  font-weight: 700;
+  font-weight: 600;
+}
+.subgrupo {
+  margin-bottom: 0.65rem;
+}
+.subgrupo:last-child {
+  margin-bottom: 0;
+}
+.subgrupo h4 {
+  margin: 0 0 0.3rem;
+  padding: 0 0.15rem;
+  font-size: 0.75rem;
+  font-family: var(--fuente-cuerpo);
+  font-weight: 600;
+  color: var(--texto-suave);
+  letter-spacing: 0.02em;
 }
 .cuentas {
   list-style: none; margin: 0; padding: 0;
@@ -96,6 +95,12 @@
   margin-right: 0.55rem;
 }
 .cuentas small { color: var(--texto-suave); }
+.cuentas .meta-tdc {
+  display: block;
+  font-size: 0.72rem;
+  color: var(--texto-suave);
+  opacity: 0.9;
+}
 .cuentas .mono { color: var(--acento-2); }
 .cuentas .mono.pos { color: var(--ok); }
 .cuentas li.activa a { background: rgba(61, 190, 160, 0.12); }
@@ -163,6 +168,26 @@
   gap: 0.55rem;
   align-items: flex-end;
 }
+.detalle-titulo {
+  flex: 1 1 12rem;
+  min-width: 0;
+  display: grid;
+  gap: 0.35rem;
+}
+.nombre-cuenta {
+  display: grid;
+  gap: 0.25rem;
+  font-size: 0.82rem;
+  color: var(--texto-suave);
+  max-width: 22rem;
+}
+.nombre-cuenta input {
+  font-family: var(--fuente-display);
+  font-size: clamp(1.1rem, 2.2vw, 1.4rem);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  margin: 0;
+}
 .detalle-cab h2 { margin: 0 0 0.25rem; }
 .detalle-cab p { margin: 0; color: var(--texto-suave); }
 .saldo-linea {
@@ -183,6 +208,17 @@
   color: var(--acento-2);
   letter-spacing: 0.01em;
   white-space: nowrap;
+}
+.hint-tdc {
+  flex: 1 1 100%;
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--texto-suave);
+}
+
+.alta.tdc-datos {
+  margin-bottom: 0.75rem;
+  border-style: dashed;
 }
 .tipo-cuenta {
   display: grid;

@@ -52,9 +52,31 @@
   animation: entrar var(--dur-media) var(--ease-out) 0.06s both;
 }
 
-.brand { grid-area: brand; min-width: 0; }
+.brand {
+  grid-area: brand;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
 .acciones { grid-area: acciones; }
 nav { grid-area: nav; }
+
+.brand-icon {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.85rem;
+  height: 1.85rem;
+  border-radius: 0.5rem;
+  border: 1.5px solid var(--acento);
+  color: var(--acento);
+  font-family: var(--fuente-display);
+  font-weight: 800;
+  font-size: 1.05rem;
+  line-height: 1;
+}
 
 .brand-mark {
   font-family: var(--fuente-display);
@@ -185,6 +207,8 @@ button.salir {
 .perfil-cab h2 {
   margin: 0;
   font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--texto);
 }
 
 .perfil-hint {

@@ -64,6 +64,14 @@ export class ApiService {
     return this.http.post<GastoMensual>(`${this.base}/gastos-mensuales`, body);
   }
 
+  actualizarMensual(id: number, body: GastoMensual): Observable<GastoMensual> {
+    return this.http.put<GastoMensual>(`${this.base}/gastos-mensuales/${id}`, body);
+  }
+
+  marcarCuotaMensual(id: number): Observable<GastoMensual> {
+    return this.http.post<GastoMensual>(`${this.base}/gastos-mensuales/${id}/marcar-cuota`, {});
+  }
+
   eliminarMensual(id: number): Observable<void> {
     return this.http.delete<void>(`${this.base}/gastos-mensuales/${id}`);
   }

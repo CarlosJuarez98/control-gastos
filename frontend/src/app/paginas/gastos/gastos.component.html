@@ -23,18 +23,20 @@
       </button>
     </div>
   </div>
-  <input
-    class="buscar"
-    [ngModel]="filtro"
-    (ngModelChange)="alFiltrar($event)"
-    name="filtroGastos"
-    placeholder="Filtrar categoría, motivo o pago…"
-  />
+  <form class="buscar-wrap" enterAvance data-enter-last="search" (ngSubmit)="$event.preventDefault()">
+    <input
+      class="buscar"
+      [ngModel]="filtro"
+      (ngModelChange)="alFiltrar($event)"
+      name="filtroGastos"
+      placeholder="Filtrar categoría, motivo o pago…"
+    />
+  </form>
 </section>
 
 @if (error) { <p class="error">{{ error }}</p> }
 
-<form class="alta" (ngSubmit)="guardar()">
+<form class="alta" enterAvance (ngSubmit)="guardar()">
   <label>Fecha
     <input type="date" [(ngModel)]="form.fecha" name="fecha" [max]="hoy" required />
   </label>
@@ -61,7 +63,7 @@
     </div>
   </label>
   <label>Cómo pagaste
-    <select [(ngModel)]="form.formaPago" name="formaPago" (ngModelChange)="form.cuentaId = null">
+    <select [(ngModel)]="form.formaPago" name="formaPago" (ngModelChange)="alCambiarFormaPago()">
       <option value="EFECTIVO">Efectivo</option>
       <option value="TARJETA">Tarjeta</option>
     </select>
@@ -71,13 +73,50 @@
       <select [(ngModel)]="form.cuentaId" name="cuentaId" required>
         <option [ngValue]="null">Elige tarjeta…</option>
         @for (c of cuentasTdc; track c.id) {
-          <option [ngValue]="c.id">{{ c.nombre }}</option>
+          <option [ngValue]="c.id">{{ etiquetaOpcionTdc(c) }}</option>
         }
       </select>
     </label>
+    @if (recomendacionTdc; as rec) {
+      <p class="hint-tdc-rec">
+        Mejor plazo:
+        <strong>{{ rec.cuenta.nombre }}</strong>
+        · pago {{ rec.etiquetaPagoCorta }} ({{ rec.diasHastaPago }} días)
+        · {{ rec.etiquetaQuincenaPago }}
+        @if (form.cuentaId !== rec.cuenta.id) {
+          <button type="button" class="usar-rec" (click)="usarRecomendacionTdc()">Usar</button>
+        }
+      </p>
+    }
+    <label class="check-meses">
+      <input type="checkbox" [(ngModel)]="form.aMeses" name="aMeses" />
+      A meses
+    </label>
+    @if (form.aMeses) {
+      <label>Meses
+        <input
+          class="sin-spin"
+          type="text"
+          inputmode="numeric"
+          pattern="[0-9]*"
+          [(ngModel)]="form.meses"
+          name="meses"
+          required
+          autocomplete="off"
+          placeholder="12"
+        />
+      </label>
+    } @else {
+      @if (calendarioPagoUnico; as pagoUnico) {
+        <p class="hint-tdc-rec">
+          Pago único · vence {{ pagoUnico.etiquetaPagoCorta }}
+          · {{ pagoUnico.etiquetaQuincenaPago }}
+        </p>
+      }
+    }
   }
   <div class="alta-acciones">
-    <button type="submit" [disabled]="guardando">
+    <button type="submit" [disabled]="guardando || !puedeGuardar">
       {{ guardando ? 'Guardando…' : (editandoId ? 'Guardar cambios' : 'Agregar gasto') }}
     </button>
     @if (editandoId) {
@@ -85,13 +124,6 @@
     }
   </div>
 </form>
-
-@if (form.formaPago === 'TARJETA' && !editandoId) {
-  <p class="hint-pago">Se registrará el gasto y un <strong>cargo</strong> en la TDC elegida.</p>
-}
-@if (form.formaPago === 'TARJETA' && editandoId) {
-  <p class="hint-pago">Al guardar se actualiza también el <strong>cargo</strong> en la TDC.</p>
-}
 
 <div class="lista-scroll">
   @for (grupo of grupos; track grupo.clave) {

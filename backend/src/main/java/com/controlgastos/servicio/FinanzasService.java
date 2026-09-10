@@ -22,6 +22,7 @@ public class FinanzasService {
     private final MovimientoCuentaRepository movimientoRepository;
     private final SaldoSnapshotRepository saldoRepository;
     private final DenominacionEfectivoRepository denominacionRepository;
+    private final HistorialAnualRepository historialAnualRepository;
 
     public FinanzasService(
             IngresoRepository ingresoRepository,
@@ -30,7 +31,8 @@ public class FinanzasService {
             CuentaRepository cuentaRepository,
             MovimientoCuentaRepository movimientoRepository,
             SaldoSnapshotRepository saldoRepository,
-            DenominacionEfectivoRepository denominacionRepository) {
+            DenominacionEfectivoRepository denominacionRepository,
+            HistorialAnualRepository historialAnualRepository) {
         this.ingresoRepository = ingresoRepository;
         this.gastoRepository = gastoRepository;
         this.gastoMensualRepository = gastoMensualRepository;
@@ -38,6 +40,7 @@ public class FinanzasService {
         this.movimientoRepository = movimientoRepository;
         this.saldoRepository = saldoRepository;
         this.denominacionRepository = denominacionRepository;
+        this.historialAnualRepository = historialAnualRepository;
     }
 
     @Transactional(readOnly = true)
@@ -124,6 +127,18 @@ public class FinanzasService {
 
         BigDecimal meDeben = nullSafe(cuentaRepository.sumaPrestamista(u));
 
+        List<Map<String, Object>> historialAnual = historialAnualRepository
+                .findByPropietarioOrderByAnioDesc(u).stream()
+                .map(h -> {
+                    Map<String, Object> m = new LinkedHashMap<>();
+                    m.put("anio", h.getAnio());
+                    m.put("totalIngresos", nullSafe(h.getTotalIngresos()));
+                    m.put("totalGastos", nullSafe(h.getTotalGastos()));
+                    m.put("balance", nullSafe(h.getTotalIngresos()).subtract(nullSafe(h.getTotalGastos())));
+                    return m;
+                })
+                .collect(Collectors.toList());
+
         return new ResumenResponse(
                 ingresos,
                 gastos,
@@ -135,7 +150,8 @@ public class FinanzasService {
                 saldo != null ? saldo.getTotalFisico() : null,
                 porCat,
                 topCuentas,
-                prestamistas
+                prestamistas,
+                historialAnual
         );
     }
 
@@ -281,6 +297,7 @@ public class FinanzasService {
             if (gasto.getCuenta() == null) {
                 gasto.setCuenta(cuenta);
             }
+            normalizarMesesTarjeta(gasto);
         } else {
             if (existing != null && existing.getMovimientoId() != null) {
                 movimientoRepository.findById(existing.getMovimientoId()).ifPresent(mov -> {
@@ -293,9 +310,97 @@ public class FinanzasService {
             }
             gasto.setCuenta(null);
             gasto.setMovimientoId(null);
+            gasto.setMeses(null);
         }
 
-        return gastoRepository.save(gasto);
+        Gasto guardado = gastoRepository.save(gasto);
+        sincronizarPlanMeses(guardado, concepto);
+        return guardado;
+    }
+
+    private void normalizarMesesTarjeta(Gasto gasto) {
+        Integer m = gasto.getMeses();
+        if (m == null || m <= 1) {
+            gasto.setMeses(null);
+            return;
+        }
+        if (m > 48) {
+            throw new IllegalArgumentException("El plazo a meses debe ser entre 2 y 48");
+        }
+        gasto.setMeses(m);
+    }
+
+    /**
+     * Si el gasto TDC es a N meses, crea/actualiza un mensual con la cuota
+     * y el contador de meses restantes. Si deja de ser a meses, desactiva el plan.
+     */
+    private void sincronizarPlanMeses(Gasto guardado, String concepto) {
+        String u = Sesion.usuario();
+        boolean aMeses = "TARJETA".equalsIgnoreCase(guardado.getFormaPago())
+                && guardado.getMeses() != null
+                && guardado.getMeses() > 1;
+
+        List<GastoMensual> planes = gastoMensualRepository.findByGastoOrigenId(guardado.getId());
+        GastoMensual plan = planes.stream().filter(GastoMensual::isActivo).findFirst()
+                .orElse(planes.isEmpty() ? null : planes.get(0));
+
+        if (!aMeses) {
+            for (GastoMensual p : planes) {
+                if (p.isActivo()) {
+                    p.setActivo(false);
+                    gastoMensualRepository.save(p);
+                }
+            }
+            return;
+        }
+
+        int meses = guardado.getMeses();
+        BigDecimal cuota = guardado.getMonto()
+                .divide(BigDecimal.valueOf(meses), 2, java.math.RoundingMode.HALF_UP);
+        String tdc = "TDC";
+        Long cid = guardado.getCuentaId();
+        if (cid != null) {
+            tdc = cuentaRepository.findById(cid).map(Cuenta::getNombre).orElse("TDC");
+        }
+        String motivo = truncar(
+                concepto + " · " + meses + " meses (" + tdc + ")",
+                120);
+
+        if (plan == null) {
+            plan = new GastoMensual();
+            plan.setGastoOrigenId(guardado.getId());
+            plan.setMesesRestantes(meses);
+            plan.setActivo(true);
+        } else {
+            plan.setActivo(true);
+            Integer prevTot = plan.getMesesTotales();
+            Integer prevRest = plan.getMesesRestantes();
+            if (prevTot == null || prevTot.intValue() != meses) {
+                if (prevTot != null && prevRest != null && prevTot > 0) {
+                    int pagadas = Math.max(0, prevTot - prevRest);
+                    plan.setMesesRestantes(Math.max(0, meses - pagadas));
+                } else {
+                    plan.setMesesRestantes(meses);
+                }
+            }
+            if (plan.getMesesRestantes() == null || plan.getMesesRestantes() < 0) {
+                plan.setMesesRestantes(meses);
+            }
+        }
+        plan.setMotivo(motivo);
+        plan.setMonto(cuota);
+        plan.setMesesTotales(meses);
+        plan.setMontoTotal(guardado.getMonto());
+        plan.setPropietario(u);
+        if (plan.getMesesRestantes() != null && plan.getMesesRestantes() == 0) {
+            plan.setActivo(false);
+        }
+        gastoMensualRepository.save(plan);
+    }
+
+    private static String truncar(String s, int max) {
+        if (s == null) return "";
+        return s.length() <= max ? s : s.substring(0, max);
     }
 
     @Transactional
@@ -314,6 +419,12 @@ public class FinanzasService {
                 movimientoRepository.delete(mov);
             });
         }
+        for (GastoMensual p : gastoMensualRepository.findByGastoOrigenId(gasto.getId())) {
+            if (p.isActivo()) {
+                p.setActivo(false);
+                gastoMensualRepository.save(p);
+            }
+        }
         gastoRepository.delete(gasto);
     }
 
@@ -324,12 +435,90 @@ public class FinanzasService {
 
     public GastoMensual guardarMensual(GastoMensual g) {
         String u = Sesion.usuario();
+        Long gastoOrigenConservar = null;
         if (g.getId() != null) {
             GastoMensual existing = gastoMensualRepository.findById(g.getId())
                     .orElseThrow(() -> new IllegalArgumentException("Gasto mensual no encontrado"));
             exigirPropietario(u, existing.getPropietario());
+            gastoOrigenConservar = existing.getGastoOrigenId();
         }
+
+        if (g.getMotivo() == null || g.getMotivo().isBlank()) {
+            throw new IllegalArgumentException("El motivo es obligatorio");
+        }
+        if (g.getMonto() == null || g.getMonto().compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException("El monto debe ser mayor a cero");
+        }
+
+        Integer mesesTot = g.getMesesTotales();
+        Integer mesesRest = g.getMesesRestantes();
+        boolean aMeses = mesesTot != null && mesesTot > 1;
+        if (aMeses) {
+            if (mesesTot < 2 || mesesTot > 120) {
+                throw new IllegalArgumentException("El plazo a meses debe ser entre 2 y 120");
+            }
+            if (mesesRest == null || mesesRest < 1) {
+                mesesRest = mesesTot;
+            }
+            if (mesesRest > mesesTot) {
+                mesesRest = mesesTot;
+            }
+            g.setMesesTotales(mesesTot);
+            g.setMesesRestantes(mesesRest);
+            if (g.getMontoTotal() == null || g.getMontoTotal().compareTo(BigDecimal.ZERO) <= 0) {
+                g.setMontoTotal(g.getMonto().multiply(BigDecimal.valueOf(mesesRest))
+                        .setScale(2, java.math.RoundingMode.HALF_UP));
+            }
+        } else {
+            g.setMesesTotales(null);
+            g.setMesesRestantes(null);
+            g.setMontoTotal(null);
+        }
+
+        Integer diaPago = g.getDiaPago();
+        if (diaPago != null) {
+            if (diaPago < 1 || diaPago > 31) {
+                throw new IllegalArgumentException("El día de pago debe ser entre 1 y 31");
+            }
+            g.setDiaPago(diaPago);
+        } else {
+            g.setDiaPago(null);
+        }
+
+        // Alta manual o corrección: conservar vínculo al gasto TDC si ya existía
+        g.setGastoOrigenId(gastoOrigenConservar);
         g.setPropietario(u);
+        g.setActivo(true);
+        return gastoMensualRepository.save(g);
+    }
+
+    /** Marca una cuota MSI como pagada (resta 1 mes). Al llegar a 0 desactiva el plan. */
+    @Transactional
+    public GastoMensual marcarCuotaMensual(Long id) {
+        String u = Sesion.usuario();
+        GastoMensual g = gastoMensualRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Gasto mensual no encontrado"));
+        exigirPropietario(u, g.getPropietario());
+        if (!g.isActivo()) {
+            throw new IllegalArgumentException("Ese plan ya no está activo");
+        }
+        if (!g.isAMeses()) {
+            throw new IllegalArgumentException("Solo aplica a compras a meses");
+        }
+        int rest = g.getMesesRestantes() == null ? 0 : g.getMesesRestantes();
+        if (rest <= 0) {
+            g.setActivo(false);
+            return gastoMensualRepository.save(g);
+        }
+        g.setMesesRestantes(rest - 1);
+        if (g.getMontoTotal() != null && g.getMonto() != null) {
+            BigDecimal nuevo = g.getMontoTotal().subtract(g.getMonto());
+            g.setMontoTotal(nuevo.compareTo(BigDecimal.ZERO) < 0 ? BigDecimal.ZERO : nuevo);
+        }
+        if (g.getMesesRestantes() <= 0) {
+            g.setActivo(false);
+            g.setMontoTotal(BigDecimal.ZERO);
+        }
         return gastoMensualRepository.save(g);
     }
 
@@ -387,6 +576,7 @@ public class FinanzasService {
             }
         }
         cuenta.setPropietario(u);
+        normalizarDatosTdc(cuenta);
         Cuenta saved = cuentaRepository.save(cuenta);
         if (nueva && inicialPrestamo.compareTo(BigDecimal.ZERO) > 0) {
             // Registra el desembolso para que reste del saldo disponible.
@@ -399,6 +589,29 @@ public class FinanzasService {
             movimientoRepository.save(mov);
         }
         return saved;
+    }
+
+    private void normalizarDatosTdc(Cuenta cuenta) {
+        boolean tdc = cuenta.getTipo() != null && "TDC".equalsIgnoreCase(cuenta.getTipo().trim());
+        if (!tdc) {
+            // Otros tipos no usan estos campos; se dejan como estén (pueden quedar null).
+            return;
+        }
+        cuenta.setDiaCorte(validarDiaMes(cuenta.getDiaCorte(), "Día de corte"));
+        cuenta.setDiaLimitePago(validarDiaMes(cuenta.getDiaLimitePago(), "Día límite de pago"));
+        if (cuenta.getLimiteCredito() != null && cuenta.getLimiteCredito().compareTo(BigDecimal.ZERO) < 0) {
+            throw new IllegalArgumentException("El límite de crédito no puede ser negativo");
+        }
+    }
+
+    private static Integer validarDiaMes(Integer dia, String etiqueta) {
+        if (dia == null) {
+            return null;
+        }
+        if (dia < 1 || dia > 31) {
+            throw new IllegalArgumentException(etiqueta + " debe ser entre 1 y 31");
+        }
+        return dia;
     }
 
     /**
@@ -427,6 +640,10 @@ public class FinanzasService {
         String u = Sesion.usuario();
         validarMovimientoEntrada(mov);
         Cuenta cuenta = obtenerCuenta(cuentaId);
+        if (esCuentaTdc(cuenta) && "CARGO".equals(mov.getTipo())) {
+            throw new IllegalArgumentException(
+                    "En TDC las compras se registran en Gastos (pago con tarjeta)");
+        }
         if (esPrestamoOtorgado(cuenta.getTipo()) && esCargoPrestamo(mov.getTipo())) {
             exigirSaldoDisponible(u, mov.getMonto());
         }
@@ -454,6 +671,13 @@ public class FinanzasService {
             throw new IllegalArgumentException("El movimiento no pertenece a esta cuenta");
         }
 
+        String nuevoTipo = cambios.getTipo().trim().toUpperCase(Locale.ROOT);
+        boolean ligadoAGasto = gastoRepository.findByMovimientoId(movimientoId).isPresent();
+        if (ligadoAGasto && !"CARGO".equals(nuevoTipo)) {
+            throw new IllegalArgumentException(
+                    "Este cargo viene de un gasto con tarjeta; edita el monto en Gastos o aquí como CARGO.");
+        }
+
         if (esPrestamoOtorgado(cuenta.getTipo()) && esCargoPrestamo(cambios.getTipo())) {
             BigDecimal disponible = nullSafe(calcularEsperadoActual(u))
                     .subtract(efectoLiquidezPrestamo(existing.getTipo(), existing.getMonto()));
@@ -474,6 +698,7 @@ public class FinanzasService {
         MovimientoCuenta saved = movimientoRepository.save(existing);
         aplicarSaldo(cuenta, saved.getTipo(), saved.getMonto());
         cuentaRepository.save(cuenta);
+        sincronizarGastoDesdeMovimiento(saved);
         return saved;
     }
 
@@ -487,9 +712,45 @@ public class FinanzasService {
         if (existing.getCuenta() == null || !cuentaId.equals(existing.getCuenta().getId())) {
             throw new IllegalArgumentException("El movimiento no pertenece a esta cuenta");
         }
+        // Si el cargo nació de un gasto TDC, borra también gasto + plan (sin tocar saldo 2 veces)
+        gastoRepository.findByMovimientoId(movimientoId).ifPresent(g -> {
+            for (GastoMensual p : gastoMensualRepository.findByGastoOrigenId(g.getId())) {
+                if (p.isActivo()) {
+                    p.setActivo(false);
+                    gastoMensualRepository.save(p);
+                }
+            }
+            g.setMovimientoId(null);
+            gastoRepository.delete(g);
+        });
         revertirSaldo(cuenta, existing.getTipo(), existing.getMonto());
         movimientoRepository.delete(existing);
         cuentaRepository.save(cuenta);
+    }
+
+    /**
+     * Un cargo TDC ligado a un gasto: al editar la deuda se actualiza el gasto
+     * y el plan a meses (misma compra, un solo monto en deuda).
+     */
+    private void sincronizarGastoDesdeMovimiento(MovimientoCuenta mov) {
+        if (mov.getId() == null) {
+            return;
+        }
+        gastoRepository.findByMovimientoId(mov.getId()).ifPresent(g -> {
+            g.setMonto(mov.getMonto());
+            g.setFecha(mov.getFecha());
+            if (mov.getConcepto() != null && !mov.getConcepto().isBlank()) {
+                g.setMotivo(mov.getConcepto());
+            }
+            if (mov.getCuenta() != null) {
+                g.setCuenta(mov.getCuenta());
+            }
+            Gasto guardado = gastoRepository.save(g);
+            String concepto = guardado.getMotivo() != null && !guardado.getMotivo().isBlank()
+                    ? guardado.getMotivo()
+                    : "Gasto " + guardado.getCategoria();
+            sincronizarPlanMeses(guardado, concepto);
+        });
     }
 
     private void validarMovimientoEntrada(MovimientoCuenta mov) {
@@ -530,6 +791,11 @@ public class FinanzasService {
 
     private static boolean esPrestamoOtorgado(String tipo) {
         return tipo != null && "PRESTAMO_OTORGADO".equalsIgnoreCase(tipo.trim());
+    }
+
+    private static boolean esCuentaTdc(Cuenta cuenta) {
+        return cuenta != null && cuenta.getTipo() != null
+                && "TDC".equalsIgnoreCase(cuenta.getTipo().trim());
     }
 
     private static boolean esCargoPrestamo(String tipo) {

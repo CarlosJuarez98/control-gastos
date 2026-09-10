@@ -69,9 +69,9 @@
       <span>Disponible</span>
       <strong class="mono pos">{{ data.saldoDisponible | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
     </article>
-    <article>
-      <span>Fijos / mes</span>
-      <strong class="mono aviso">{{ data.gastosMensuales | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
+    <article class="destacada-quincena">
+      <span>Pagar esta quincena</span>
+      <strong class="mono aviso">{{ pagoEstaQuincena | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
     </article>
   </div>
 
@@ -177,5 +177,25 @@
       </ul>
     }
   </section>
+
+  @if (data.historialAnual?.length) {
+    <section class="panel panel-wide">
+      <h2>Historial por año</h2>
+      <ul class="historial-anual">
+        @for (h of data.historialAnual; track h.anio) {
+          <li>
+            <strong class="anio">{{ h.anio }}</strong>
+            <span>Ingresos <em class="mono pos">{{ h.totalIngresos | currency:'MXN':'symbol-narrow':'1.2-2' }}</em></span>
+            <span>Gastos <em class="mono neg">{{ h.totalGastos | currency:'MXN':'symbol-narrow':'1.2-2' }}</em></span>
+            <span>Balance
+              <em class="mono" [class.pos]="h.balance >= 0" [class.neg]="h.balance < 0">
+                {{ h.balance | currency:'MXN':'symbol-narrow':'1.2-2' }}
+              </em>
+            </span>
+          </li>
+        }
+      </ul>
+    </section>
+  }
 }
 </div>
