@@ -3,6 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { RouterLink, RouterLinkActive, RouterOutlet, Router } from '@angular/router';
 import { ConfirmDialogComponent } from './confirm-dialog.component';
 import { AuthService } from './auth.service';
+import { OfflineService } from './offline/offline.service';
 import { sha256Hex } from './password-digest';
 import { EnterAvanceDirective } from './enter-avance.directive';
 
@@ -15,6 +16,7 @@ import { EnterAvanceDirective } from './enter-avance.directive';
 })
 export class AppComponent {
   readonly auth = inject(AuthService);
+  readonly offline = inject(OfflineService);
   private readonly router = inject(Router);
 
   perfilAbierto = false;
@@ -61,6 +63,18 @@ export class AppComponent {
 
   get pullVisible(): boolean {
     return this.pullDistancia > 8 && !this.perfilAbierto;
+  }
+
+  get mostrarBannerOffline(): boolean {
+    return this.mostrarNav && (!!this.offline.banner() || this.offline.pendientes() > 0 || !this.offline.online());
+  }
+
+  sincronizarAhora(): void {
+    void this.offline.sincronizar();
+  }
+
+  cerrarBanner(): void {
+    this.offline.ocultarBanner();
   }
 
   @HostListener('touchstart', ['$event'])

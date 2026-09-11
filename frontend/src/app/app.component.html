@@ -27,6 +27,38 @@
         <button type="button" class="secundario salir" (click)="salir()">Salir</button>
       </div>
     </header>
+    @if (mostrarBannerOffline) {
+      <div
+        class="offline-banner"
+        [class.offline]="!offline.online()"
+        [class.sync]="offline.sincronizando()"
+        [class.error]="offline.banner()?.modo === 'error'"
+        role="status"
+      >
+        <div class="offline-banner-txt">
+          @if (!offline.online()) {
+            <strong>Offline</strong>
+            <span>{{ offline.banner()?.texto || 'Sin conexión. Los cambios se guardan en este dispositivo.' }}</span>
+          } @else if (offline.sincronizando()) {
+            <strong>Sincronizando…</strong>
+            <span>{{ offline.banner()?.texto || 'Subiendo cambios pendientes.' }}</span>
+          } @else if (offline.pendientes() > 0) {
+            <strong>{{ offline.pendientes() }} pendiente{{ offline.pendientes() === 1 ? '' : 's' }}</strong>
+            <span>{{ offline.banner()?.texto || 'Hay cambios por subir.' }}</span>
+          } @else if (offline.banner()) {
+            <span>{{ offline.banner()!.texto }}</span>
+          }
+        </div>
+        <div class="offline-banner-acciones">
+          @if (offline.online() && offline.pendientes() > 0 && !offline.sincronizando()) {
+            <button type="button" class="offline-btn" (click)="sincronizarAhora()">Sincronizar</button>
+          }
+          @if (offline.banner() && offline.online() && offline.pendientes() === 0) {
+            <button type="button" class="offline-btn seco" (click)="cerrarBanner()">Cerrar</button>
+          }
+        </div>
+      </div>
+    }
   }
   <main>
     <router-outlet />
