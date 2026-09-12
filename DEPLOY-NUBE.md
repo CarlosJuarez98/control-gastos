@@ -88,9 +88,10 @@ docker compose -f docker-compose.cloud-atp.yml ps
 docker logs -f control-gastos-api
 ```
 
-App (HTTP directo): `http://TU_IP:8081/`  
-App (HTTPS, recomendado / PWA offline completo): `https://gastos.TU_IP.sslip.io/`  
+App (HTTPS, única URL pública): `https://gastos.TU_IP.sslip.io/`  
 (ej. IP `163.192.146.143` → `https://gastos.163.192.146.143.sslip.io/`)
+
+El puerto directo `http://TU_IP:8081/` **no** se publica en la nube (solo red Docker → Caddy), para no entrar por HTTP sin PWA/cookies Secure.
 
 Login: usuario de `.env.cloud` (o el usuario real en ATP).
 
