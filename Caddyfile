@@ -1,0 +1,10 @@
+# Fragmento / referencia HTTPS para control-gastos.
+# En la VM compartida el Caddy real está en ~/productos-limpieza/Caddyfile
+# (puertos 80/443). Debe incluir este bloque con nombres de contenedor explícitos.
+#
+# Dominio gratis sslip.io + Let's Encrypt (Caddy renueva solo).
+# URL: https://gastos.163.192.146.143.sslip.io/
+gastos.163.192.146.143.sslip.io {
+	encode gzip
+	reverse_proxy control-gastos-api:8081
+}

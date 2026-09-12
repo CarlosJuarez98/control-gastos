@@ -1,5 +1,12 @@
 # Despliegue en Oracle Cloud (Ampere/ARM) + Autonomous DB (ATP).
 # Uso: docker compose -f docker-compose.cloud-atp.yml --env-file .env.cloud up -d --build
+#
+# HTTPS (gratis, renovación automática): Caddy compartido en la VM
+# (compose de productos-limpieza, puertos 80/443) enruta
+# https://gastos.163.192.146.143.sslip.io/ → control-gastos-api:8081
+# Ver Caddyfile y DEPLOY-NUBE.md. En .env.cloud:
+#   APP_CORS_ALLOWED_ORIGINS=https://gastos.163.192.146.143.sslip.io
+#   SERVER_SERVLET_SESSION_COOKIE_SECURE=true
 services:
   backend:
     build:

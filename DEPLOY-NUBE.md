@@ -88,15 +88,45 @@ docker compose -f docker-compose.cloud-atp.yml ps
 docker logs -f control-gastos-api
 ```
 
-App: `http://TU_IP:8081/`  
-Login: usuario de `.env.cloud` (por defecto documentado como `admin`).
+App (HTTP directo): `http://TU_IP:8081/`  
+App (HTTPS, recomendado / PWA offline completo): `https://gastos.TU_IP.sslip.io/`  
+(ej. IP `163.192.146.143` → `https://gastos.163.192.146.143.sslip.io/`)
 
-En `.env.cloud` (HTTP):
+Login: usuario de `.env.cloud` (o el usuario real en ATP).
+
+### HTTPS gratis + renovación automática
+
+En la VM compartida ya corre **Caddy** (Let's Encrypt) con productos-limpieza en `:80`/`:443`.  
+No hace falta segundo Caddy: se añade el host de gastos al mismo `Caddyfile` y se conecta Caddy a la red Docker de control-gastos.
 
 ```bash
-APP_CORS_ALLOWED_ORIGINS=http://TU_IP:8081
-SERVER_SERVLET_SESSION_COOKIE_SECURE=false
+# En ~/productos-limpieza/Caddyfile (además del bloque de productos):
+gastos.TU_IP.sslip.io {
+  encode gzip
+  reverse_proxy control-gastos-api:8081
+}
+
+docker network connect control-gastos_default productos-limpieza-caddy
+docker exec productos-limpieza-caddy caddy reload --config /etc/caddy/Caddyfile
 ```
+
+**Obligatorio en OCI (una sola vez):** en la Security List (o NSG) de la VCN de la VM, ingress TCP **80** y **443** desde `0.0.0.0/0`.  
+Sin eso Let's Encrypt no puede validar y el certificado no sale (timeout). El firewall de la VM (`firewalld`) ya tiene 80/443; el bloqueo típico es la Security List de Oracle.
+
+En consola OCI: **Networking → Virtual Cloud Networks → (tu VCN) → Security Lists → Ingress Rules → Add**:
+- Source CIDR `0.0.0.0/0`, TCP, Destination port **80**
+- Source CIDR `0.0.0.0/0`, TCP, Destination port **443**
+
+En `.env.cloud` (cuando HTTPS ya responda):
+
+```bash
+APP_CORS_ALLOWED_ORIGINS=https://gastos.TU_IP.sslip.io
+SERVER_SERVLET_SESSION_COOKIE_SECURE=true
+```
+
+Luego recrear el API: `docker compose -f docker-compose.cloud-atp.yml --env-file .env.cloud up -d`
+
+`sslip.io` es un DNS gratis que resuelve `*.IP.sslip.io` → esa IP. Caddy pide y **renueva solo** el certificado Let's Encrypt. Sin coste.
 
 ## 4) Opción amd64 + Oracle XE (opcional)
 
