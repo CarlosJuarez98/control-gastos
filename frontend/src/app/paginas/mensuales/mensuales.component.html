@@ -50,7 +50,7 @@
 
 @if (!esMovil || altaAbierta || editandoId) {
 <form class="alta" enterAvance (ngSubmit)="guardar()">
-  <label>Motivo
+  <label class="campo-motivo">Motivo
     <input
       [(ngModel)]="form.motivo"
       (ngModelChange)="refrescarFormOk()"
@@ -59,7 +59,7 @@
       placeholder="Renta, MSI laptop…"
     />
   </label>
-  <label>{{ form.aMeses ? 'Cuota / mes' : 'Monto mensual' }}
+  <label class="campo-monto">{{ form.aMeses ? 'Cuota / mes' : 'Monto mensual' }}
     <div class="monto-wrap">
       <span class="simbolo">$</span>
       <input
@@ -85,7 +85,7 @@
       (click)="form.aMeses = !form.aMeses; refrescarFormOk()"
     >A meses</button>
   </label>
-  <label>Día de pago
+  <label class="campo-dia">Día de pago
     <input
       type="text"
       inputmode="numeric"
@@ -98,7 +98,7 @@
     />
   </label>
   @if (form.aMeses) {
-    <label>Lo que te falta
+    <label class="campo-falta">Lo que te falta
       <div class="monto-wrap">
         <span class="simbolo">$</span>
         <input

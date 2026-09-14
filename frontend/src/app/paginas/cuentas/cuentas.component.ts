@@ -52,6 +52,7 @@ export class CuentasComponent implements OnInit, OnDestroy {
   tipos = ['TDC', 'PRESTAMO', 'TIENDA', 'TERRENO', 'PRESTAMO_OTORGADO', 'OTRO'];
   /** Tipos base; en TDC el CARGO nuevo se registra desde Gastos. */
   private readonly tiposMovBase = ['ABONO', 'CARGO', 'INTERES', 'REEMBOLSO'];
+  private readonly tiposMovPrestamista = ['CARGO', 'INTERES', 'ABONO', 'REEMBOLSO'];
   private readonly tiposMovTdc = ['ABONO', 'INTERES', 'REEMBOLSO'];
   error = '';
   hoy = fechaHoyLocal();
@@ -185,6 +186,7 @@ export class CuentasComponent implements OnInit, OnDestroy {
 
   /** En TDC no se crean cargos manuales (van por Gastos); al editar un CARGO existente sí se muestra. */
   get tiposMov(): string[] {
+    if (this.seleccionPrestamista) return this.tiposMovPrestamista;
     if (!this.esTdc(this.seleccionada)) return this.tiposMovBase;
     if (this.editMovId != null && (this.mov.tipo || '').toUpperCase() === 'CARGO') {
       return ['CARGO', ...this.tiposMovTdc];
@@ -273,9 +275,9 @@ export class CuentasComponent implements OnInit, OnDestroy {
 
   etiquetaMov(t: string): string {
     switch ((t || '').toUpperCase()) {
-      case 'ABONO': return 'Abono';
-      case 'CARGO': return 'Cargo';
-      case 'INTERES': return 'Interés';
+      case 'ABONO': return this.seleccionPrestamista ? 'Cobro' : 'Abono';
+      case 'CARGO': return this.seleccionPrestamista ? 'Préstamo' : 'Cargo';
+      case 'INTERES': return this.seleccionPrestamista ? 'Rédito' : 'Interés';
       case 'REEMBOLSO': return 'Reembolso';
       default: return t;
     }
@@ -288,7 +290,9 @@ export class CuentasComponent implements OnInit, OnDestroy {
       this.refrescarFormMovOk();
       return;
     }
-    if (tipo === 'INTERES' && this.seleccionada) {
+    // TDC: capturas la deuda que marca hoy → se calcula el interés.
+    // Prestamista: capturas el rédito a cobrar (monto directo).
+    if (tipo === 'INTERES' && this.seleccionada && !this.seleccionPrestamista) {
       const actual = Number(this.seleccionada.saldoActual) || 0;
       this.montoMov = actual > 0 ? formatDineroNumero(actual) : '';
     } else {
@@ -297,16 +301,73 @@ export class CuentasComponent implements OnInit, OnDestroy {
     this.refrescarFormMovOk();
   }
 
-  /** Si tipo=INTERES y alta nueva, montoMov es la deuda nueva → interés = nueva − actual. */
+  /** Si tipo=INTERES y alta nueva en TDC, montoMov es la deuda nueva → interés = nueva − actual. */
   get interesCalculado(): number {
     if (this.editMovId != null || this.mov.tipo !== 'INTERES' || !this.seleccionada) return 0;
+    if (this.seleccionPrestamista) return 0;
     const nueva = parseDinero(this.montoMov);
     const actual = Number(this.seleccionada.saldoActual) || 0;
     return Math.round((nueva - actual) * 100) / 100;
   }
 
   get usandoDeudaHoy(): boolean {
-    return this.mov.tipo === 'INTERES' && this.editMovId == null;
+    return this.mov.tipo === 'INTERES' && this.editMovId == null && !this.seleccionPrestamista;
+  }
+
+  get cobrandoRedito(): boolean {
+    return this.seleccionPrestamista && this.mov.tipo === 'INTERES' && this.editMovId == null;
+  }
+
+  /**
+   * Desglose prestamista: cobros primero liquidan rédito, luego capital.
+   * Total ≈ saldoActual.
+   */
+  get resumenPrestamo(): { capital: number; redito: number; total: number } | null {
+    if (!this.seleccionPrestamista || !this.seleccionada) return null;
+    let prestado = 0;
+    let reditoCargado = 0;
+    let cobros = 0;
+    for (const m of this.movimientos) {
+      const monto = Number(m.monto) || 0;
+      switch ((m.tipo || '').toUpperCase()) {
+        case 'CARGO':
+          prestado += monto;
+          break;
+        case 'INTERES':
+          reditoCargado += monto;
+          break;
+        case 'ABONO':
+        case 'REEMBOLSO':
+          cobros += monto;
+          break;
+        default:
+          break;
+      }
+    }
+    const aRedito = Math.min(cobros, reditoCargado);
+    const redito = Math.round((reditoCargado - aRedito) * 100) / 100;
+    const aCapital = cobros - aRedito;
+    const capital = Math.round(Math.max(0, prestado - aCapital) * 100) / 100;
+    const total = Math.round((capital + redito) * 100) / 100;
+    return { capital, redito, total };
+  }
+
+  /** Atajo: deja listo el formulario para cobrar rédito. */
+  prepararCobrarRedito(): void {
+    if (!this.seleccionPrestamista) return;
+    this.editMovId = null;
+    this.hoy = fechaHoyLocal();
+    this.mov = { fecha: this.hoy, tipo: 'INTERES' };
+    this.montoMov = '';
+    this.error = '';
+    this.refrescarFormMovOk();
+    this.cdr.detectChanges();
+    setTimeout(() => {
+      const el = document.querySelector<HTMLInputElement>(
+        'form.alta-mov input[name="mmonto"]',
+      );
+      el?.focus();
+    }, 50);
   }
 
   get puedeEliminarCuenta(): boolean {
@@ -428,9 +489,9 @@ export class CuentasComponent implements OnInit, OnDestroy {
 
   abrir(id: number): void {
     this.cancelarEdicionMov();
-    this.movilOpcionesAbiertas = false;
-    this.movilCalendarioAbierto = false;
-    this.movilHistorialAbierto = false;
+    this.movilOpcionesAbiertas = true;
+    this.movilCalendarioAbierto = true;
+    this.movilHistorialAbierto = true;
     this.pagMovs.reset();
     this.api.cuenta(id).subscribe({
       next: (c) => {

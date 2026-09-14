@@ -44,14 +44,17 @@
   align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
-  margin: -0.35rem 0 0.85rem;
-  padding: 0.55rem 0.75rem;
-  border-radius: 0.65rem;
+  margin: -0.15rem 0 0.85rem;
+  padding: 0.65rem 0.85rem;
+  border-radius: 0.95rem;
   border: 1px solid color-mix(in srgb, #f0c14b 45%, var(--linea));
-  background: color-mix(in srgb, #f0c14b 12%, transparent);
+  background:
+    linear-gradient(145deg, color-mix(in srgb, #f0c14b 14%, transparent), transparent 55%),
+    color-mix(in srgb, var(--superficie) 88%, transparent);
   color: var(--texto);
   font-size: 0.84rem;
   line-height: 1.35;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.14);
 }
 
 .offline-banner.offline {
@@ -120,8 +123,16 @@
   gap: 0.65rem 1rem;
   align-items: center;
   margin-bottom: 1rem;
-  padding-bottom: 0.85rem;
-  border-bottom: 1px solid var(--linea);
+  padding: 0.75rem 0.85rem;
+  border: 1px solid color-mix(in srgb, var(--linea) 85%, transparent);
+  border-radius: 1.15rem;
+  background:
+    linear-gradient(165deg, color-mix(in srgb, #fff 4%, transparent), transparent 42%),
+    color-mix(in srgb, var(--superficie) 82%, transparent);
+  box-shadow:
+    0 14px 36px rgba(0, 0, 0, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(16px) saturate(1.2);
   animation: entrar var(--dur-media) var(--ease-out) 0.06s both;
 }
 
@@ -133,7 +144,12 @@
   gap: 0.45rem;
 }
 .acciones { grid-area: acciones; }
-nav { grid-area: nav; }
+.nav-top { grid-area: nav; }
+
+/* Dock inferior: solo móvil (ver media query) */
+.nav-dock {
+  display: none;
+}
 
 .brand-icon {
   flex: 0 0 auto;
@@ -142,13 +158,14 @@ nav { grid-area: nav; }
   justify-content: center;
   width: 1.85rem;
   height: 1.85rem;
-  border-radius: 0.5rem;
+  border-radius: 0.55rem;
   border: 1.5px solid var(--acento);
   color: var(--acento);
   font-family: var(--fuente-display);
   font-weight: 800;
   font-size: 1.05rem;
   line-height: 1;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--acento) 14%, transparent);
 }
 
 .brand-mark {
@@ -168,30 +185,45 @@ nav { grid-area: nav; }
   justify-content: flex-end;
 }
 
-nav {
+nav.nav-top {
   display: flex;
   flex-wrap: nowrap;
   gap: 0.35rem;
   overflow-x: auto;
+  overflow-y: hidden;
   -webkit-overflow-scrolling: touch;
-  scrollbar-width: none;
-  padding-bottom: 0.1rem;
-  margin: 0 -0.15rem;
-  padding-inline: 0.15rem;
+  scrollbar-width: thin;
+  overscroll-behavior-x: contain;
+  padding: 0.2rem;
+  margin: 0;
+  min-width: 0;
+  max-width: 100%;
+  border-radius: 0.95rem;
+  background: color-mix(in srgb, var(--superficie-2) 55%, transparent);
+  border: 1px solid color-mix(in srgb, var(--linea) 70%, transparent);
 }
 
-nav::-webkit-scrollbar {
-  display: none;
+nav.nav-top::-webkit-scrollbar {
+  height: 4px;
 }
 
-nav a {
+nav.nav-top::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--acento) 45%, transparent);
+  border-radius: 999px;
+}
+
+nav.nav-top a {
   flex: 0 0 auto;
-  padding: 0.45rem 0.8rem;
-  border-radius: 0.55rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.45rem 0.85rem;
+  border-radius: 0.7rem;
   color: var(--texto-suave);
-  font-weight: 600;
-  font-size: 0.9rem;
+  font-weight: 650;
+  font-size: 0.88rem;
   white-space: nowrap;
+  text-decoration: none;
   transition:
     background var(--dur-rapida) ease,
     color var(--dur-rapida) ease,
@@ -199,27 +231,41 @@ nav a {
     box-shadow var(--dur-rapida) ease;
 }
 
-nav a:hover { color: var(--texto); background: rgba(255,255,255,0.04); }
-nav a.activo {
+nav.nav-top .nav-ico {
+  font-size: 0.95rem;
+  line-height: 1;
+  opacity: 0.85;
+}
+
+nav.nav-top a:hover {
+  color: var(--texto);
+  background: rgba(255,255,255,0.05);
+}
+
+nav.nav-top a.activo {
   color: #06241c;
   background: var(--acento);
-  box-shadow: 0 6px 18px color-mix(in srgb, var(--acento) 28%, transparent);
+  box-shadow: 0 8px 20px color-mix(in srgb, var(--acento) 30%, transparent);
+}
+
+nav.nav-top a.activo .nav-ico {
+  opacity: 1;
 }
 
 .sesion {
   display: inline-flex;
   align-items: baseline;
   gap: 0.4rem;
-  padding: 0.4rem 0.65rem;
-  border-radius: 0.55rem;
-  background: rgba(255, 255, 255, 0.04);
+  padding: 0.4rem 0.75rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--superficie-2) 70%, transparent);
   border: 1px solid var(--linea);
   font-size: 0.85rem;
   line-height: 1.2;
   cursor: pointer;
   color: inherit;
   font-family: inherit;
-  transition: background 0.2s ease, border-color 0.2s ease;
+  transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .sesion:hover {
@@ -241,8 +287,9 @@ nav a.activo {
 }
 
 button.salir {
-  padding: 0.4rem 0.75rem;
+  padding: 0.4rem 0.85rem;
   font-size: 0.85rem;
+  border-radius: 999px;
 }
 
 .perfil-backdrop {
@@ -327,24 +374,29 @@ button.salir {
 main {
   flex: 1 1 auto;
   min-height: 0;
+  max-width: 100%;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: hidden;
 }
 
 /* La pantalla activa llena el alto disponible */
 main > *:not(router-outlet) {
   flex: 1 1 auto;
   min-height: 0;
+  max-width: 100%;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: hidden;
   animation: pagina-entrar var(--dur-lenta) var(--ease-out) forwards;
 }
 
 @media (prefers-reduced-motion: reduce) {
   .shell,
-  main > *:not(router-outlet) {
+  main > *:not(router-outlet),
+  .nav-dock {
     animation: none !important;
     opacity: 1 !important;
     transform: none !important;
@@ -372,19 +424,23 @@ main > *:not(router-outlet) {
 }
 
 @media (min-width: 900px) {
+  /* Nav a todo el ancho: no se corta detrás de sesión / salir */
   .top {
-    grid-template-columns: auto 1fr auto;
-    grid-template-areas: "brand nav acciones";
-    align-items: flex-end;
-    gap: 0.75rem 1.25rem;
+    grid-template-columns: 1fr auto;
+    grid-template-areas:
+      "brand acciones"
+      "nav nav";
+    align-items: center;
+    gap: 0.65rem 1rem;
   }
 
-  nav {
-    justify-content: flex-end;
-    overflow: visible;
-    flex-wrap: wrap;
+  .nav-top {
+    justify-content: flex-start;
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    min-width: 0;
+    width: 100%;
     margin: 0;
-    padding-inline: 0;
   }
 }
 
@@ -392,32 +448,164 @@ main > *:not(router-outlet) {
   .shell {
     height: 100dvh;
     padding:
-      max(0.65rem, env(safe-area-inset-top))
-      max(0.75rem, env(safe-area-inset-right))
-      max(0.65rem, env(safe-area-inset-bottom))
-      max(0.75rem, env(safe-area-inset-left));
+      max(0.55rem, env(safe-area-inset-top))
+      max(0.7rem, env(safe-area-inset-right))
+      0
+      max(0.7rem, env(safe-area-inset-left));
+  }
+
+  .shell.con-dock main {
+    padding-bottom: calc(4.6rem + env(safe-area-inset-bottom));
   }
 
   .top {
-    gap: 0.45rem 0.75rem;
-    margin-bottom: 0.65rem;
-    padding-bottom: 0.55rem;
+    grid-template-columns: 1fr auto;
+    grid-template-areas: "brand acciones";
+    gap: 0.4rem 0.65rem;
+    margin-bottom: 0.55rem;
+    padding: 0.55rem 0.7rem;
+    border: 1px solid color-mix(in srgb, var(--linea) 80%, transparent);
+    border-radius: 1rem;
+    position: sticky;
+    top: 0.35rem;
+    z-index: 20;
+    backdrop-filter: blur(16px) saturate(1.25);
+    background:
+      linear-gradient(165deg, color-mix(in srgb, #fff 4%, transparent), transparent 45%),
+      color-mix(in srgb, var(--fondo) 55%, var(--superficie) 45%);
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.28);
+  }
+
+  .nav-top {
+    display: none !important;
   }
 
   .brand-mark {
-    font-size: 1.15rem;
+    font-size: 1.05rem;
+    letter-spacing: -0.03em;
   }
 
-  nav a {
-    padding: 0.5rem 0.75rem;
-    min-height: 2.4rem;
-    display: inline-flex;
-    align-items: center;
+  .brand-icon {
+    width: 1.7rem;
+    height: 1.7rem;
+    font-size: 0.95rem;
+    border-radius: 0.55rem;
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--acento) 16%, transparent);
+  }
+
+  .sesion {
+    border-radius: 999px;
+    padding: 0.35rem 0.7rem;
+    background: color-mix(in srgb, var(--superficie) 80%, transparent);
   }
 
   .sesion,
   button.salir {
+    min-height: 2.35rem;
+  }
+
+  button.salir {
+    border-radius: 999px;
+    padding: 0.35rem 0.75rem;
+  }
+
+  .sesion-rol { display: none; }
+
+  .offline-banner {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.55rem;
+    border-radius: 0.95rem;
+    margin-bottom: 0.65rem;
+    animation: anim-suave 0.35s var(--ease-out) both;
+  }
+
+  .offline-banner-acciones {
+    width: 100%;
+  }
+
+  .offline-btn {
+    flex: 1;
     min-height: 2.4rem;
+    border-radius: 0.65rem;
+  }
+
+  .nav-dock {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: 1fr;
+    gap: 0.08rem;
+    position: fixed;
+    left: max(0.45rem, env(safe-area-inset-left));
+    right: max(0.45rem, env(safe-area-inset-right));
+    bottom: max(0.4rem, env(safe-area-inset-bottom));
+    z-index: 40;
+    padding: 0.28rem;
+    border-radius: 1.1rem;
+    border: 1px solid color-mix(in srgb, var(--linea) 80%, transparent);
+    background:
+      linear-gradient(180deg, color-mix(in srgb, var(--superficie) 92%, #fff 4%), color-mix(in srgb, var(--superficie-2) 96%, transparent));
+    box-shadow:
+      0 12px 36px rgba(0, 0, 0, 0.45),
+      0 0 0 1px color-mix(in srgb, var(--acento) 8%, transparent),
+      inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    backdrop-filter: blur(18px) saturate(1.25);
+    animation: dock-in 0.45s var(--ease-out) both;
+  }
+
+  .nav-dock a {
+    display: grid;
+    justify-items: center;
+    gap: 0.08rem;
+    padding: 0.32rem 0.08rem 0.28rem;
+    border-radius: 0.8rem;
+    color: var(--texto-suave);
+    text-decoration: none;
+    font-weight: 650;
+    min-height: 2.95rem;
+    min-width: 0;
+    transition:
+      background 0.2s var(--ease-out),
+      color 0.2s ease,
+      transform 0.2s var(--ease-out);
+  }
+
+  .nav-dock a:active {
+    transform: scale(0.94);
+  }
+
+  .nav-dock a.activo {
+    color: var(--texto);
+    background: color-mix(in srgb, var(--acento) 22%, transparent);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--acento) 35%, transparent);
+  }
+
+  .nav-dock .dock-ico {
+    font-size: 1.05rem;
+    line-height: 1;
+    width: 1.55rem;
+    height: 1.55rem;
+    display: grid;
+    place-items: center;
+    border-radius: 0.55rem;
+    color: inherit;
+    transition: transform 0.25s var(--ease-out), background 0.2s ease;
+  }
+
+  .nav-dock a.activo .dock-ico {
+    background: color-mix(in srgb, var(--acento) 28%, transparent);
+    color: var(--acento);
+    transform: translateY(-1px) scale(1.06);
+  }
+
+  .nav-dock .dock-lbl {
+    font-size: 0.62rem;
+    letter-spacing: 0.01em;
+    line-height: 1.1;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .perfil-panel {
@@ -428,10 +616,15 @@ main > *:not(router-outlet) {
     transform: none;
     width: 100%;
     max-width: none;
-    border-radius: 1.1rem 1.1rem 0 0;
+    border-radius: 1.25rem 1.25rem 0 0;
     padding-bottom: max(1.25rem, env(safe-area-inset-bottom));
-    animation: subir-panel 0.28s ease both;
+    animation: subir-panel 0.32s var(--ease-out) both;
   }
+}
+
+@keyframes dock-in {
+  from { opacity: 0; transform: translateY(18px) scale(0.96); }
+  to { opacity: 1; transform: none; }
 }
 
 /* Teléfono en horizontal: cabecera compacta para ganar alto útil */
@@ -457,16 +650,25 @@ main > *:not(router-outlet) {
     font-size: 1rem;
   }
 
-  nav {
+  .nav-top {
+    display: flex !important;
     overflow-x: auto;
     flex-wrap: nowrap;
     justify-content: flex-start;
   }
 
-  nav a {
+  .nav-top a {
     padding: 0.35rem 0.6rem;
     min-height: 2rem;
     font-size: 0.82rem;
+  }
+
+  .nav-dock {
+    display: none !important;
+  }
+
+  .shell.con-dock main {
+    padding-bottom: 0;
   }
 
   .sesion,

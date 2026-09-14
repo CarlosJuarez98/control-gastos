@@ -27,7 +27,7 @@
 
 @if (!esMovil || altaNuevaAbierta) {
   <form class="alta" enterAvance (ngSubmit)="crearCuenta()">
-    <label>Nombre
+    <label class="campo-nombre">Nombre
       <input
         [(ngModel)]="nueva.nombre"
         (ngModelChange)="refrescarFormNuevaOk()"
@@ -35,7 +35,7 @@
         required
       />
     </label>
-    <label>Tipo
+    <label class="campo-tipo">Tipo
       <select [(ngModel)]="nueva.tipo" name="tipo">
         @for (t of tipos; track t) { <option [value]="t">{{ etiquetaTipo(t) }}</option> }
       </select>
@@ -44,7 +44,7 @@
       <span class="campo-titulo">
         Saldo
         @if ((nueva.tipo || '').toUpperCase() === 'PRESTAMO_OTORGADO' && saldoDisponible != null) {
-          <span class="pill-disponible">Disponible {{ saldoDisponible | currency:'MXN':'symbol-narrow':'1.2-2' }}</span>
+          <span class="pill-disponible">Disponible para prestar {{ saldoDisponible | currency:'MXN':'symbol-narrow':'1.2-2' }}</span>
         }
       </span>
       <div class="monto-wrap">
@@ -62,13 +62,13 @@
       </div>
     </label>
     @if (nuevaConCalendario) {
-      <label>Corte
+      <label class="campo-corte">Corte
         <input type="text" inputmode="numeric" pattern="[0-9]*" [(ngModel)]="nuevaDiaCorte" name="nuevaDiaCorte" placeholder="15" autocomplete="off" />
       </label>
-      <label>Pago
+      <label class="campo-pago-dia">Pago
         <input type="text" inputmode="numeric" pattern="[0-9]*" [(ngModel)]="nuevaDiaLimite" name="nuevaDiaLimite" placeholder="5" autocomplete="off" />
       </label>
-      <label>Límite crédito
+      <label class="campo-limite">Límite crédito
         <div class="monto-wrap">
           <span class="simbolo">$</span>
           <input
@@ -106,6 +106,9 @@
                     }
                     @if (esConCalendario(c) && (c.diaCorte || c.diaLimitePago)) {
                       <small class="meta-tdc">{{ textoCalendario(c.diaCorte, c.diaLimitePago) }}</small>
+                    }
+                    @if (esConCalendario(c) && creditoDisponibleDe(c) != null) {
+                      <small class="meta-libre">Libre {{ creditoDisponibleDe(c) | currency:'MXN':'symbol-narrow':'1.0-0' }}</small>
                     }
                     <span class="mono">{{ c.saldoActual | currency:'MXN':'symbol-narrow':'1.2-2' }}</span>
                   </a>
@@ -219,7 +222,7 @@
             Saldo actual:
             <strong class="mono">{{ seleccionada.saldoActual | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
             @if (seleccionPrestamista && saldoDisponible != null) {
-              <span class="pill-disponible">Disponible {{ saldoDisponible | currency:'MXN':'symbol-narrow':'1.2-2' }}</span>
+              <span class="pill-disponible">Disponible para prestar {{ saldoDisponible | currency:'MXN':'symbol-narrow':'1.2-2' }}</span>
             }
             @if (esConCalendario(seleccionada) && creditoDisponibleDe(seleccionada) != null) {
               <span class="pill-disponible">Crédito libre {{ creditoDisponibleDe(seleccionada) | currency:'MXN':'symbol-narrow':'1.2-2' }}</span>
@@ -228,6 +231,23 @@
               <span class="pill-bloqueada">Sin compras</span>
             }
           </p>
+          @if (resumenPrestamo; as rp) {
+            <div class="resumen-prestamo" role="group" aria-label="Capital y rédito">
+              <div class="rp-item">
+                <span>Sin rédito</span>
+                <strong class="mono">{{ rp.capital | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
+              </div>
+              <div class="rp-item">
+                <span>Rédito</span>
+                <strong class="mono pos">{{ rp.redito | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
+              </div>
+              <div class="rp-item total">
+                <span>Te deben</span>
+                <strong class="mono">{{ rp.total | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
+              </div>
+              <button type="button" class="secundario btn-redito" (click)="prepararCobrarRedito()">Cobrar rédito</button>
+            </div>
+          }
         </div>
         <div class="detalle-acciones">
           <label class="tipo-cuenta">Categoría
@@ -257,13 +277,71 @@
       </div>
     }
 
+    @if (esMovil) {
+      <div class="movil-metricas" role="group" aria-label="Resumen de la cuenta">
+        @if (resumenPrestamo; as rp) {
+          <div class="metrica">
+            <span>Sin rédito</span>
+            <strong class="mono">{{ rp.capital | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
+          </div>
+          <div class="metrica">
+            <span>Rédito</span>
+            <strong class="mono pos">{{ rp.redito | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
+          </div>
+          <div class="metrica">
+            <span>Te deben</span>
+            <strong class="mono">{{ rp.total | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
+          </div>
+        } @else {
+          <div class="metrica">
+            <span>Saldo</span>
+            <strong class="mono">{{ seleccionada.saldoActual | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
+          </div>
+        }
+        @if (seleccionPrestamista && saldoDisponible != null) {
+          <div class="metrica ok">
+            <span>Para prestar</span>
+            <strong class="mono">{{ saldoDisponible | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
+          </div>
+        }
+        @if (esConCalendario(seleccionada) && creditoDisponibleDe(seleccionada) != null) {
+          <div class="metrica">
+            <span>Crédito libre</span>
+            <strong class="mono">{{ creditoDisponibleDe(seleccionada) | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
+          </div>
+        }
+        @if (esTdc(seleccionada)) {
+          <div class="metrica" [class.alerta]="seleccionada.bloqueada">
+            <span>Compras</span>
+            <strong>{{ seleccionada.bloqueada ? 'Bloqueadas' : 'Activas' }}</strong>
+          </div>
+        }
+      </div>
+
+      @if (seleccionPrestamista) {
+        <button type="button" class="btn-redito" (click)="prepararCobrarRedito()">Cobrar rédito</button>
+      }
+
+      @if (esTdc(seleccionada)) {
+        <button
+          type="button"
+          class="btn-bloqueo"
+          [class.activo]="seleccionada.bloqueada"
+          [disabled]="guardandoBloqueo"
+          (click)="toggleBloqueoTdc()"
+        >
+          {{ seleccionada.bloqueada ? 'Desbloquear compras' : 'Bloquear compras' }}
+        </button>
+      }
+    }
+
     <form class="alta alta-mov" [class.alta-rapida]="esMovil" enterAvance (ngSubmit)="agregarMovimiento()">
       @if (esMovil) {
         <label class="campo-saldo">
           <span class="campo-titulo">
-            {{ usandoDeudaHoy ? 'Deuda que marca hoy' : 'Monto' }}
-            @if (seleccionPrestamista && saldoDisponible != null) {
-              <span class="pill-disponible">Disp. {{ saldoDisponible | currency:'MXN':'symbol-narrow':'1.2-2' }}</span>
+            {{ usandoDeudaHoy ? 'Deuda que marca hoy' : (cobrandoRedito ? 'Rédito a cobrar' : 'Monto') }}
+            @if (seleccionPrestamista && saldoDisponible != null && mov.tipo === 'CARGO') {
+              <span class="pill-disponible">Para prestar {{ saldoDisponible | currency:'MXN':'symbol-narrow':'1.2-2' }}</span>
             } @else if (esConCalendario(seleccionada) && creditoDisponibleDe(seleccionada) != null) {
               <span class="pill-disponible">Libre {{ creditoDisponibleDe(seleccionada) | currency:'MXN':'symbol-narrow':'1.2-2' }}</span>
             }
@@ -322,9 +400,9 @@
         } @else {
           <label class="campo-saldo">
             <span class="campo-titulo">
-              Monto
-              @if (seleccionPrestamista && saldoDisponible != null && (mov.tipo === 'CARGO' || mov.tipo === 'ABONO' || mov.tipo === 'REEMBOLSO')) {
-                <span class="pill-disponible">Disponible {{ saldoDisponible | currency:'MXN':'symbol-narrow':'1.2-2' }}</span>
+              {{ cobrandoRedito ? 'Rédito a cobrar' : 'Monto' }}
+              @if (seleccionPrestamista && saldoDisponible != null && mov.tipo === 'CARGO') {
+                <span class="pill-disponible">Disponible para prestar {{ saldoDisponible | currency:'MXN':'symbol-narrow':'1.2-2' }}</span>
               }
             </span>
             <div class="monto-wrap">
@@ -345,7 +423,7 @@
         }
       }
       <button type="submit" [disabled]="!formMovOk">
-        {{ editMovId ? 'Guardar cambios' : 'Registrar movimiento' }}
+        {{ editMovId ? 'Guardar cambios' : (cobrandoRedito ? 'Cobrar rédito' : 'Registrar movimiento') }}
       </button>
       @if (editMovId) {
         <button type="button" class="secundario" (click)="cancelarEdicionMov()">Cancelar</button>
@@ -364,152 +442,124 @@
     }
 
     @if (esMovil) {
-      @if (esConCalendario(seleccionada)) {
-        <button
-          type="button"
-          class="seccion-toggle"
-          [class.abierto]="movilCalendarioAbierto"
-          (click)="movilCalendarioAbierto = !movilCalendarioAbierto"
-          [attr.aria-expanded]="movilCalendarioAbierto"
-        >
-          <span>
-            Corte / pago
-            @if (textoCalendario(tdcEdit.diaCorte, tdcEdit.diaLimitePago); as cal) {
-              @if (cal) { <small>{{ cal }}</small> }
-            }
-          </span>
-          <span class="chev" aria-hidden="true">{{ movilCalendarioAbierto ? '▾' : '▸' }}</span>
-        </button>
-        @if (movilCalendarioAbierto) {
-          <form class="alta tdc-datos" enterAvance (ngSubmit)="guardarDatosCalendario()">
-            <label>Corte
-              <input type="text" inputmode="numeric" pattern="[0-9]*" [(ngModel)]="tdcEdit.diaCorte" name="diaCorte" placeholder="día 1–31" autocomplete="off" />
-            </label>
-            <label>Pago
-              <input type="text" inputmode="numeric" pattern="[0-9]*" [(ngModel)]="tdcEdit.diaLimitePago" name="diaLimite" placeholder="día 1–31" autocomplete="off" />
-            </label>
-            <label>Límite de crédito
-              <div class="monto-wrap">
-                <span class="simbolo">$</span>
-                <input
-                  type="text"
-                  inputmode="decimal"
-                  autocomplete="off"
-                  [(ngModel)]="tdcEdit.limiteCredito"
-                  name="limiteCredito"
-                  placeholder="0.00"
-                  (ngModelChange)="alEscribirLimiteEdit($event)"
-                  (keydown)="soloMonto($event)"
-                />
+      <div class="movil-panel">
+        @if (esConCalendario(seleccionada)) {
+          <section class="movil-card">
+            <header class="movil-card-cab">
+              <h3>Corte / pago</h3>
+              @if (textoCalendario(tdcEdit.diaCorte, tdcEdit.diaLimitePago); as cal) {
+                @if (cal) { <span class="movil-card-meta">{{ cal }}</span> }
+              }
+            </header>
+            <form class="alta tdc-datos movil-form" enterAvance (ngSubmit)="guardarDatosCalendario()">
+              <div class="fila-rapida">
+                <label>Corte
+                  <input type="text" inputmode="numeric" pattern="[0-9]*" [(ngModel)]="tdcEdit.diaCorte" name="diaCorte" placeholder="1–31" autocomplete="off" />
+                </label>
+                <label>Pago
+                  <input type="text" inputmode="numeric" pattern="[0-9]*" [(ngModel)]="tdcEdit.diaLimitePago" name="diaLimite" placeholder="1–31" autocomplete="off" />
+                </label>
               </div>
-            </label>
-            <button type="submit" [disabled]="guardandoTdc">
-              {{ guardandoTdc ? 'Guardando…' : 'Guardar corte / pago' }}
-            </button>
-          </form>
-        }
-      }
-
-      <button
-        type="button"
-        class="seccion-toggle"
-        [class.abierto]="movilOpcionesAbiertas"
-        (click)="movilOpcionesAbiertas = !movilOpcionesAbiertas"
-        [attr.aria-expanded]="movilOpcionesAbiertas"
-      >
-        <span>Cuenta (nombre / categoría)</span>
-        <span class="chev" aria-hidden="true">{{ movilOpcionesAbiertas ? '▾' : '▸' }}</span>
-      </button>
-      @if (movilOpcionesAbiertas) {
-        <div class="detalle-acciones movil-opciones">
-          <label class="nombre-cuenta">Nombre
-            <input
-              type="text"
-              [(ngModel)]="nombreEdit"
-              name="nombreCuentaMovil"
-              autocomplete="off"
-              maxlength="80"
-              [disabled]="guardandoNombre"
-              (blur)="guardarNombre()"
-              (keydown.enter)="$event.preventDefault(); $any($event.target).blur()"
-            />
-          </label>
-          <label class="tipo-cuenta">Categoría
-            <select
-              [ngModel]="seleccionada.tipo"
-              (ngModelChange)="cambiarTipo($event)"
-              name="tipoCuentaMovil"
-            >
-              @for (t of tipos; track t) { <option [value]="t">{{ etiquetaTipo(t) }}</option> }
-            </select>
-          </label>
-          @if (esTdc(seleccionada)) {
-            <button
-              type="button"
-              class="secundario"
-              [class.bloqueo-activo]="seleccionada.bloqueada"
-              [disabled]="guardandoBloqueo"
-              (click)="toggleBloqueoTdc()"
-            >
-              {{ seleccionada.bloqueada ? 'Desbloquear compras' : 'Bloquear compras' }}
-            </button>
-          }
-          @if (puedeEliminarCuenta) {
-            <button type="button" class="peligro" (click)="eliminarCuenta()">Eliminar cuenta</button>
-          }
-        </div>
-      }
-
-      <button
-        type="button"
-        class="seccion-toggle"
-        [class.abierto]="movilHistorialAbierto"
-        (click)="movilHistorialAbierto = !movilHistorialAbierto"
-        [attr.aria-expanded]="movilHistorialAbierto"
-      >
-        <span>Historial ({{ movimientos.length }})</span>
-        <span class="chev" aria-hidden="true">{{ movilHistorialAbierto ? '▾' : '▸' }}</span>
-      </button>
-      @if (movilHistorialAbierto) {
-        <ul class="movs-lista">
-          @for (m of movimientosPagina; track m.id) {
-            <li [class.editando]="editMovId === m.id">
-              <div class="mov-meta">
-                <span>{{ m.fecha | fechaCorta }}</span>
-                <span class="mov-tipo">{{ etiquetaMov(m.tipo) }}</span>
-              </div>
-              <div class="mov-fila">
-                <strong class="mono">{{ m.monto | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
-                <div class="acciones-mov">
-                  <button type="button" class="icono" title="Editar" aria-label="Editar" (click)="editarMovimiento(m)">
-                    <svg viewBox="0 0 24 24" aria-hidden="true">
-                      <path d="M4 20h4.5L19 9.5 14.5 5 4 15.5V20z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
-                      <path d="M12.5 7l4.5 4.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
-                    </svg>
-                  </button>
-                  <button type="button" class="icono peligro" title="Borrar" aria-label="Borrar" (click)="eliminarMovimiento(m)">
-                    <svg viewBox="0 0 24 24" aria-hidden="true">
-                      <path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                    </svg>
-                  </button>
+              <label>Límite de crédito
+                <div class="monto-wrap">
+                  <span class="simbolo">$</span>
+                  <input
+                    type="text"
+                    inputmode="decimal"
+                    autocomplete="off"
+                    [(ngModel)]="tdcEdit.limiteCredito"
+                    name="limiteCredito"
+                    placeholder="0.00"
+                    (ngModelChange)="alEscribirLimiteEdit($event)"
+                    (keydown)="soloMonto($event)"
+                  />
                 </div>
-              </div>
-            </li>
-          } @empty {
-            <li class="vacio">Sin movimientos</li>
-          }
-        </ul>
-        @if (movimientos.length) {
-          <app-paginador
-            [total]="movimientos.length"
-            [pagina]="pagMovs.pagina"
-            [tam]="pagMovs.tam"
-            etiqueta="Paginación de movimientos"
-            (paginaChange)="alCambiarPagMovs($event)"
-            (tamChange)="alCambiarTamMovs($event)"
-          />
+              </label>
+              <button type="submit" [disabled]="guardandoTdc">
+                {{ guardandoTdc ? 'Guardando…' : 'Guardar corte / pago' }}
+              </button>
+            </form>
+          </section>
         }
-      }
+
+        <section class="movil-card">
+          <header class="movil-card-cab">
+            <h3>Cuenta</h3>
+            <span class="movil-card-meta">{{ etiquetaTipo(seleccionada.tipo) }}</span>
+          </header>
+          <div class="movil-form detalle-acciones">
+            <label class="nombre-cuenta">Nombre
+              <input
+                type="text"
+                [(ngModel)]="nombreEdit"
+                name="nombreCuentaMovil"
+                autocomplete="off"
+                maxlength="80"
+                [disabled]="guardandoNombre"
+                (blur)="guardarNombre()"
+                (keydown.enter)="$event.preventDefault(); $any($event.target).blur()"
+              />
+            </label>
+            <label class="tipo-cuenta">Categoría
+              <select
+                [ngModel]="seleccionada.tipo"
+                (ngModelChange)="cambiarTipo($event)"
+                name="tipoCuentaMovil"
+              >
+                @for (t of tipos; track t) { <option [value]="t">{{ etiquetaTipo(t) }}</option> }
+              </select>
+            </label>
+            @if (puedeEliminarCuenta) {
+              <button type="button" class="peligro" (click)="eliminarCuenta()">Eliminar cuenta</button>
+            }
+          </div>
+        </section>
+
+        <section class="movil-card movil-historial">
+          <header class="movil-card-cab">
+            <h3>Historial</h3>
+            <span class="movil-card-meta">{{ movimientos.length }} mov.</span>
+          </header>
+          <ul class="movs-lista">
+            @for (m of movimientosPagina; track m.id) {
+              <li [class.editando]="editMovId === m.id">
+                <div class="mov-meta">
+                  <span>{{ m.fecha | fechaCorta }}</span>
+                  <span class="mov-tipo">{{ etiquetaMov(m.tipo) }}</span>
+                </div>
+                <div class="mov-fila">
+                  <strong class="mono">{{ m.monto | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
+                  <div class="acciones-mov">
+                    <button type="button" class="icono" title="Editar" aria-label="Editar" (click)="editarMovimiento(m)">
+                      <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M4 20h4.5L19 9.5 14.5 5 4 15.5V20z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+                        <path d="M12.5 7l4.5 4.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                      </svg>
+                    </button>
+                    <button type="button" class="icono peligro" title="Borrar" aria-label="Borrar" (click)="eliminarMovimiento(m)">
+                      <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+              </li>
+            } @empty {
+              <li class="vacio">Sin movimientos</li>
+            }
+          </ul>
+          @if (movimientos.length) {
+            <app-paginador
+              [total]="movimientos.length"
+              [pagina]="pagMovs.pagina"
+              [tam]="pagMovs.tam"
+              etiqueta="Paginación de movimientos"
+              (paginaChange)="alCambiarPagMovs($event)"
+              (tamChange)="alCambiarTamMovs($event)"
+            />
+          }
+        </section>
+      </div>
     } @else {
       @if (esConCalendario(seleccionada)) {
         <form class="alta tdc-datos" enterAvance (ngSubmit)="guardarDatosCalendario()">

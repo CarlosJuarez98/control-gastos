@@ -2,7 +2,9 @@
   display: flex;
   flex-direction: column;
   min-height: 0;
-  overflow: hidden;
+  max-width: 100%;
+  overflow-x: hidden;
+  overflow-y: hidden;
 }
 
 .cab {
@@ -18,13 +20,61 @@
   flex-wrap: wrap;
   gap: 0.55rem;
   align-items: flex-end;
-  background: var(--superficie);
-  border: 1px solid var(--linea);
-  border-radius: 0.85rem;
-  padding: 0.6rem 0.7rem;
+  align-content: flex-start;
+  background:
+    linear-gradient(165deg, color-mix(in srgb, #fff 3.5%, transparent), transparent 45%),
+    color-mix(in srgb, var(--superficie) 92%, transparent);
+  border: 1px solid color-mix(in srgb, var(--linea) 90%, transparent);
+  border-radius: 1rem;
+  padding: 0.75rem 0.85rem;
   margin-bottom: 0.55rem;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.16);
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  overflow-x: hidden;
 }
-.alta label { display: grid; gap: 0.25rem; font-size: 0.82rem; color: var(--texto-suave); flex: 1; min-width: 110px; }
+.alta > * {
+  min-width: 0;
+  max-width: 100%;
+  flex-grow: 0;
+}
+.alta label {
+  display: grid;
+  gap: 0.22rem;
+  font-size: 0.8rem;
+  color: var(--texto-suave);
+  flex: 0 0 12rem;
+  width: 12rem;
+  min-width: 12rem;
+  max-width: 12rem;
+  align-content: start;
+  box-sizing: border-box;
+}
+.alta .campo-nombre,
+.alta .campo-tipo,
+.alta .campo-saldo,
+.alta .campo-corte,
+.alta .campo-pago-dia,
+.alta .campo-limite {
+  flex: 0 0 12rem;
+  width: 12rem;
+  min-width: 12rem;
+  max-width: 12rem;
+}
+.alta label > input,
+.alta label > select,
+.alta label > .campo-clearable,
+.alta .monto-wrap {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  height: 2.65rem;
+  min-height: 2.65rem;
+  max-height: 2.65rem;
+  box-sizing: border-box;
+}
 .monto-wrap input {
   -moz-appearance: textfield;
   appearance: textfield;
@@ -72,10 +122,20 @@
 }
 .cuentas {
   list-style: none; margin: 0; padding: 0;
-  border: 1px solid var(--linea); border-radius: 1rem; background: var(--superficie);
+  border: 1px solid color-mix(in srgb, var(--linea) 90%, transparent);
+  border-radius: 1.05rem;
+  background:
+    linear-gradient(165deg, color-mix(in srgb, #fff 3%, transparent), transparent 40%),
+    var(--superficie);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.16);
+  overflow: hidden;
 }
 .cuentas a {
-  display: grid; gap: 0.15rem; padding: 0.7rem 0.85rem; border-bottom: 1px solid var(--linea);
+  display: grid; gap: 0.15rem; padding: 0.75rem 0.9rem; border-bottom: 1px solid var(--linea);
+  transition: background 0.18s ease;
+}
+.cuentas a:hover {
+  background: color-mix(in srgb, var(--acento) 8%, transparent);
 }
 .cuentas > li:last-child > a { border-bottom: none; }
 .cuentas > li.detalle-inline + li > a,
@@ -103,6 +163,12 @@
   font-size: 0.72rem;
   color: var(--texto-suave);
   opacity: 0.9;
+}
+.cuentas .meta-libre {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 650;
+  color: var(--acento-2);
 }
 .cuentas .mono { color: var(--acento-2); }
 .cuentas .mono.pos { color: var(--ok); }
@@ -144,16 +210,24 @@
 
 .detalle {
   min-height: 0;
-  overflow: auto;
-  border: 1px solid var(--linea);
-  border-radius: 1rem;
-  background: var(--superficie);
-  padding: 0.9rem;
+  /* El historial (.movs-wrap) scrollea dentro; evita que overflow-y:hidden del wrap
+     aplasté la tabla y deje el panel sin scroll. */
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--linea) 90%, transparent);
+  border-radius: 1.1rem;
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--acento) 10%, transparent), transparent 7rem),
+    linear-gradient(145deg, color-mix(in srgb, var(--acento-2) 5%, transparent), transparent 40%),
+    var(--superficie);
+  padding: 1rem;
   display: flex;
   flex-direction: column;
   scroll-margin-top: 1rem;
   max-width: 100%;
   box-sizing: border-box;
+  box-shadow:
+    0 16px 40px rgba(0, 0, 0, 0.22),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 
 .detalle-cab {
@@ -210,7 +284,7 @@
   font-weight: 700;
   color: var(--acento-2);
   letter-spacing: 0.01em;
-  white-space: nowrap;
+  white-space: normal;
 }
 .pill-bloqueada {
   font-size: 0.78rem;
@@ -246,7 +320,9 @@ button.bloqueo-activo {
   gap: 0.25rem;
   font-size: 0.82rem;
   color: var(--texto-suave);
-  min-width: 170px;
+  min-width: 0;
+  max-width: 100%;
+  flex: 1 1 9rem;
 }
 .hint-interes {
   flex: 0 0 auto;
@@ -255,21 +331,76 @@ button.bloqueo-activo {
   color: var(--texto-suave);
 }
 .hint-interes .pos { color: var(--acento-2); }
+
+.resumen-prestamo {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  align-items: stretch;
+  margin: 0.55rem 0 0.15rem;
+}
+.resumen-prestamo .rp-item {
+  flex: 1 1 6.5rem;
+  min-width: 0;
+  padding: 0.5rem 0.65rem;
+  border-radius: 0.75rem;
+  border: 1px solid var(--linea);
+  background: color-mix(in srgb, var(--superficie-2) 85%, transparent);
+  display: grid;
+  gap: 0.15rem;
+}
+.resumen-prestamo .rp-item span {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--texto-suave);
+  font-weight: 650;
+}
+.resumen-prestamo .rp-item strong {
+  font-size: 0.98rem;
+  line-height: 1.15;
+}
+.resumen-prestamo .rp-item.total {
+  border-color: color-mix(in srgb, var(--acento) 40%, var(--linea));
+  background:
+    linear-gradient(145deg, color-mix(in srgb, var(--acento) 12%, transparent), transparent 55%),
+    color-mix(in srgb, var(--superficie-2) 85%, transparent);
+}
+.resumen-prestamo .btn-redito,
+button.btn-redito {
+  align-self: center;
+  min-height: 2.55rem;
+  padding: 0.55rem 0.9rem;
+  border-radius: 0.75rem;
+  border: 1px solid color-mix(in srgb, var(--acento) 45%, var(--linea));
+  background: color-mix(in srgb, var(--acento) 14%, var(--superficie));
+  color: var(--acento);
+  font-weight: 700;
+  cursor: pointer;
+}
+.resumen-prestamo .btn-redito:hover,
+button.btn-redito:hover {
+  filter: brightness(1.05);
+}
 .detalle .alta { margin-bottom: 0.75rem; }
 
 .movs-wrap {
   display: block;
   width: 100%;
   max-width: 100%;
-  overflow-x: auto;
-  overflow-y: hidden;
+  flex: 1 1 auto;
+  min-height: 10rem;
+  overflow: auto;
   -webkit-overflow-scrolling: touch;
-  overscroll-behavior-x: contain;
+  overscroll-behavior: contain;
   touch-action: pan-x pan-y;
   margin-top: 0.35rem;
-  border: 1px solid var(--linea);
-  border-radius: 0.75rem;
-  background: color-mix(in srgb, var(--superficie-2) 80%, transparent);
+  border: 1px solid color-mix(in srgb, var(--linea) 90%, transparent);
+  border-radius: 0.9rem;
+  background:
+    linear-gradient(180deg, color-mix(in srgb, #fff 2.5%, transparent), transparent 35%),
+    color-mix(in srgb, var(--superficie-2) 80%, transparent);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.12);
 }
 
 .tabla-movs {
@@ -427,6 +558,118 @@ tr.editando td {
   min-width: 0;
 }
 
+.movil-metricas {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.45rem;
+  margin: 0 0 0.55rem;
+}
+.movil-metricas .metrica {
+  display: grid;
+  gap: 0.15rem;
+  padding: 0.55rem 0.65rem;
+  border-radius: 0.75rem;
+  border: 1px solid var(--linea);
+  background:
+    linear-gradient(160deg, color-mix(in srgb, var(--acento) 10%, transparent), transparent 55%),
+    color-mix(in srgb, var(--superficie-2) 88%, transparent);
+}
+.movil-metricas .metrica span {
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--texto-suave);
+  text-transform: uppercase;
+}
+.movil-metricas .metrica strong {
+  font-size: 0.98rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--texto);
+  overflow-wrap: anywhere;
+}
+.movil-metricas .metrica.ok {
+  border-color: color-mix(in srgb, var(--ok) 40%, var(--linea));
+}
+.movil-metricas .metrica.ok strong { color: var(--ok); }
+.movil-metricas .metrica.alerta {
+  border-color: color-mix(in srgb, var(--peligro) 45%, var(--linea));
+  background:
+    linear-gradient(160deg, color-mix(in srgb, var(--peligro) 12%, transparent), transparent 55%),
+    color-mix(in srgb, var(--superficie-2) 88%, transparent);
+}
+.movil-metricas .metrica.alerta strong { color: var(--peligro); }
+
+.btn-bloqueo {
+  width: 100%;
+  min-height: 2.75rem;
+  margin: 0 0 0.55rem;
+  border-radius: 0.75rem;
+  border: 1px solid color-mix(in srgb, var(--acento) 40%, var(--linea));
+  background: color-mix(in srgb, var(--acento) 12%, var(--superficie));
+  color: var(--acento);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+.btn-bloqueo.activo {
+  border-color: color-mix(in srgb, var(--peligro) 50%, var(--linea));
+  background: color-mix(in srgb, var(--peligro) 14%, var(--superficie));
+  color: var(--peligro);
+}
+
+.movil-panel {
+  display: grid;
+  gap: 0.55rem;
+  margin-top: 0.15rem;
+}
+.movil-card {
+  border: 1px solid var(--linea);
+  border-radius: 0.9rem;
+  background: color-mix(in srgb, var(--superficie-2) 72%, transparent);
+  padding: 0.65rem 0.7rem 0.75rem;
+  display: grid;
+  gap: 0.55rem;
+}
+.movil-card-cab {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.65rem;
+}
+.movil-card-cab h3 {
+  margin: 0;
+  font-family: var(--fuente-display);
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+.movil-card-meta {
+  font-size: 0.78rem;
+  color: var(--texto-suave);
+  font-weight: 600;
+  text-align: right;
+}
+.movil-form {
+  display: grid;
+  gap: 0.55rem;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: none !important;
+  background: transparent !important;
+  width: 100%;
+}
+.movil-form .nombre-cuenta,
+.movil-form .tipo-cuenta {
+  max-width: none;
+  width: 100%;
+  min-width: 0;
+}
+.movil-historial .movs-lista {
+  margin: 0;
+  border-radius: 0.7rem;
+}
+
 @media (max-width: 860px) {
   :host {
     height: 100%;
@@ -450,6 +693,12 @@ tr.editando td {
   .detalle {
     overflow: visible;
     min-height: unset;
+  }
+
+  .movs-wrap {
+    flex: 0 0 auto;
+    min-height: unset;
+    overflow: visible;
   }
 
   .cuentas {
@@ -519,16 +768,103 @@ tr.editando td {
 
   .detalle .alta button,
   .detalle-acciones .peligro,
-  .movil-opciones .peligro {
+  .movil-opciones .peligro,
+  .movil-form .peligro,
+  .movil-form > button {
     width: 100%;
   }
 
-  .alta {
-    flex-direction: column;
-    align-items: stretch;
+  .movil-metricas {
+    margin-bottom: 0.45rem;
   }
 
-  .alta label { min-width: 0; width: 100%; }
+  .movil-metricas .metrica {
+    animation: metrica-in 0.4s var(--ease-out) both;
+  }
+  .movil-metricas .metrica:nth-child(2) { animation-delay: 0.05s; }
+  .movil-metricas .metrica:nth-child(3) { animation-delay: 0.1s; }
+  .movil-metricas .metrica:nth-child(4) { animation-delay: 0.15s; }
+
+  .btn-bloqueo {
+    margin-bottom: 0.45rem;
+    border-radius: 999px;
+    box-shadow: 0 8px 22px rgba(0, 0, 0, 0.2);
+    transition: transform 0.18s var(--ease-out);
+  }
+  .btn-bloqueo:active { transform: scale(0.97); }
+
+  button.btn-redito {
+    width: 100%;
+    margin-bottom: 0.45rem;
+    min-height: 2.75rem;
+    border-radius: 0.85rem;
+    box-shadow: 0 8px 22px rgba(0, 0, 0, 0.18);
+  }
+  button.btn-redito:active { transform: scale(0.98); }
+
+  .movil-metricas .metrica strong.pos { color: var(--ok); }
+
+  .detalle-inline .detalle {
+    padding: 0.55rem 0.75rem 0.95rem;
+    gap: 0.5rem;
+    background:
+      linear-gradient(180deg, color-mix(in srgb, var(--acento) 14%, transparent), transparent 5.5rem),
+      linear-gradient(145deg, color-mix(in srgb, var(--acento-2) 6%, transparent), transparent 40%),
+      var(--superficie);
+    animation: panel-cuenta-in 0.42s var(--ease-out) both;
+    box-shadow:
+      0 16px 40px rgba(0, 0, 0, 0.28),
+      inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  }
+
+  .cuentas > li.activa > a {
+    background: color-mix(in srgb, var(--acento) 16%, transparent);
+  }
+
+  .movil-card {
+    animation: metrica-in 0.45s var(--ease-out) both;
+    border-radius: 1rem;
+    background:
+      linear-gradient(165deg, color-mix(in srgb, #fff 3.5%, transparent), transparent 40%),
+      color-mix(in srgb, var(--superficie-2) 78%, transparent);
+  }
+  .movil-card:nth-child(2) { animation-delay: 0.06s; }
+  .movil-card:nth-child(3) { animation-delay: 0.12s; }
+
+  .alta-rapida {
+    border-radius: 1rem;
+    padding: 0.75rem 0.8rem;
+    box-shadow: 0 10px 26px rgba(0, 0, 0, 0.2);
+  }
+
+  .alta-rapida > button[type='submit'] {
+    min-height: 2.85rem;
+    font-weight: 700;
+    border-radius: 0.8rem;
+  }
+
+  .alta {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 0.5rem;
+    align-items: start;
+    align-content: start;
+  }
+
+  .alta > * { flex: none; max-width: 100%; }
+  .alta label { min-width: 0; width: auto; max-width: none; flex: none; }
+  .alta .campo-saldo,
+  .alta .campo-limite,
+  .alta > button {
+    grid-column: 1 / -1;
+  }
+  .alta label > input,
+  .alta label > select,
+  .alta .monto-wrap {
+    height: 2.75rem;
+    min-height: 2.75rem;
+    max-height: 2.75rem;
+  }
 
   .seccion-toggle {
     margin-top: 0.35rem;
@@ -542,6 +878,16 @@ tr.editando td {
   .cab p {
     font-size: 0.88rem;
   }
+}
+
+@keyframes panel-cuenta-in {
+  from { opacity: 0; transform: translateY(-10px) scale(0.985); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes metrica-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: none; }
 }
 
 @media (orientation: landscape) and (max-height: 520px) {
