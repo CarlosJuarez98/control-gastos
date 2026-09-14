@@ -21,8 +21,13 @@ export const appConfig: ApplicationConfig = {
     }),
     provideAppInitializer(() => {
       const offline = inject(OfflineService);
+      const auth = inject(AuthService);
       offline.init();
-      return firstValueFrom(inject(AuthService).me()).then(() => offline.sincronizar());
+      auth.initSesionViva();
+      return firstValueFrom(auth.me()).then((ok) => {
+        if (ok) return offline.sincronizar();
+        return undefined;
+      });
     }),
   ],
 };

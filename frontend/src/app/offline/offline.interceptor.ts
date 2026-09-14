@@ -17,7 +17,7 @@ function esAuthMutacion(url: string): boolean {
 }
 
 function esGetCacheable(url: string, method: string): boolean {
-  return method === 'GET' && esApi(url) && !url.includes('/api/auth/login');
+  return method === 'GET' && esApi(url) && !url.includes('/api/auth/');
 }
 
 function esMutacion(method: string): boolean {
@@ -31,6 +31,13 @@ function errorDeRed(err: unknown): boolean {
 }
 
 const HEADER_REPLAY = 'X-Cg-Offline-Replay';
+
+function cuerpoFallback(url: string): unknown | undefined {
+  const path = url.split('?')[0];
+  if (/\/api\/(gastos|ingresos|cuentas|gastos-mensuales|usuarios)$/.test(path)) return [];
+  if (/\/movimientos$/.test(path)) return [];
+  return undefined;
+}
 
 export const offlineInterceptor: HttpInterceptorFn = (req, next) => {
   const offline = inject(OfflineService);
@@ -47,16 +54,39 @@ export const offlineInterceptor: HttpInterceptorFn = (req, next) => {
     return next(req);
   }
 
-  // GET: cachear éxito; si falla por red, servir caché
+  // GET: si no hay red o hay cambios locales, servir IndexedDB (incluye altas offline).
+  // No ir a red primero: el SW/caché HTTP devolvería datos viejos y taparía lo guardado aquí.
   if (esGetCacheable(url, method)) {
+    const preferirLocal = offline.esOffline() || offline.pendientes() > 0;
+    if (preferirLocal) {
+      return from(offline.leerCache(url)).pipe(
+        switchMap((cached) => {
+          if (cached !== undefined) {
+            return of(new HttpResponse({ status: 200, body: cached, url: req.url }));
+          }
+          const vacio = cuerpoFallback(url);
+          if (vacio !== undefined && offline.esOffline()) {
+            return of(new HttpResponse({ status: 200, body: vacio, url: req.url }));
+          }
+          return next(req).pipe(
+            tap((event) => {
+              if (event instanceof HttpResponse) void offline.guardarCache(url, event.body);
+            }),
+            catchError((err) => {
+              if (vacio !== undefined) {
+                return of(new HttpResponse({ status: 200, body: vacio, url: req.url }));
+              }
+              return throwError(() => err);
+            }),
+          );
+        }),
+      );
+    }
+
     return next(req).pipe(
       tap((event) => {
         if (event instanceof HttpResponse) {
           void offline.guardarCache(url, event.body);
-          if (url.includes('/api/auth/me') && event.body && (event.body as { autenticado?: boolean }).autenticado) {
-            const b = event.body as { usuario?: string; rol?: string };
-            if (b.usuario) void offline.guardarSesion(b.usuario, b.rol || 'USER');
-          }
         }
       }),
       catchError((err) => {
@@ -66,8 +96,11 @@ export const offlineInterceptor: HttpInterceptorFn = (req, next) => {
         return from(offline.leerCache(url)).pipe(
           switchMap((cached) => {
             if (cached !== undefined) {
-              offline.mostrar('offline', 'Mostrando datos guardados (sin conexión).', 3500);
               return of(new HttpResponse({ status: 200, body: cached, url: req.url }));
+            }
+            const vacio = cuerpoFallback(url);
+            if (vacio !== undefined) {
+              return of(new HttpResponse({ status: 200, body: vacio, url: req.url }));
             }
             return throwError(() => err);
           }),

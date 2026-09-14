@@ -35,7 +35,7 @@
   "dataGroups": [
     {
       "name": "api-freshness",
-      "urls": ["/api/**"],
+      "urls": ["/api/**", "!/api/auth/**"],
       "cacheConfig": {
         "strategy": "freshness",
         "maxSize": 200,
