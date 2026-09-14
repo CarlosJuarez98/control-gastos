@@ -1,4 +1,4 @@
-<div class="shell" [class.shell-login]="!mostrarNav">
+<div class="shell" [class.shell-login]="!mostrarNav" [class.con-dock]="mostrarNav">
   @if (pullVisible) {
     <div class="pull-refresh" [class.listo]="pullListo" [style.height.px]="pullDistancia">
       <span>{{ pullListo ? 'Suelta para recargar' : 'Desliza para recargar' }}</span>
@@ -10,9 +10,12 @@
         <span class="brand-icon" aria-hidden="true">$</span>
         <p class="brand-mark">Control de gastos</p>
       </div>
-      <nav aria-label="Secciones">
+      <nav class="nav-top" aria-label="Secciones">
         @for (l of links; track l.path) {
-          <a [routerLink]="l.path" routerLinkActive="activo" [routerLinkActiveOptions]="{ exact: l.exact }">{{ l.label }}</a>
+          <a [routerLink]="l.path" routerLinkActive="activo" [routerLinkActiveOptions]="{ exact: l.exact }">
+            <span class="nav-ico" aria-hidden="true">{{ l.icon }}</span>
+            <span class="nav-lbl">{{ l.label }}</span>
+          </a>
         }
       </nav>
       <div class="acciones">
@@ -63,6 +66,20 @@
   <main>
     <router-outlet />
   </main>
+  @if (mostrarNav) {
+    <nav class="nav-dock" aria-label="Navegación rápida">
+      @for (l of links; track l.path) {
+        <a
+          [routerLink]="l.path"
+          routerLinkActive="activo"
+          [routerLinkActiveOptions]="{ exact: l.exact }"
+        >
+          <span class="dock-ico" aria-hidden="true">{{ l.icon }}</span>
+          <span class="dock-lbl">{{ l.short }}</span>
+        </a>
+      }
+    </nav>
+  }
 </div>
 
 @if (perfilAbierto) {

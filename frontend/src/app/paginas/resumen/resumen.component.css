@@ -91,11 +91,20 @@
 }
 
 .metricas article {
-  padding: 0.6rem 0.75rem;
-  background: linear-gradient(160deg, var(--superficie) 0%, var(--superficie-2) 100%);
-  border: 1px solid var(--linea);
-  border-radius: 0.85rem;
+  padding: 0.7rem 0.8rem;
+  background:
+    linear-gradient(160deg, color-mix(in srgb, #fff 3.5%, transparent), transparent 45%),
+    linear-gradient(160deg, var(--superficie) 0%, var(--superficie-2) 100%);
+  border: 1px solid color-mix(in srgb, var(--linea) 90%, transparent);
+  border-radius: 1rem;
   animation: subir 0.5s ease both;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.14);
+  transition: transform 0.2s var(--ease-out), border-color 0.2s ease;
+}
+
+.metricas article:hover {
+  transform: translateY(-2px);
+  border-color: color-mix(in srgb, var(--acento) 35%, var(--linea));
 }
 
 .metricas article.destacada-quincena {
@@ -124,11 +133,14 @@
 }
 
 .panel {
-  background: var(--superficie);
-  border: 1px solid var(--linea);
-  border-radius: 1rem;
-  padding: 0.9rem 1rem 1rem;
+  background:
+    linear-gradient(165deg, color-mix(in srgb, #fff 3.5%, transparent), transparent 42%),
+    var(--superficie);
+  border: 1px solid color-mix(in srgb, var(--linea) 90%, transparent);
+  border-radius: 1.1rem;
+  padding: 0.95rem 1.05rem 1.05rem;
   animation: subir 0.6s ease both;
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.16);
 }
 
 .panel-wide { margin-bottom: 0.5rem; }

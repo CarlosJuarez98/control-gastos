@@ -55,30 +55,90 @@
   flex-wrap: wrap;
   gap: 0.55rem;
   align-items: flex-end;
-  background: var(--superficie);
-  border: 1px solid var(--linea);
-  border-radius: 0.85rem;
-  padding: 0.6rem 0.7rem;
+  align-content: flex-start;
+  background:
+    linear-gradient(165deg, color-mix(in srgb, #fff 3.5%, transparent), transparent 45%),
+    color-mix(in srgb, var(--superficie) 92%, transparent);
+  border: 1px solid color-mix(in srgb, var(--linea) 90%, transparent);
+  border-radius: 1rem;
+  padding: 0.75rem 0.85rem;
   margin-bottom: 0.55rem;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.16);
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  overflow-x: hidden;
 }
-.alta label { display: grid; gap: 0.25rem; font-size: 0.85rem; color: var(--texto-suave); flex: 1; min-width: 150px; }
+.alta > * {
+  min-width: 0;
+  max-width: 100%;
+  flex-grow: 0;
+}
+.alta label {
+  display: grid;
+  gap: 0.22rem;
+  font-size: 0.8rem;
+  color: var(--texto-suave);
+  flex: 0 0 12rem;
+  width: 12rem;
+  min-width: 12rem;
+  max-width: 12rem;
+  align-content: start;
+  box-sizing: border-box;
+}
+.alta .campo-motivo,
+.alta .campo-monto,
+.alta .campo-dia {
+  flex: 0 0 12rem;
+  width: 12rem;
+  min-width: 12rem;
+  max-width: 12rem;
+}
+.alta .campo-falta,
+.alta .hint-plan {
+  flex: 1 1 100%;
+  width: auto;
+  min-width: 0;
+  max-width: 100%;
+}
+.alta label > input,
+.alta label > select,
+.alta label > .campo-clearable,
+.alta .monto-wrap,
+.alta .btn-toggle {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  height: 2.65rem;
+  min-height: 2.65rem;
+  max-height: 2.65rem;
+  box-sizing: border-box;
+  padding-top: 0;
+  padding-bottom: 0;
+}
 label.campo-toggle {
   display: grid;
-  gap: 0.25rem;
-  font-size: 0.85rem;
+  gap: 0.22rem;
+  font-size: 0.8rem;
   color: var(--texto-suave);
-  min-width: 7.5rem;
-  flex: 0 0 auto;
-  align-self: end;
+  flex: 0 0 12rem;
+  width: 12rem;
+  min-width: 12rem;
+  max-width: 12rem;
+  align-self: start;
+  box-sizing: border-box;
 }
 .btn-toggle {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   width: 100%;
-  min-height: 2.55rem;
+  height: 2.65rem;
+  min-height: 2.65rem;
+  max-height: 2.65rem;
   margin: 0;
-  padding: 0.6rem 0.75rem;
+  padding: 0 0.75rem;
   border-radius: 0.55rem;
   border: 1px solid var(--campo-borde);
   background: var(--campo-fondo);
@@ -131,9 +191,13 @@ label.campo-toggle {
   list-style: none;
   margin: 0 0 0.75rem;
   padding: 0;
-  border: 1px solid var(--linea);
-  border-radius: 1rem;
-  background: var(--superficie);
+  border: 1px solid color-mix(in srgb, var(--linea) 90%, transparent);
+  border-radius: 1.05rem;
+  background:
+    linear-gradient(165deg, color-mix(in srgb, #fff 3%, transparent), transparent 40%),
+    var(--superficie);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.14);
+  overflow: hidden;
 }
 
 .pagina-scroll {
@@ -150,10 +214,14 @@ label.campo-toggle {
 .pagos-prog {
   flex: 0 0 auto;
   margin-bottom: 0.75rem;
-  padding: 0.75rem 0.85rem;
-  background: var(--superficie);
-  border: 1px solid var(--linea);
-  border-radius: 1rem;
+  padding: 0.85rem 0.95rem;
+  background:
+    linear-gradient(160deg, color-mix(in srgb, var(--acento-2) 10%, transparent), transparent 45%),
+    linear-gradient(165deg, color-mix(in srgb, #fff 3%, transparent), transparent 40%),
+    var(--superficie);
+  border: 1px solid color-mix(in srgb, var(--linea) 90%, transparent);
+  border-radius: 1.1rem;
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.16);
 }
 .pagos-prog .seccion-tit {
   margin: 0 0 0.55rem;
@@ -356,13 +424,38 @@ button.cuota:hover {
   .totales { width: 100%; }
   .totales article { flex: 1 1 calc(50% - 0.3rem); min-width: 0; }
   .alta {
-    flex-direction: column;
-    align-items: stretch;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 0.5rem;
+    align-items: start;
+    align-content: start;
+    padding: 0.65rem 0.7rem;
+    border-radius: 0.95rem;
   }
-  .alta label { min-width: 0; width: 100%; }
-  label.campo-toggle { width: 100%; min-width: 0; }
+  .alta > * { flex: none; max-width: 100%; }
+  .alta label {
+    min-width: 0;
+    width: auto;
+    max-width: none;
+    flex: none;
+  }
+  .alta .campo-motivo,
+  .alta .campo-falta,
+  .alta .hint-plan,
+  .alta .alta-acciones {
+    grid-column: 1 / -1;
+  }
+  .alta label > input,
+  .alta label > select,
+  .alta .monto-wrap,
+  .alta .btn-toggle {
+    height: 2.75rem;
+    min-height: 2.75rem;
+    max-height: 2.75rem;
+  }
+  label.campo-toggle { width: auto; min-width: 0; max-width: none; }
   .alta-acciones { width: 100%; }
-  .alta-acciones button { flex: 1 1 auto; }
+  .alta-acciones button { flex: 1 1 auto; min-height: 2.75rem; width: 100%; }
   .item-info {
     flex-direction: column;
     align-items: flex-start;
@@ -375,6 +468,23 @@ button.cuota:hover {
   .lista li .acciones {
     width: 100%;
     justify-content: flex-end;
+  }
+  .pagos-prog {
+    padding: 0.8rem 0.85rem;
+    border-radius: 1rem;
+    background:
+      linear-gradient(160deg, color-mix(in srgb, var(--acento-2) 10%, transparent), transparent 45%),
+      var(--superficie);
+  }
+  .pagos-prog li a,
+  .pagos-prog li.sin-link {
+    padding: 0.55rem 0.6rem;
+    border-radius: 0.7rem;
+    background: color-mix(in srgb, var(--superficie-2) 70%, transparent);
+  }
+  .totales article {
+    padding: 0.55rem 0.65rem;
+    border-radius: 0.75rem;
   }
 }
 

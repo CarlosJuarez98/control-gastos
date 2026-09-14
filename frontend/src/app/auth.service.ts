@@ -27,7 +27,11 @@ export class AuthService {
   private ultimoToque = 0;
   /** Evita ráfagas de /me (guard + heartbeat) en pocos segundos. */
   private sesionOkHasta = 0;
-  private readonly toqueMinMs = 60_000;
+  /** Mínimo entre heartbeats por movimiento (renueva los 20 min en servidor). */
+  private readonly toqueMinMs = 45_000;
+  /** Revisa caducidad aunque no haya clic (para mandar a login al vencer). */
+  private readonly chequeoCaducidadMs = 60_000;
+  private yendoALogin = false;
 
   get autenticado(): boolean {
     return !!this.usuario;
@@ -40,11 +44,13 @@ export class AuthService {
   /**
    * Listeners de actividad: cada movimiento (clic, tecla, scroll…) marca la sesión
    * para renovar el timeout de 20 min en el servidor. Sin movimiento, caduca.
+   * Además, un chequeo periódico fuerza /login si la sesión ya murió.
    */
   initSesionViva(): void {
     if (this.listenersListos || typeof window === 'undefined') return;
     this.listenersListos = true;
     const marcar = () => {
+      if (!this.usuario && this.router.url.startsWith('/login')) return;
       this.huboMovimiento = true;
       if (Date.now() - this.ultimoToque >= this.toqueMinMs) {
         this.programarToque(0);
@@ -61,11 +67,14 @@ export class AuthService {
         this.programarToque(0);
       }
     });
+    // Renueva por actividad (máx. cada ~45s de toques)
     window.setInterval(() => {
       if (!this.huboMovimiento) return;
       if (Date.now() - this.ultimoToque < this.toqueMinMs) return;
       this.programarToque(0);
     }, 15_000);
+    // Si la sesión ya caducó en servidor, manda a login aunque nadie toque
+    window.setInterval(() => this.verificarCaducidad(), this.chequeoCaducidadMs);
   }
 
   me(): Observable<boolean> {
@@ -89,6 +98,7 @@ export class AuthService {
       .post<AuthMe>(`${this.base}/login`, { usuario, password }, { withCredentials: true })
       .pipe(
         tap((res) => {
+          this.yendoALogin = false;
           this.aplicarSesion({ ...res, autenticado: true, usuario: res.usuario ?? usuario });
           this.marcarToqueOk();
         }),
@@ -126,6 +136,13 @@ export class AuthService {
     this.rol = null;
     this.meInflight = null;
     this.sesionOkHasta = 0;
+    this.huboMovimiento = false;
+  }
+
+  /** Arranque: sin sesión válida → solo login. */
+  asegurarLoginSiNoHaySesion(ok: boolean): void {
+    if (ok) return;
+    this.irALogin();
   }
 
   private programarToque(delayMs: number): void {
@@ -147,7 +164,24 @@ export class AuthService {
     });
   }
 
-  private consultarServidor(): Observable<boolean> {
+  private verificarCaducidad(): void {
+    if (!this.usuario) return;
+    if (this.offline.esOffline()) return;
+    if (this.router.url.startsWith('/login')) return;
+    this.consultarServidor(true).subscribe({
+      next: (ok) => {
+        if (!ok) this.irALogin();
+      },
+    });
+  }
+
+  /**
+   * @param forzarIgnorarCache si true, no usa el atajo sesionOkHasta (chequeo de caducidad).
+   */
+  private consultarServidor(forzarIgnorarCache = false): Observable<boolean> {
+    if (!forzarIgnorarCache && this.usuario && Date.now() < this.sesionOkHasta) {
+      return of(true);
+    }
     return this.http.get<AuthMe>(`${this.base}/me`, { withCredentials: true }).pipe(
       tap((res) => this.aplicarSesion(res)),
       map((res) => !!res.autenticado),
@@ -161,6 +195,7 @@ export class AuthService {
           void this.offline.limpiarSesion();
           return of(false);
         }
+        // Solo sin red: permite seguir con la última sesión en este dispositivo
         return from(this.offline.leerSesion()).pipe(
           map((cached) => {
             if (cached?.autenticado && cached.usuario) {
@@ -182,19 +217,31 @@ export class AuthService {
   }
 
   private irALogin(): void {
+    if (this.yendoALogin) return;
+    this.yendoALogin = true;
     this.limpiar();
     void this.offline.limpiarSesion();
     if (!this.router.url.startsWith('/login')) {
-      void this.router.navigateByUrl('/login', { replaceUrl: true });
+      void this.router.navigateByUrl('/login', { replaceUrl: true }).finally(() => {
+        this.yendoALogin = false;
+      });
+    } else {
+      this.yendoALogin = false;
     }
   }
 
   private aplicarSesion(res: AuthMe): void {
     if (!res.autenticado) {
+      const habiaSesion = !!this.usuario;
       this.limpiar();
       void this.offline.limpiarSesion();
+      // Sesión cerrada/caducada con red: no deja usar la app
+      if (habiaSesion && !this.offline.esOffline()) {
+        this.irALogin();
+      }
       return;
     }
+    this.yendoALogin = false;
     this.usuario = res.usuario ?? null;
     this.rol = res.rol ?? 'USER';
     if (this.usuario) {

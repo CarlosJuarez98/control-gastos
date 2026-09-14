@@ -30,11 +30,14 @@
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 0.45rem;
-  padding: 0.5rem 0.7rem;
-  border-radius: 0.85rem;
-  border: 1px solid var(--linea);
+  padding: 0.6rem 0.8rem;
+  border-radius: 1rem;
+  border: 1px solid color-mix(in srgb, var(--linea) 90%, transparent);
   margin-bottom: 0;
-  background: var(--superficie);
+  background:
+    linear-gradient(165deg, color-mix(in srgb, #fff 3.5%, transparent), transparent 45%),
+    var(--superficie);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.14);
   transition: border-color var(--dur-rapida) ease, background var(--dur-rapida) ease;
 }
 
@@ -80,16 +83,19 @@
 }
 
 .bloque {
-  background: var(--superficie);
-  border: 1px solid var(--linea);
-  border-radius: 1rem;
+  background:
+    linear-gradient(165deg, color-mix(in srgb, #fff 3.5%, transparent), transparent 42%),
+    var(--superficie);
+  border: 1px solid color-mix(in srgb, var(--linea) 90%, transparent);
+  border-radius: 1.1rem;
   padding: 1rem;
   display: grid;
   gap: 0.65rem;
   align-content: start;
   box-sizing: border-box;
   animation: anim-suave var(--dur-media) var(--ease-out) both;
-  transition: border-color var(--dur-rapida) ease, transform var(--dur-rapida) var(--ease-out);
+  transition: border-color var(--dur-rapida) ease, transform var(--dur-rapida) var(--ease-out), box-shadow var(--dur-rapida) ease;
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.16);
 }
 
 .bloque:nth-child(1) { animation-delay: 0.06s; }
@@ -98,6 +104,8 @@
 @media (hover: hover) and (pointer: fine) {
   .bloque:hover {
     border-color: color-mix(in srgb, var(--acento) 28%, var(--linea));
+    transform: translateY(-2px);
+    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.2);
   }
 }
 

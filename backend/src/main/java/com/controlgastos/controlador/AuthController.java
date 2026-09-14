@@ -80,10 +80,15 @@ public class AuthController {
     }
 
     @GetMapping("/me")
-    public Map<String, Object> me(Authentication authentication) {
+    public Map<String, Object> me(Authentication authentication, HttpServletRequest request) {
         if (authentication == null || !authentication.isAuthenticated()
                 || "anonymousUser".equals(authentication.getPrincipal())) {
             return Map.of("autenticado", false);
+        }
+        // Acceder a la sesión renueva el reloj de inactividad (20 min).
+        var session = request.getSession(false);
+        if (session != null) {
+            session.getLastAccessedTime();
         }
         return Map.of(
                 "autenticado", true,

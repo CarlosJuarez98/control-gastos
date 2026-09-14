@@ -22,7 +22,7 @@
 
 @if (!esMovil || altaAbierta) {
   <form class="alta" enterAvance (ngSubmit)="crear()">
-    <label>Usuario
+    <label class="campo-usuario">Usuario
       <input
         [(ngModel)]="form.usuario"
         (ngModelChange)="refrescarCrearOk()"
@@ -32,7 +32,13 @@
         autocomplete="off"
       />
     </label>
-    <label>Contraseña
+    <label class="campo-rol">Rol
+      <select [(ngModel)]="form.rol" name="rol">
+        <option value="USER">USER</option>
+        <option value="ADMIN">ADMIN</option>
+      </select>
+    </label>
+    <label class="campo-pass">Contraseña
       <input
         [(ngModel)]="form.password"
         (ngModelChange)="refrescarCrearOk()"
@@ -41,12 +47,6 @@
         required
         autocomplete="new-password"
       />
-    </label>
-    <label>Rol
-      <select [(ngModel)]="form.rol" name="rol">
-        <option value="USER">USER</option>
-        <option value="ADMIN">ADMIN</option>
-      </select>
     </label>
     <button type="submit" [disabled]="cargando || !formCrearOk">Crear usuario</button>
   </form>

@@ -42,17 +42,17 @@ export class AppComponent {
   private readonly pullUmbral = 78;
 
   private readonly linksBase = [
-    { path: '/resumen', label: 'Resumen', exact: true },
-    { path: '/ingresos', label: 'Ingresos', exact: false },
-    { path: '/gastos', label: 'Gastos', exact: false },
-    { path: '/mensuales', label: 'Mensuales', exact: false },
-    { path: '/cuentas', label: 'Deudas', exact: false },
-    { path: '/saldo', label: 'Saldo', exact: false },
+    { path: '/resumen', label: 'Resumen', short: 'Inicio', icon: '◈', exact: true },
+    { path: '/ingresos', label: 'Ingresos', short: 'Ingresos', icon: '↑', exact: false },
+    { path: '/gastos', label: 'Gastos', short: 'Gastos', icon: '↓', exact: false },
+    { path: '/mensuales', label: 'Mensuales', short: 'Mes', icon: '↻', exact: false },
+    { path: '/cuentas', label: 'Deudas', short: 'Deudas', icon: '▣', exact: false },
+    { path: '/saldo', label: 'Saldo', short: 'Saldo', icon: '◎', exact: false },
   ];
 
   get links() {
     if (this.auth.esAdmin) {
-      return [...this.linksBase, { path: '/usuarios', label: 'Usuarios', exact: false }];
+      return [...this.linksBase, { path: '/usuarios', label: 'Usuarios', short: 'Users', icon: '◇', exact: false }];
     }
     return this.linksBase;
   }

@@ -25,6 +25,7 @@ export const appConfig: ApplicationConfig = {
       offline.init();
       auth.initSesionViva();
       return firstValueFrom(auth.me()).then((ok) => {
+        auth.asegurarLoginSiNoHaySesion(ok);
         if (ok) return offline.sincronizar();
         return undefined;
       });

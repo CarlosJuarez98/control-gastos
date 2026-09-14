@@ -186,9 +186,8 @@ export class GastosComponent implements OnInit, OnDestroy {
   }
 
   etiquetaOpcionTdc(c: Cuenta): string {
-    const cal = calendarioCompraTdc(c, this.form.fecha);
-    if (!cal) return c.nombre || 'TDC';
-    return `${c.nombre} · paga ${cal.etiquetaPagoCorta} (${cal.diasHastaPago}d)`;
+    // Solo el nombre: textos largos en <option> ensanchan el form en móvil
+    return c.nombre || 'TDC';
   }
 
   usarRecomendacionTdc(id: number | null | undefined): void {
@@ -207,6 +206,7 @@ export class GastosComponent implements OnInit, OnDestroy {
 
   alEscribirMonto(v: string): void {
     this.form.monto = formatDineroInputFlexible(v);
+    this.cdr.markForCheck();
   }
 
   /** En móvil el teclado decimal no trae +; botón del campo. */
