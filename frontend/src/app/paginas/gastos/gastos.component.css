@@ -116,12 +116,24 @@ button.total-btn.activo {
   -webkit-appearance: none;
   margin: 0;
 }
+.hint-tdc-recs {
+  flex: 1 1 100%;
+  display: grid;
+  gap: 0.2rem;
+  margin: -0.15rem 0 0.15rem;
+}
+.hint-tdc-recs .hint-tdc-rec {
+  margin: 0;
+}
 .hint-tdc-rec {
   flex: 1 1 100%;
   margin: -0.15rem 0 0.15rem;
   font-size: 0.82rem;
   color: var(--texto-suave);
   line-height: 1.35;
+}
+.hint-tdc-rec.hint-tdc-aviso {
+  color: var(--peligro);
 }
 .hint-tdc-rec strong {
   color: var(--texto);

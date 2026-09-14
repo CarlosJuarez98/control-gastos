@@ -36,6 +36,7 @@ export class CuentasComponent implements OnInit, OnDestroy {
     limiteCredito: '',
   };
   guardandoTdc = false;
+  guardandoBloqueo = false;
   /** Nombre editable en el detalle. */
   nombreEdit = '';
   guardandoNombre = false;
@@ -567,6 +568,28 @@ export class CuentasComponent implements OnInit, OnDestroy {
   /** @deprecated */
   guardarDatosTdc(): void {
     this.guardarDatosCalendario();
+  }
+
+  /** Bloquea/desbloquea compras nuevas en Gastos (solo TDC). */
+  toggleBloqueoTdc(): void {
+    if (!this.seleccionada?.id || !this.esTdc(this.seleccionada) || this.guardandoBloqueo) return;
+    this.error = '';
+    this.guardandoBloqueo = true;
+    const body: Cuenta = {
+      ...this.seleccionada,
+      bloqueada: !this.seleccionada.bloqueada,
+    };
+    this.api.actualizarCuenta(this.seleccionada.id, body).subscribe({
+      next: (c) => {
+        this.seleccionada = c;
+        this.guardandoBloqueo = false;
+        this.cargarCuentas();
+      },
+      error: (e) => {
+        this.guardandoBloqueo = false;
+        this.error = e?.error?.error || 'No se pudo actualizar el bloqueo';
+      },
+    });
   }
 
   cambiarTipo(tipo: string): void {

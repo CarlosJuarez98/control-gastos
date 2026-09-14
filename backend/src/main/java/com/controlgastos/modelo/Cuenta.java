@@ -42,6 +42,13 @@ public class Cuenta {
     @Column(name = "LIMITE_CREDITO", precision = 14, scale = 2)
     private BigDecimal limiteCredito;
 
+    /**
+     * TDC sin compras nuevas (sigue en Deudas y se puede abonar).
+     * Null/false = compras permitidas.
+     */
+    @Column(name = "BLOQUEADA")
+    private Boolean bloqueada = Boolean.FALSE;
+
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
     public String getNombre() { return nombre; }
@@ -67,6 +74,14 @@ public class Cuenta {
     public void setDiaLimitePago(Integer diaLimitePago) { this.diaLimitePago = diaLimitePago; }
     public BigDecimal getLimiteCredito() { return limiteCredito; }
     public void setLimiteCredito(BigDecimal limiteCredito) { this.limiteCredito = limiteCredito; }
+
+    public boolean isBloqueada() {
+        return Boolean.TRUE.equals(bloqueada);
+    }
+
+    public void setBloqueada(boolean bloqueada) {
+        this.bloqueada = bloqueada;
+    }
 
     /** Crédito disponible = límite − deuda (saldo). Null si no hay límite. */
     @Transient

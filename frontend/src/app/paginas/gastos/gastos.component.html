@@ -99,16 +99,24 @@
         }
       </select>
     </label>
-    @if (recomendacionTdc; as rec) {
-      <p class="hint-tdc-rec">
-        Mejor plazo:
-        <strong>{{ rec.cuenta.nombre }}</strong>
-        · pago {{ rec.etiquetaPagoCorta }} ({{ rec.diasHastaPago }} días)
-        · {{ rec.etiquetaQuincenaPago }}
-        @if (form.cuentaId !== rec.cuenta.id) {
-          <button type="button" class="usar-rec" (click)="usarRecomendacionTdc()">Usar</button>
+    @if (recomendacionesTdc.length) {
+      <div class="hint-tdc-recs">
+        @for (rec of recomendacionesTdc; track rec.cuenta.id; let i = $index) {
+          <p class="hint-tdc-rec">
+            {{ i === 0 ? '1ª' : '2ª' }}:
+            <strong>{{ rec.cuenta.nombre }}</strong>
+            · pago {{ rec.etiquetaPagoCorta }} ({{ rec.diasHastaPago }}d)
+            @if (rec.creditoDisponible != null) {
+              · libre {{ rec.creditoDisponible | currency:'MXN':'symbol-narrow':'1.0-0' }}
+            }
+            @if (form.cuentaId !== rec.cuenta.id) {
+              <button type="button" class="usar-rec" (click)="usarRecomendacionTdc(rec.cuenta.id)">Usar</button>
+            }
+          </p>
         }
-      </p>
+      </div>
+    } @else if (sinTdcParaMonto) {
+      <p class="hint-tdc-rec hint-tdc-aviso">Ninguna TDC con crédito libre para este monto</p>
     }
     <label class="campo-toggle">
       <span>Plazo</span>
@@ -138,7 +146,6 @@
       @if (calendarioPagoUnico; as pagoUnico) {
         <p class="hint-tdc-rec">
           Pago único · vence {{ pagoUnico.etiquetaPagoCorta }}
-          · {{ pagoUnico.etiquetaQuincenaPago }}
         </p>
       }
     }

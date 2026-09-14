@@ -212,11 +212,29 @@
   letter-spacing: 0.01em;
   white-space: nowrap;
 }
+.pill-bloqueada {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--peligro);
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+}
 .hint-tdc {
   flex: 1 1 100%;
   margin: 0;
   font-size: 0.85rem;
   color: var(--texto-suave);
+}
+.meta-bloqueada {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--peligro);
+  letter-spacing: 0.01em;
+}
+button.bloqueo-activo {
+  color: var(--peligro);
+  border-color: color-mix(in srgb, var(--peligro) 45%, var(--linea));
 }
 
 .alta.tdc-datos {

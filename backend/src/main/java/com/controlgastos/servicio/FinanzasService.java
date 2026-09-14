@@ -261,6 +261,14 @@ public class FinanzasService {
             if (!"TDC".equalsIgnoreCase(cuenta.getTipo())) {
                 throw new IllegalArgumentException("Solo puedes pagar con una tarjeta de crédito (TDC)");
             }
+            boolean mismaTdc =
+                    existing != null
+                            && existing.getCuentaId() != null
+                            && existing.getCuentaId().equals(cuentaId);
+            if (cuenta.isBloqueada() && !mismaTdc) {
+                throw new IllegalArgumentException(
+                        "La tarjeta «" + cuenta.getNombre() + "» está bloqueada; no admite compras nuevas");
+            }
 
             if (existing == null || existing.getMovimientoId() == null) {
                 MovimientoCuenta mov = new MovimientoCuenta();
