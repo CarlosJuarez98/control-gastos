@@ -22,6 +22,12 @@ export class AuthService {
 
   /** Evita varias llamadas /me en paralelo al recargar. */
   private meInflight: Observable<boolean> | null = null;
+  private listenersListos = false;
+  private huboMovimiento = false;
+  private ultimoToque = 0;
+  /** Evita ráfagas de /me (guard + heartbeat) en pocos segundos. */
+  private sesionOkHasta = 0;
+  private readonly toqueMinMs = 60_000;
 
   get autenticado(): boolean {
     return !!this.usuario;
@@ -31,29 +37,45 @@ export class AuthService {
     return (this.rol || '').toUpperCase() === 'ADMIN';
   }
 
+  /**
+   * Listeners de actividad: cada movimiento (clic, tecla, scroll…) marca la sesión
+   * para renovar el timeout de 20 min en el servidor. Sin movimiento, caduca.
+   */
+  initSesionViva(): void {
+    if (this.listenersListos || typeof window === 'undefined') return;
+    this.listenersListos = true;
+    const marcar = () => {
+      this.huboMovimiento = true;
+      if (Date.now() - this.ultimoToque >= this.toqueMinMs) {
+        this.programarToque(0);
+      }
+    };
+    window.addEventListener('click', marcar, { passive: true });
+    window.addEventListener('keydown', marcar, { passive: true });
+    window.addEventListener('pointerdown', marcar, { passive: true });
+    window.addEventListener('touchstart', marcar, { passive: true });
+    window.addEventListener('scroll', marcar, { capture: true, passive: true });
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') {
+        this.huboMovimiento = true;
+        this.programarToque(0);
+      }
+    });
+    window.setInterval(() => {
+      if (!this.huboMovimiento) return;
+      if (Date.now() - this.ultimoToque < this.toqueMinMs) return;
+      this.programarToque(0);
+    }, 15_000);
+  }
+
   me(): Observable<boolean> {
-    if (this.usuario) {
+    if (this.usuario && Date.now() < this.sesionOkHasta) {
       return of(true);
     }
     if (this.meInflight) {
       return this.meInflight;
     }
-    this.meInflight = this.http.get<AuthMe>(`${this.base}/me`, { withCredentials: true }).pipe(
-      tap((res) => this.aplicarSesion(res)),
-      map((res) => !!res.autenticado),
-      catchError(() =>
-        from(this.offline.leerSesion()).pipe(
-          map((cached) => {
-            if (cached?.autenticado && cached.usuario) {
-              this.usuario = cached.usuario;
-              this.rol = cached.rol || 'USER';
-              return true;
-            }
-            this.limpiar();
-            return false;
-          }),
-        ),
-      ),
+    this.meInflight = this.consultarServidor().pipe(
       finalize(() => {
         this.meInflight = null;
       }),
@@ -68,6 +90,7 @@ export class AuthService {
       .pipe(
         tap((res) => {
           this.aplicarSesion({ ...res, autenticado: true, usuario: res.usuario ?? usuario });
+          this.marcarToqueOk();
         }),
         switchMap((res) =>
           from(this.offline.guardarSesion(res.usuario ?? usuario, res.rol || 'USER')).pipe(map(() => res)),
@@ -89,15 +112,9 @@ export class AuthService {
 
   logout(): Observable<unknown> {
     return this.http.post(`${this.base}/logout`, {}, { withCredentials: true }).pipe(
-      tap(() => {
-        this.limpiar();
-        void this.offline.limpiarSesion();
-        void this.router.navigateByUrl('/login');
-      }),
+      tap(() => this.irALogin()),
       catchError(() => {
-        this.limpiar();
-        void this.offline.limpiarSesion();
-        void this.router.navigateByUrl('/login');
+        this.irALogin();
         return of(null);
       }),
     );
@@ -108,11 +125,74 @@ export class AuthService {
     this.usuario = null;
     this.rol = null;
     this.meInflight = null;
+    this.sesionOkHasta = 0;
+  }
+
+  private programarToque(delayMs: number): void {
+    window.setTimeout(() => this.tocarSesion(), delayMs);
+  }
+
+  private tocarSesion(): void {
+    this.huboMovimiento = false;
+    if (this.router.url.startsWith('/login') && !this.usuario) {
+      return;
+    }
+    this.ultimoToque = Date.now();
+    this.consultarServidor().subscribe({
+      next: (ok) => {
+        if (!ok && !this.offline.esOffline()) {
+          this.irALogin();
+        }
+      },
+    });
+  }
+
+  private consultarServidor(): Observable<boolean> {
+    return this.http.get<AuthMe>(`${this.base}/me`, { withCredentials: true }).pipe(
+      tap((res) => this.aplicarSesion(res)),
+      map((res) => !!res.autenticado),
+      tap((ok) => {
+        if (ok) this.marcarToqueOk();
+      }),
+      catchError((err) => {
+        const redCaida = err?.status === 0 || this.offline.esOffline();
+        if (!redCaida) {
+          this.limpiar();
+          void this.offline.limpiarSesion();
+          return of(false);
+        }
+        return from(this.offline.leerSesion()).pipe(
+          map((cached) => {
+            if (cached?.autenticado && cached.usuario) {
+              this.usuario = cached.usuario;
+              this.rol = cached.rol || 'USER';
+              return true;
+            }
+            this.limpiar();
+            return false;
+          }),
+        );
+      }),
+    );
+  }
+
+  private marcarToqueOk(): void {
+    this.ultimoToque = Date.now();
+    this.sesionOkHasta = Date.now() + 8_000;
+  }
+
+  private irALogin(): void {
+    this.limpiar();
+    void this.offline.limpiarSesion();
+    if (!this.router.url.startsWith('/login')) {
+      void this.router.navigateByUrl('/login', { replaceUrl: true });
+    }
   }
 
   private aplicarSesion(res: AuthMe): void {
     if (!res.autenticado) {
       this.limpiar();
+      void this.offline.limpiarSesion();
       return;
     }
     this.usuario = res.usuario ?? null;

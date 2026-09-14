@@ -20,7 +20,7 @@ export const credentialsInterceptor: HttpInterceptorFn = (req, next) => {
         auth.limpiar();
         void offline.limpiarSesion();
         if (!router.url.startsWith('/login')) {
-          void router.navigateByUrl('/login');
+          void router.navigateByUrl('/login', { replaceUrl: true });
         }
       }
       return throwError(() => err);

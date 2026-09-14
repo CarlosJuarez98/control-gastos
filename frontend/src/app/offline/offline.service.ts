@@ -47,11 +47,11 @@ export class OfflineService {
     });
     window.addEventListener('offline', () => {
       this.online.set(false);
-      this.mostrar('offline', 'Sin conexión. Puedes seguir usando la app; los cambios se guardan aquí.');
+      this.mostrar('offline', 'Sin conexión. Puedes ver y guardar; queda en este dispositivo.');
     });
 
     if (!navigator.onLine) {
-      this.mostrar('offline', 'Sin conexión. Modo offline activo.');
+      this.mostrar('offline', 'Sin conexión. Puedes ver y guardar; queda en este dispositivo.');
     }
   }
 
@@ -96,7 +96,48 @@ export class OfflineService {
 
   async leerCache<T>(url: string): Promise<T | undefined> {
     const hit = await cacheGet(cacheKeyFromUrl(url)) as { body: T } | undefined;
-    return hit?.body;
+    const body = hit?.body;
+    if (Array.isArray(body) || body === undefined) {
+      const merged = await this.aplicarColaSobreLista(url, Array.isArray(body) ? body : []);
+      if (Array.isArray(body)) return merged as T;
+      if (merged.length > 0) return merged as T;
+      return undefined;
+    }
+    return body;
+  }
+
+  /** Asegura que lo guardado offline se vea en la lista, no solo “pendiente de sync”. */
+  private async aplicarColaSobreLista(listUrl: string, list: unknown[]): Promise<unknown[]> {
+    const items = await queueAll();
+    if (!items.length) return list;
+    const path = cacheKeyFromUrl(listUrl).split('?')[0];
+    let next = [...list];
+    for (const item of items) {
+      const itemPath = item.url.split('?')[0];
+      const method = item.method.toUpperCase();
+      if (method === 'POST' && itemPath === path) {
+        const body =
+          item.body && typeof item.body === 'object'
+            ? { ...(item.body as Record<string, unknown>) }
+            : {};
+        const tempId = body['id'] ?? -item.createdAt;
+        const ya = next.some((row) => Number((row as { id?: number }).id) === Number(tempId));
+        if (!ya) next.push({ ...body, id: tempId, _offline: true });
+      } else if ((method === 'PUT' || method === 'PATCH') && itemPath.startsWith(`${path}/`)) {
+        const id = Number(itemPath.slice(path.length + 1).split('/')[0]);
+        if (!Number.isFinite(id)) continue;
+        const body =
+          item.body && typeof item.body === 'object' ? (item.body as Record<string, unknown>) : {};
+        next = next.map((row) =>
+          Number((row as { id?: number }).id) === id ? { ...(row as object), ...body, id } : row,
+        );
+      } else if (method === 'DELETE' && itemPath.startsWith(`${path}/`)) {
+        const id = Number(itemPath.slice(path.length + 1).split('/')[0]);
+        if (!Number.isFinite(id)) continue;
+        next = next.filter((row) => Number((row as { id?: number }).id) !== id);
+      }
+    }
+    return next;
   }
 
   async encolar(
@@ -115,11 +156,6 @@ export class OfflineService {
     await queueAdd(item);
     await this.refreshPendientes();
     const synthetic = await this.aplicarOptimistic(item);
-    this.mostrar(
-      'offline',
-      `Guardado offline (${this.pendientes()} pendiente${this.pendientes() === 1 ? '' : 's'}). Se subirá al volver la red.`,
-      6000,
-    );
     return { id, synthetic };
   }
 
