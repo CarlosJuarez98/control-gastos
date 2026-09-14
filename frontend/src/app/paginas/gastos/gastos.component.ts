@@ -9,7 +9,7 @@ import { formatFechaCorta, fechaHoyLocal } from '../../fecha.util';
 import { EnterAvanceDirective } from '../../enter-avance.directive';
 import { PaginadorComponent } from '../../compartido/paginador/paginador.component';
 import { PaginasPorClave } from '../../compartido/paginar.util';
-import { calendarioCompraTdc, recomendarTdc, CalendarioTdc } from '../../tdc-calendario.util';
+import { calendarioCompraTdc, recomendarTdcs, RecomendacionTdc, CalendarioTdc } from '../../tdc-calendario.util';
 
 export interface GastoFila {
   id?: number;
@@ -133,10 +133,16 @@ export class GastosComponent implements OnInit, OnDestroy {
       next: (r) => {
         this.cuentas = r;
         this.cuentasTdc = r
-          .filter((c) => (c.tipo || '').toUpperCase() === 'TDC')
+          .filter((c) => (c.tipo || '').toUpperCase() === 'TDC' && !c.bloqueada)
           .sort((a, b) =>
             (a.nombre || '').localeCompare(b.nombre || '', 'es', { sensitivity: 'base' })
           );
+        if (
+          this.form.cuentaId != null &&
+          !this.cuentasTdc.some((c) => c.id === this.form.cuentaId)
+        ) {
+          this.form.cuentaId = null;
+        }
         this.cdr.markForCheck();
       },
       error: () => {
@@ -155,10 +161,19 @@ export class GastosComponent implements OnInit, OnDestroy {
     }
   }
 
-  /** TDC con más días hasta el pago del ciclo de la fecha del gasto. */
-  get recomendacionTdc(): CalendarioTdc | null {
-    if (this.form.formaPago !== 'TARJETA') return null;
-    return recomendarTdc(this.cuentasTdc, this.form.fecha);
+  /** Hasta 2 TDC: cubren el monto (crédito libre) y mejor plazo de pago. */
+  get recomendacionesTdc(): RecomendacionTdc[] {
+    if (this.form.formaPago !== 'TARJETA') return [];
+    const monto = parseDineroSuma(this.form.monto).total;
+    return recomendarTdcs(this.cuentasTdc, this.form.fecha, monto, 2);
+  }
+
+  /** Hay monto pero ninguna TDC con crédito libre suficiente. */
+  get sinTdcParaMonto(): boolean {
+    if (this.form.formaPago !== 'TARJETA') return false;
+    const monto = parseDineroSuma(this.form.monto).total;
+    if (!(monto > 0) || !this.cuentasTdc.length) return false;
+    return this.recomendacionesTdc.length === 0;
   }
 
   /** Compra de contado (no a meses): ciclo de pago según corte de la TDC elegida. */
@@ -176,8 +191,7 @@ export class GastosComponent implements OnInit, OnDestroy {
     return `${c.nombre} · paga ${cal.etiquetaPagoCorta} (${cal.diasHastaPago}d)`;
   }
 
-  usarRecomendacionTdc(): void {
-    const id = this.recomendacionTdc?.cuenta?.id;
+  usarRecomendacionTdc(id: number | null | undefined): void {
     if (id == null) return;
     this.form.cuentaId = id;
     this.cdr.markForCheck();

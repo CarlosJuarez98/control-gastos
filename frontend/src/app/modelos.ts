@@ -63,6 +63,8 @@ export interface Cuenta {
   limiteCredito?: number | null;
   /** límite − deuda (viene del API). */
   creditoDisponible?: number | null;
+  /** TDC sin compras nuevas (sigue en Deudas). */
+  bloqueada?: boolean;
 }
 
 export interface Movimiento {

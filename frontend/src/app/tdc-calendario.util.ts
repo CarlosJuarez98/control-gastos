@@ -274,19 +274,54 @@ export function proximoPagoPendiente(cuenta: Cuenta, hoy = new Date()): Calendar
   };
 }
 
-/** Mejor TDC para comprar en `fecha`: más días hasta el pago del ciclo. */
-export function recomendarTdc(cuentas: Cuenta[], fechaCompra: Date | string): CalendarioTdc | null {
-  const cals = cuentas
-    .filter((c) => (c.tipo || '').toUpperCase() === 'TDC')
-    .map((c) => calendarioCompraTdc(c, fechaCompra))
-    .filter((c): c is CalendarioTdc => !!c);
-  if (!cals.length) return null;
+/** Crédito libre = límite − deuda. Null si no hay límite capturado. */
+export function creditoDisponibleDe(cuenta: Cuenta): number | null {
+  if (cuenta.creditoDisponible != null && Number.isFinite(Number(cuenta.creditoDisponible))) {
+    return Math.round(Number(cuenta.creditoDisponible) * 100) / 100;
+  }
+  if (cuenta.limiteCredito == null || cuenta.limiteCredito === undefined) return null;
+  return Math.round((Number(cuenta.limiteCredito) - Number(cuenta.saldoActual || 0)) * 100) / 100;
+}
+
+export interface RecomendacionTdc extends CalendarioTdc {
+  creditoDisponible: number | null;
+  cubreMonto: boolean;
+}
+
+/**
+ * Hasta 2 TDC recomendadas para una compra:
+ * - Con monto > 0: solo las que tienen crédito libre ≥ monto; orden por más días a pago.
+ * - Sin monto: las de mejor plazo (igual que antes).
+ */
+export function recomendarTdcs(
+  cuentas: Cuenta[],
+  fechaCompra: Date | string,
+  monto = 0,
+  max = 2,
+): RecomendacionTdc[] {
+  const montoOk = Number.isFinite(monto) && monto > 0;
+  const cals: RecomendacionTdc[] = [];
+  for (const c of cuentas) {
+    if ((c.tipo || '').toUpperCase() !== 'TDC' || c.bloqueada) continue;
+    const cal = calendarioCompraTdc(c, fechaCompra);
+    if (!cal) continue;
+    const disponible = creditoDisponibleDe(c);
+    const cubre = disponible != null && disponible + 1e-9 >= monto;
+    if (montoOk && !cubre) continue;
+    cals.push({ ...cal, creditoDisponible: disponible, cubreMonto: cubre });
+  }
   cals.sort(
     (a, b) =>
       b.diasHastaPago - a.diasHastaPago ||
+      (b.creditoDisponible ?? -Infinity) - (a.creditoDisponible ?? -Infinity) ||
       (a.cuenta.nombre || '').localeCompare(b.cuenta.nombre || '', 'es'),
   );
-  return cals[0];
+  return cals.slice(0, Math.max(0, max));
+}
+
+/** Mejor TDC para comprar en `fecha`: más días hasta el pago del ciclo. */
+export function recomendarTdc(cuentas: Cuenta[], fechaCompra: Date | string): CalendarioTdc | null {
+  return recomendarTdcs(cuentas, fechaCompra, 0, 1)[0] ?? null;
 }
 
 export function pagosPorQuincena(cuentas: Cuenta[], hoy = new Date()): {

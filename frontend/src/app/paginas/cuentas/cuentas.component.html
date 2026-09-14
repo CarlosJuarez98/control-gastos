@@ -101,6 +101,9 @@
                 <li [id]="'cuenta-' + c.id" [class.activa]="seleccionada?.id === c.id">
                   <a [routerLink]="linkCuenta(c)" (click)="alClicCuenta(c)">
                     <strong>{{ c.nombre }}</strong>
+                    @if (esTdc(c) && c.bloqueada) {
+                      <small class="meta-bloqueada">Bloqueada</small>
+                    }
                     @if (esConCalendario(c) && (c.diaCorte || c.diaLimitePago)) {
                       <small class="meta-tdc">{{ textoCalendario(c.diaCorte, c.diaLimitePago) }}</small>
                     }
@@ -221,6 +224,9 @@
             @if (esConCalendario(seleccionada) && creditoDisponibleDe(seleccionada) != null) {
               <span class="pill-disponible">Crédito libre {{ creditoDisponibleDe(seleccionada) | currency:'MXN':'symbol-narrow':'1.2-2' }}</span>
             }
+            @if (esTdc(seleccionada) && seleccionada.bloqueada) {
+              <span class="pill-bloqueada">Sin compras</span>
+            }
           </p>
         </div>
         <div class="detalle-acciones">
@@ -233,6 +239,17 @@
               @for (t of tipos; track t) { <option [value]="t">{{ etiquetaTipo(t) }}</option> }
             </select>
           </label>
+          @if (esTdc(seleccionada)) {
+            <button
+              type="button"
+              class="secundario"
+              [class.bloqueo-activo]="seleccionada.bloqueada"
+              [disabled]="guardandoBloqueo"
+              (click)="toggleBloqueoTdc()"
+            >
+              {{ seleccionada.bloqueada ? 'Desbloquear compras' : 'Bloquear compras' }}
+            </button>
+          }
           @if (puedeEliminarCuenta) {
             <button type="button" class="peligro" (click)="eliminarCuenta()">Eliminar cuenta</button>
           }
@@ -426,6 +443,17 @@
               @for (t of tipos; track t) { <option [value]="t">{{ etiquetaTipo(t) }}</option> }
             </select>
           </label>
+          @if (esTdc(seleccionada)) {
+            <button
+              type="button"
+              class="secundario"
+              [class.bloqueo-activo]="seleccionada.bloqueada"
+              [disabled]="guardandoBloqueo"
+              (click)="toggleBloqueoTdc()"
+            >
+              {{ seleccionada.bloqueada ? 'Desbloquear compras' : 'Bloquear compras' }}
+            </button>
+          }
           @if (puedeEliminarCuenta) {
             <button type="button" class="peligro" (click)="eliminarCuenta()">Eliminar cuenta</button>
           }
