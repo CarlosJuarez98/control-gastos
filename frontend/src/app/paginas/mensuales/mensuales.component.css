@@ -440,6 +440,16 @@ button.cuota:hover {
     flex: none;
   }
   .alta .campo-motivo,
+  .alta .campo-monto,
+  .alta .campo-dia,
+  .alta .campo-falta,
+  label.campo-toggle {
+    width: auto;
+    min-width: 0;
+    max-width: none;
+    flex: none;
+  }
+  .alta .campo-motivo,
   .alta .campo-falta,
   .alta .hint-plan,
   .alta .alta-acciones {
@@ -454,8 +464,18 @@ button.cuota:hover {
     max-height: 2.75rem;
   }
   label.campo-toggle { width: auto; min-width: 0; max-width: none; }
-  .alta-acciones { width: 100%; }
-  .alta-acciones button { flex: 1 1 auto; min-height: 2.75rem; width: 100%; }
+  .alta-acciones {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.45rem;
+    width: 100%;
+  }
+  .alta-acciones button {
+    flex: none;
+    min-height: 2.75rem;
+    width: 100%;
+  }
   .item-info {
     flex-direction: column;
     align-items: flex-start;
@@ -468,6 +488,12 @@ button.cuota:hover {
   .lista li .acciones {
     width: 100%;
     justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+  }
+  .lista li .acciones button.cuota {
+    flex: 1 1 auto;
+    min-width: min(100%, 9rem);
   }
   .pagos-prog {
     padding: 0.8rem 0.85rem;

@@ -686,12 +686,27 @@ button:disabled { opacity: 0.65; cursor: not-allowed; transform: none; filter: n
   .alta .campo-monto,
   .alta .campo-pago,
   .alta .campo-motivo {
+    width: auto;
+    min-width: 0;
     max-width: none;
+    flex: none;
   }
   .alta .campo-motivo,
   .alta .bloque-tarjeta,
   .alta .alta-acciones {
     grid-column: 1 / -1;
+  }
+  .alta-acciones {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.45rem;
+    width: 100%;
+  }
+  .alta-acciones button {
+    flex: none;
+    width: 100%;
+    min-height: 2.75rem;
   }
   .alta label > input,
   .alta label > select,
@@ -718,8 +733,6 @@ button:disabled { opacity: 0.65; cursor: not-allowed; transform: none; filter: n
     max-width: none;
   }
   label.campo-toggle { width: auto; min-width: 0; max-width: none; }
-  .alta-acciones { width: 100%; }
-  .alta-acciones button { flex: 1 1 auto; width: 100%; min-height: 2.75rem; }
   .buscar-wrap { max-width: none; width: 100%; }
   .buscar { max-width: none; width: 100%; }
   .hint-tdc-recs {
@@ -814,13 +827,18 @@ button:disabled { opacity: 0.65; cursor: not-allowed; transform: none; filter: n
   .alta .campo-categoria,
   .alta .campo-monto,
   .alta .campo-pago,
-  .alta .campo-motivo { max-width: none; }
+  .alta .campo-motivo { width: auto; min-width: 0; max-width: none; flex: none; }
   .alta .campo-motivo,
   .alta .bloque-tarjeta,
   .alta .alta-acciones { grid-column: 1 / -1; }
   label.campo-toggle { width: auto; min-width: 0; }
-  .alta-acciones { width: 100%; }
-  .alta-acciones button { width: 100%; }
+  .alta-acciones {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    width: 100%;
+  }
+  .alta-acciones button { width: 100%; flex: none; }
   .totales .total-btn { padding: 0.4rem 0.65rem; }
   .totales strong {
     font-size: clamp(0.75rem, 2.8vw, 0.95rem);
