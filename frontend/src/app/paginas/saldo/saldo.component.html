@@ -15,7 +15,7 @@
   </div>
 }
 
-<div class="comparacion" [class.ok-box]="cuadra && !cargandoEsperado && realComparacion > 0">
+<div class="comparacion" [class.ok-box]="cuadra && !cargandoEsperado && realComparacion > 0" [class.sin-tengo]="!hayCaptura">
   <article>
     <span>Debería</span>
     <strong class="mono">{{ esperado | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
@@ -27,10 +27,12 @@
       <small>{{ ultimoCorte!.fecha | fechaCorta }}</small>
     }
   </article>
-  <article>
-    <span>Tengo</span>
-    <strong class="mono">{{ real | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
-  </article>
+  @if (hayCaptura) {
+    <article>
+      <span>Tengo</span>
+      <strong class="mono">{{ real | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
+    </article>
+  }
   <article>
     <span>Diferencia</span>
     <strong
@@ -356,7 +358,11 @@
 @if (esMovil) {
   <div class="barra-guardar">
     <div class="barra-totales">
-      <span>Tengo <strong class="mono">{{ real | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong></span>
+      @if (hayCaptura) {
+        <span>Tengo <strong class="mono">{{ real | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong></span>
+      } @else {
+        <span>Tuve <strong class="mono">{{ tuve | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong></span>
+      }
       <span
         [class.diff-falta]="diferencia < 0 && realComparacion > 0"
         [class.diff-demas]="diferencia > 0 && realComparacion > 0"

@@ -41,6 +41,10 @@
   transition: border-color var(--dur-rapida) ease, background var(--dur-rapida) ease;
 }
 
+.comparacion.sin-tengo {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
 .comparacion.ok-box {
   border-color: color-mix(in srgb, var(--ok) 45%, var(--linea));
   background: color-mix(in srgb, var(--ok) 8%, var(--superficie));
@@ -516,8 +520,14 @@ input[type='number'] {
     top: 0;
     z-index: 5;
   }
+  .comparacion.sin-tengo {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
   .comparacion article strong {
     font-size: 0.95rem;
+  }
+  .comparacion.sin-tengo article strong {
+    font-size: 0.88rem;
   }
   .comparacion article span {
     font-size: 0.68rem;
@@ -610,44 +620,60 @@ input[type='number'] {
   }
 
   .denoms.filas {
-    grid-template-columns: 1fr;
-    gap: 0.3rem;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.28rem 0.4rem;
   }
   .bloque label.denom-row,
   .denoms.filas .denom-row {
-    display: flex;
-    flex-direction: row;
+    display: grid;
+    grid-template-columns: minmax(2.6rem, auto) minmax(2.4rem, 2.8rem) minmax(0, 1fr);
     align-items: center;
-    justify-content: flex-start;
-    gap: 0.4rem;
+    gap: 0.28rem;
     margin: 0;
-    padding: 0.35rem 0.5rem;
+    padding: 0.28rem 0.4rem;
     border: 1px solid var(--linea);
-    border-radius: 0.65rem;
+    border-radius: 0.55rem;
     background: color-mix(in srgb, var(--superficie-2) 70%, transparent);
     text-align: left;
-    font-size: 0.85rem;
-  }
-  .denoms.filas .denom-row .valor {
-    flex: 0 0 auto;
-    min-width: 3.4rem;
-    font-weight: 700;
-    font-size: 0.9rem;
-  }
-  .denoms.filas .denom-row .subtotal-denom {
-    flex: 1 1 auto;
-    text-align: right;
     font-size: 0.78rem;
   }
+  .denoms.filas .denom-row .valor {
+    flex: none;
+    min-width: 0;
+    font-weight: 700;
+    font-size: 0.82rem;
+  }
+  .denoms.filas .denom-row .subtotal-denom {
+    flex: none;
+    text-align: right;
+    font-size: 0.72rem;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
   .denoms.filas .cant-input {
-    flex: 0 0 auto;
-    width: 3.2rem !important;
-    max-width: 4.5rem;
-    min-width: 2.8rem;
-    min-height: 2.2rem;
-    padding: 0.3rem 0.25rem;
-    font-size: 1rem;
+    flex: none;
+    width: 100% !important;
+    max-width: none;
+    min-width: 0;
+    min-height: 2rem;
+    padding: 0.2rem 0.15rem;
+    font-size: 0.95rem;
     font-weight: 600;
+    text-align: center;
+  }
+  .bloque.bloque-efectivo {
+    padding: 0.55rem 0.6rem;
+    gap: 0.35rem;
+  }
+  .bloque-efectivo .bloque-cab {
+    margin-bottom: 0.15rem;
+  }
+  .bloque-efectivo .bloque-cab h2 {
+    font-size: 0.88rem;
+  }
+  .bloque-efectivo .subtotal {
+    font-size: 0.8rem;
   }
 
   .barra-guardar {

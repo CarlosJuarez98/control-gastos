@@ -462,6 +462,18 @@ button:disabled { opacity: 0.65; cursor: not-allowed; transform: none; filter: n
   .alta-acciones {
     grid-column: 1 / -1;
   }
+  .alta-acciones {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.45rem;
+    width: 100%;
+  }
+  .alta-acciones button {
+    flex: none;
+    width: 100%;
+    min-height: 2.75rem;
+  }
   .alta label > input,
   .alta label > select,
   .alta .monto-wrap {
@@ -469,8 +481,6 @@ button:disabled { opacity: 0.65; cursor: not-allowed; transform: none; filter: n
     min-height: 2.75rem;
     max-height: 2.75rem;
   }
-  .alta-acciones { width: 100%; }
-  .alta-acciones button { flex: 1 1 auto; width: 100%; min-height: 2.75rem; }
   .buscar-wrap { max-width: none; width: 100%; }
   .buscar { max-width: none; width: 100%; }
   .quincena-tit {
