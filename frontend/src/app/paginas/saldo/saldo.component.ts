@@ -174,8 +174,8 @@ export class SaldoComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * Debería tener lo calcula el backend: último corte
-   * + ingresos − gastos (efectivo) − abonos posteriores al corte.
+   * Neto desde el último corte: ingresos − gastos − abonos (sin sumar el monto del corte).
+   * Lo calcula el backend en `esperado`.
    */
   recalcularEsperado(): void {
     this.cargandoEsperado = true;
@@ -183,18 +183,25 @@ export class SaldoComponent implements OnInit, OnDestroy {
       next: (r) => {
         if (r.esperado != null && Number.isFinite(Number(r.esperado))) {
           this.esperado = this.redondear(this.n(r.esperado));
-        } else if (r.saldo && Object.keys(r.saldo).length) {
-          this.esperado = this.redondear(this.n(r.saldo.saldoTotal));
         } else {
           this.esperado = 0;
         }
         this.cargandoEsperado = false;
       },
       error: () => {
-        this.esperado = this.redondear(this.baselineSaldo);
+        this.esperado = 0;
         this.cargandoEsperado = false;
       },
     });
+  }
+
+  /**
+   * Lo que deberías tener al contar: efectivo del último corte (Tuve)
+   * + neto de ingresos/gastos/abonos posteriores. El disponible de Deudas
+   * no usa este total; solo el flujo (ingresos − gastos − abonos).
+   */
+  get deberia(): number {
+    return this.redondear(this.tuve + this.esperado);
   }
 
   private n(v: number | string | null | undefined): number {
@@ -290,7 +297,7 @@ export class SaldoComponent implements OnInit, OnDestroy {
     if (!this.hayCaptura && this.tuve <= 0) {
       return 0;
     }
-    return this.redondear(this.realComparacion - this.esperado);
+    return this.redondear(this.realComparacion - this.deberia);
   }
 
   get cuadra(): boolean {
@@ -415,7 +422,7 @@ export class SaldoComponent implements OnInit, OnDestroy {
     const conteoKeep = this.conteoEfectivoActivo;
     const payload: SaldoSnapshot = {
       fecha: corte,
-      saldoTotal: this.esperado,
+      saldoTotal: this.deberia,
       totalFisico: efectivoKeep,
       dineroBbva: this.dineroONull('dineroBbva'),
       dineroMercadoLibre: this.dineroONull('dineroMercadoLibre'),
@@ -426,7 +433,7 @@ export class SaldoComponent implements OnInit, OnDestroy {
     this.guardando = true;
     this.api.guardarSaldo(payload).subscribe({
       next: (guardado) => {
-        this.baselineSaldo = this.esperado;
+        this.baselineSaldo = this.deberia;
         this.baselineFecha = corte;
         if (guardado) {
           this.historial = [guardado, ...this.historial.filter((h) => h.id !== guardado.id)];

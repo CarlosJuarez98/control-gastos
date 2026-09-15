@@ -288,6 +288,16 @@
   letter-spacing: 0.01em;
   white-space: normal;
 }
+.pill-disponible.pill-aviso {
+  color: var(--peligro);
+}
+.hint-disponible-aviso {
+  grid-column: 1 / -1;
+  margin: 0;
+  font-size: 0.8rem;
+  line-height: 1.35;
+  color: var(--peligro);
+}
 .pill-bloqueada {
   font-size: 0.78rem;
   font-weight: 700;
@@ -790,6 +800,33 @@ tr.editando td {
     margin-bottom: 0.35rem;
     padding: 0.55rem 0.65rem;
     gap: 0.45rem;
+  }
+
+  /* Tipo + Fecha: ancho completo (antes caían en 1 celda del grid 2 cols). */
+  .alta-mov .fila-rapida,
+  .alta-rapida .fila-rapida {
+    grid-column: 1 / -1;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .alta-mov .fila-tipo-fecha {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.55rem;
+  }
+
+  .alta-mov .fila-tipo-fecha label > select,
+  .alta-mov .fila-tipo-fecha label > input[type='date'] {
+    width: 100%;
+    height: 3.05rem;
+    min-height: 3.05rem;
+    max-height: none;
+    font-size: 1rem;
+    box-sizing: border-box;
+  }
+
+  .alta-mov .hint-disponible-aviso {
+    grid-column: 1 / -1;
   }
 
   .detalle-acciones {

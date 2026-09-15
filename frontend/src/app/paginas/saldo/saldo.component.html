@@ -18,7 +18,7 @@
 <div class="comparacion" [class.ok-box]="cuadra && !cargandoEsperado && realComparacion > 0" [class.sin-tengo]="!hayCaptura">
   <article>
     <span>Debería</span>
-    <strong class="mono">{{ esperado | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
+    <strong class="mono">{{ deberia | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
   </article>
   <article>
     <span>Tuve</span>

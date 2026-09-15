@@ -839,9 +839,12 @@ public class FinanzasService {
     }
 
     /**
-     * Debería tener = saldo teórico del último corte
-     * + ingresos − gastos líquidos − abonos a deudas propias
-     * − préstamos otorgados (CARGO prestamista) + cobros (ABONO/REEMBOLSO prestamista).
+     * Disponible = ingresos − gastos líquidos − abonos a deudas propias
+     * − préstamos otorgados + cobros de préstamos.
+     * <p>
+     * No usa el monto del corte de Saldo: el corte es solo conteo físico.
+     * Si hay corte, se toman solo movimientos <strong>posteriores</strong> a ese punto
+     * (marcas de id); si no hay corte, el flujo completo.
      */
     @Transactional
     public BigDecimal calcularEsperadoActual() {
@@ -851,28 +854,33 @@ public class FinanzasService {
     private BigDecimal calcularEsperadoActual(String u) {
         SaldoSnapshot corte = saldoRepository.findFirstByPropietarioOrderByFechaDescIdDesc(u).orElse(null);
         if (corte == null) {
-            return nullSafe(ingresoRepository.sumaTotal(u))
-                    .subtract(nullSafe(gastoRepository.sumaLiquidaTotal(u)))
-                    .subtract(nullSafe(movimientoRepository.sumaAbonosTotal(u)))
-                    .subtract(nullSafe(movimientoRepository.sumaPrestamosOtorgadosTotal(u)))
-                    .add(nullSafe(movimientoRepository.sumaCobrosPrestamoOtorgadoTotal(u)));
+            return flujoDisponible(u, 0L, 0L, 0L);
         }
         asegurarMarcasCorte(u, corte);
         long ingId = corte.getUltimoIngresoId() == null ? 0L : corte.getUltimoIngresoId();
         long gasId = corte.getUltimoGastoId() == null ? 0L : corte.getUltimoGastoId();
         long movId = corte.getUltimoMovimientoId() == null ? 0L : corte.getUltimoMovimientoId();
+        return flujoDisponible(u, ingId, gasId, movId);
+    }
 
-        BigDecimal ingresos = nullSafe(ingresoRepository.sumaDespuesDeId(u, ingId));
-        BigDecimal gastos = nullSafe(gastoRepository.sumaLiquidaDespuesDeId(u, gasId));
-        BigDecimal abonos = nullSafe(movimientoRepository.sumaAbonosDespuesDeId(u, movId));
-        BigDecimal prestamos = nullSafe(movimientoRepository.sumaPrestamosOtorgadosDespuesDeId(u, movId));
-        BigDecimal cobros = nullSafe(movimientoRepository.sumaCobrosPrestamoOtorgadoDespuesDeId(u, movId));
-        return nullSafe(corte.getSaldoTotal())
-                .add(ingresos)
-                .subtract(gastos)
-                .subtract(abonos)
-                .subtract(prestamos)
-                .add(cobros);
+    /** Suma de flujo después de los ids dados (0 = desde el inicio). Sin sumar ningún corte. */
+    private BigDecimal flujoDisponible(String u, long despuesIngresoId, long despuesGastoId, long despuesMovId) {
+        BigDecimal ingresos = despuesIngresoId <= 0
+                ? nullSafe(ingresoRepository.sumaTotal(u))
+                : nullSafe(ingresoRepository.sumaDespuesDeId(u, despuesIngresoId));
+        BigDecimal gastos = despuesGastoId <= 0
+                ? nullSafe(gastoRepository.sumaLiquidaTotal(u))
+                : nullSafe(gastoRepository.sumaLiquidaDespuesDeId(u, despuesGastoId));
+        BigDecimal abonos = despuesMovId <= 0
+                ? nullSafe(movimientoRepository.sumaAbonosTotal(u))
+                : nullSafe(movimientoRepository.sumaAbonosDespuesDeId(u, despuesMovId));
+        BigDecimal prestamos = despuesMovId <= 0
+                ? nullSafe(movimientoRepository.sumaPrestamosOtorgadosTotal(u))
+                : nullSafe(movimientoRepository.sumaPrestamosOtorgadosDespuesDeId(u, despuesMovId));
+        BigDecimal cobros = despuesMovId <= 0
+                ? nullSafe(movimientoRepository.sumaCobrosPrestamoOtorgadoTotal(u))
+                : nullSafe(movimientoRepository.sumaCobrosPrestamoOtorgadoDespuesDeId(u, despuesMovId));
+        return ingresos.subtract(gastos).subtract(abonos).subtract(prestamos).add(cobros);
     }
 
     /** Cada guardado es un corte nuevo (historial); no sobrescribe el anterior. */
