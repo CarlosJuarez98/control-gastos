@@ -71,6 +71,8 @@ export class CuentasComponent implements OnInit, OnDestroy {
   private onMedia?: () => void;
   /** Al cerrar, re-centrar esta deuda sin saltar al inicio. */
   private anclarTrasCerrarId: number | null = null;
+  /** Scroll del host capturado en el clic (antes de que el DOM crezca/encoja). */
+  private scrollTopAlClic: number | null = null;
 
   constructor(
     private api: ApiService,
@@ -102,7 +104,8 @@ export class CuentasComponent implements OnInit, OnDestroy {
         const anclarId = this.anclarTrasCerrarId;
         this.anclarTrasCerrarId = null;
         const hostEl = this.host.nativeElement;
-        const topGuardado = hostEl.scrollTop;
+        const topGuardado = this.scrollTopAlClic ?? hostEl.scrollTop;
+        this.scrollTopAlClic = null;
         this.seleccionada = undefined;
         this.movimientos = [];
         this.nombreEdit = '';
@@ -111,11 +114,7 @@ export class CuentasComponent implements OnInit, OnDestroy {
         this.movilHistorialAbierto = false;
         if (this.esMovil && anclarId != null) {
           this.cdr.detectChanges();
-          requestAnimationFrame(() => {
-            const max = Math.max(0, hostEl.scrollHeight - hostEl.clientHeight);
-            hostEl.scrollTop = Math.min(topGuardado, max);
-            this.anclarCuentaEnVista(anclarId);
-          });
+          this.restaurarScroll(topGuardado, anclarId);
         }
       }
     });
@@ -129,18 +128,23 @@ export class CuentasComponent implements OnInit, OnDestroy {
 
   /**
    * Segundo clic en la deuda abierta la cierra (PC y móvil).
+   * El link siempre apunta a la deuda; el cierre se hace en alClicCuenta.
    */
-  linkCuenta(c: Cuenta): string | any[] {
-    if (c.id && this.seleccionada?.id === c.id) {
-      return '/cuentas';
-    }
+  linkCuenta(c: Cuenta): any[] {
     return ['/cuentas', c.id];
   }
 
-  /** Marca ancla de scroll solo al cerrar (no en cada CD). */
-  alClicCuenta(c: Cuenta): void {
-    if (this.esMovil && c.id && this.seleccionada?.id === c.id) {
+  /** Guarda scroll antes de navegar; segundo clic cierra sin saltar arriba. */
+  alClicCuenta(ev: Event, c: Cuenta): void {
+    if (!c.id) return;
+    if (this.esMovil) {
+      this.scrollTopAlClic = this.host.nativeElement.scrollTop;
+    }
+    if (this.seleccionada?.id === c.id) {
+      ev.preventDefault();
+      ev.stopPropagation();
       this.anclarTrasCerrarId = c.id;
+      void this.router.navigateByUrl('/cuentas');
     }
   }
 
@@ -148,11 +152,32 @@ export class CuentasComponent implements OnInit, OnDestroy {
     this.altaNuevaAbierta = !this.altaNuevaAbierta;
   }
 
-  private anclarCuentaEnVista(id: number): void {
+  private restaurarScroll(top: number, anclarId?: number | null): void {
+    const hostEl = this.host.nativeElement;
     const aplicar = () => {
-      const fila = this.host.nativeElement.querySelector(`#cuenta-${id}`) as HTMLElement | null;
-      if (fila) {
-        fila.scrollIntoView({ behavior: 'auto', block: 'nearest', inline: 'nearest' });
+      const max = Math.max(0, hostEl.scrollHeight - hostEl.clientHeight);
+      hostEl.scrollTop = Math.min(Math.max(0, top), max);
+      if (anclarId != null) {
+        const fila = hostEl.querySelector(`#cuenta-${anclarId}`) as HTMLElement | null;
+        if (fila) {
+          fila.scrollIntoView({ behavior: 'auto', block: 'nearest', inline: 'nearest' });
+        }
+      }
+    };
+    requestAnimationFrame(() => requestAnimationFrame(aplicar));
+  }
+
+  private anclarCuentaEnVista(id: number, modo: ScrollLogicalPosition = 'start'): void {
+    const aplicar = () => {
+      const hostEl = this.host.nativeElement;
+      const fila = hostEl.querySelector(`#cuenta-${id}`) as HTMLElement | null;
+      if (!fila) return;
+      // Preferir scroll del host (móvil); scrollIntoView a veces mueve el viewport mal.
+      const hostTop = hostEl.getBoundingClientRect().top;
+      const filaTop = fila.getBoundingClientRect().top;
+      const delta = filaTop - hostTop - 8;
+      if (modo === 'start' || Math.abs(delta) > 4) {
+        hostEl.scrollTop = Math.max(0, hostEl.scrollTop + delta);
       }
     };
     requestAnimationFrame(() => requestAnimationFrame(aplicar));
@@ -415,6 +440,19 @@ export class CuentasComponent implements OnInit, OnDestroy {
     return !!this.seleccionada && this.esPrestamista(this.seleccionada);
   }
 
+  /** Abono/reembolso a deuda propia: sí resta de tu disponible (efectivo teórico). */
+  get esPagoConDisponible(): boolean {
+    if (!this.seleccionada || this.seleccionPrestamista) return false;
+    const t = (this.mov.tipo || '').toUpperCase();
+    return t === 'ABONO' || t === 'REEMBOLSO';
+  }
+
+  get abonoSuperaDisponible(): boolean {
+    if (!this.esPagoConDisponible || this.saldoDisponible == null) return false;
+    const monto = parseDinero(this.montoMov);
+    return monto != null && monto > 0 && monto > this.saldoDisponible + 1e-9;
+  }
+
   get misDeudasPendientes(): Cuenta[] {
     return this.cuentas
       .filter((c) => !this.esPrestamista(c) && Number(c.saldoActual) !== 0)
@@ -505,9 +543,19 @@ export class CuentasComponent implements OnInit, OnDestroy {
             this.cdr.markForCheck();
           },
         });
-        // En móvil: anclar la deuda (no el fondo del panel) para registrar sin saltar
+        // En móvil: dejar la deuda abierta a la altura del clic (cabecera visible arriba).
         if (this.esMovil) {
-          setTimeout(() => this.anclarCuentaEnVista(id), 80);
+          this.cdr.detectChanges();
+          const top = this.scrollTopAlClic;
+          this.scrollTopAlClic = null;
+          setTimeout(() => {
+            if (top != null) {
+              const hostEl = this.host.nativeElement;
+              const max = Math.max(0, hostEl.scrollHeight - hostEl.clientHeight);
+              hostEl.scrollTop = Math.min(top, max);
+            }
+            this.anclarCuentaEnVista(id, 'start');
+          }, 50);
         }
       },
       error: (e) => {

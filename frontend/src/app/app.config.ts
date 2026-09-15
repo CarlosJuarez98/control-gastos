@@ -1,5 +1,5 @@
 import { ApplicationConfig, inject, isDevMode, provideAppInitializer, provideZoneChangeDetection } from '@angular/core';
-import { provideRouter } from '@angular/router';
+import { provideRouter, RouteReuseStrategy } from '@angular/router';
 import { provideHttpClient, withInterceptors } from '@angular/common/http';
 import { provideServiceWorker } from '@angular/service-worker';
 import { firstValueFrom } from 'rxjs';
@@ -8,11 +8,13 @@ import { AuthService } from './auth.service';
 import { credentialsInterceptor } from './credentials.interceptor';
 import { offlineInterceptor } from './offline/offline.interceptor';
 import { OfflineService } from './offline/offline.service';
+import { CuentasReuseStrategy } from './cuentas-reuse.strategy';
 
 export const appConfig: ApplicationConfig = {
   providers: [
     provideZoneChangeDetection({ eventCoalescing: true }),
     provideRouter(routes),
+    { provide: RouteReuseStrategy, useClass: CuentasReuseStrategy },
     // offline primero: puede cortocircuitar; credentials después envuelve withCredentials
     provideHttpClient(withInterceptors([offlineInterceptor, credentialsInterceptor])),
     provideServiceWorker('ngsw-worker.js', {

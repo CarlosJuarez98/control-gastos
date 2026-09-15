@@ -99,7 +99,7 @@
             <ul class="cuentas">
               @for (c of grupo.cuentas; track c.id) {
                 <li [id]="'cuenta-' + c.id" [class.activa]="seleccionada?.id === c.id">
-                  <a [routerLink]="linkCuenta(c)" (click)="alClicCuenta(c)">
+                  <a [routerLink]="linkCuenta(c)" (click)="alClicCuenta($event, c)">
                     <strong>{{ c.nombre }}</strong>
                     @if (esTdc(c) && c.bloqueada) {
                       <small class="meta-bloqueada">Bloqueada</small>
@@ -137,7 +137,7 @@
         <ul class="cuentas">
           @for (c of meDebenPendientes; track c.id) {
             <li [id]="'cuenta-' + c.id" [class.activa]="seleccionada?.id === c.id">
-              <a [routerLink]="linkCuenta(c)" (click)="alClicCuenta(c)">
+              <a [routerLink]="linkCuenta(c)" (click)="alClicCuenta($event, c)">
                 <strong>{{ c.nombre }}</strong>
                 <small>{{ etiquetaTipo(c.tipo) }}</small>
                 <span class="mono pos">{{ c.saldoActual | currency:'MXN':'symbol-narrow':'1.2-2' }}</span>
@@ -162,7 +162,7 @@
           @for (c of cuentasSaldadas; track c.id) {
             <li [id]="'cuenta-' + c.id" [class.activa]="seleccionada?.id === c.id" class="saldada">
               <div class="fila-cuenta">
-                <a [routerLink]="linkCuenta(c)" (click)="alClicCuenta(c)">
+                <a [routerLink]="linkCuenta(c)" (click)="alClicCuenta($event, c)">
                   <strong>{{ c.nombre }}</strong>
                   <small>{{ etiquetaTipo(c.tipo) }}</small>
                   @if (esConCalendario(c) && (c.diaCorte || c.diaLimitePago)) {
@@ -303,6 +303,11 @@
             <span>Para prestar</span>
             <strong class="mono">{{ saldoDisponible | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
           </div>
+        } @else if (saldoDisponible != null) {
+          <div class="metrica" [class.alerta]="saldoDisponible < 0">
+            <span>Tu disponible</span>
+            <strong class="mono">{{ saldoDisponible | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
+          </div>
         }
         @if (esConCalendario(seleccionada) && creditoDisponibleDe(seleccionada) != null) {
           <div class="metrica">
@@ -342,8 +347,10 @@
             {{ usandoDeudaHoy ? 'Deuda que marca hoy' : (cobrandoRedito ? 'Rédito a cobrar' : 'Monto') }}
             @if (seleccionPrestamista && saldoDisponible != null && mov.tipo === 'CARGO') {
               <span class="pill-disponible">Para prestar {{ saldoDisponible | currency:'MXN':'symbol-narrow':'1.2-2' }}</span>
-            } @else if (esConCalendario(seleccionada) && creditoDisponibleDe(seleccionada) != null) {
-              <span class="pill-disponible">Libre {{ creditoDisponibleDe(seleccionada) | currency:'MXN':'symbol-narrow':'1.2-2' }}</span>
+            } @else if (esPagoConDisponible && saldoDisponible != null) {
+              <span class="pill-disponible" [class.pill-aviso]="abonoSuperaDisponible">
+                Tu disponible {{ saldoDisponible | currency:'MXN':'symbol-narrow':'1.2-2' }}
+              </span>
             }
           </span>
           <div class="monto-wrap">
@@ -361,7 +368,7 @@
             />
           </div>
         </label>
-        <div class="fila-rapida">
+        <div class="fila-rapida fila-tipo-fecha">
           <label>Tipo
             <select [(ngModel)]="mov.tipo" name="mtipo" (ngModelChange)="onTipoMovChange($event)">
               @for (t of tiposMov; track t) { <option [value]="t">{{ etiquetaMov(t) }}</option> }
@@ -371,6 +378,11 @@
             <input type="date" [(ngModel)]="mov.fecha" name="mfecha" [max]="hoy" required />
           </label>
         </div>
+        @if (abonoSuperaDisponible) {
+          <p class="hint-disponible-aviso">
+            Este abono es mayor a tu disponible. Se restará igual; revisa Saldo si el corte no está al día.
+          </p>
+        }
       } @else {
         <label>Fecha
           <input type="date" [(ngModel)]="mov.fecha" name="mfecha" [max]="hoy" required />
