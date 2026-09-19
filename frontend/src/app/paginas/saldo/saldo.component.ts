@@ -174,8 +174,8 @@ export class SaldoComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * Neto desde el último punto de marcas: ingresos − gastos − abonos.
-   * No suma el efectivo del corte (Tuve); Saldo solo compara ese teórico con lo contado.
+   * Debería / disponible lo calcula el backend:
+   * dinero del último corte (Tuve) + ingresos − gastos efectivo − abonos nuevos.
    */
   recalcularEsperado(): void {
     this.cargandoEsperado = true;
@@ -195,7 +195,7 @@ export class SaldoComponent implements OnInit, OnDestroy {
     });
   }
 
-  /** Igual al disponible: flujo de ingresos − gastos − abonos (sin Tuve). */
+  /** Mismo valor que disponible (backend ya incluye el Tuve del último corte). */
   get deberia(): number {
     return this.esperado;
   }
@@ -418,7 +418,8 @@ export class SaldoComponent implements OnInit, OnDestroy {
     const conteoKeep = this.conteoEfectivoActivo;
     const payload: SaldoSnapshot = {
       fecha: corte,
-      saldoTotal: this.deberia,
+      // Base del siguiente “Debería”: lo que acabas de contar (no el flujo previo).
+      saldoTotal: this.real,
       totalFisico: efectivoKeep,
       dineroBbva: this.dineroONull('dineroBbva'),
       dineroMercadoLibre: this.dineroONull('dineroMercadoLibre'),
@@ -429,7 +430,7 @@ export class SaldoComponent implements OnInit, OnDestroy {
     this.guardando = true;
     this.api.guardarSaldo(payload).subscribe({
       next: (guardado) => {
-        this.baselineSaldo = this.deberia;
+        this.baselineSaldo = this.real;
         this.baselineFecha = corte;
         if (guardado) {
           this.historial = [guardado, ...this.historial.filter((h) => h.id !== guardado.id)];

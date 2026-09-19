@@ -839,12 +839,13 @@ public class FinanzasService {
     }
 
     /**
-     * Disponible / “Debería tener” = ingresos − gastos líquidos − abonos a deudas
-     * − préstamos otorgados + cobros.
+     * Disponible / “Debería tener” =
+     *   dinero contado en el último corte (efectivo + apps)
+     *   + ingresos − gastos líquidos − abonos − préstamos + cobros
+     *     posteriores a ese corte.
      * <p>
-     * No depende del monto contado en Saldo (Tuve/Tengo). El corte solo sirve
-     * para comparar lo físico con este teórico. Las marcas del último corte
-     * delimitan desde cuándo se acumula el flujo (sin sumar el efectivo del corte).
+     * Así, al guardar un corte no se pone en 0: partes del efectivo que
+     * acabas de contar y luego sumas/restas lo nuevo. Los gastos TDC no entran.
      */
     @Transactional
     public BigDecimal calcularEsperadoActual() {
@@ -860,10 +861,23 @@ public class FinanzasService {
         long ingId = corte.getUltimoIngresoId() == null ? 0L : corte.getUltimoIngresoId();
         long gasId = corte.getUltimoGastoId() == null ? 0L : corte.getUltimoGastoId();
         long movId = corte.getUltimoMovimientoId() == null ? 0L : corte.getUltimoMovimientoId();
-        return flujoDisponible(u, ingId, gasId, movId);
+        return dineroContadoDelCorte(corte).add(flujoDisponible(u, ingId, gasId, movId));
     }
 
-    /** Suma de flujo después de los ids dados (0 = desde el inicio). Sin sumar ningún corte. */
+    /** Efectivo + apps del corte (Tuve). Si no hay montos, usa saldoTotal. */
+    private BigDecimal dineroContadoDelCorte(SaldoSnapshot corte) {
+        BigDecimal contado = nullSafe(corte.getTotalFisico())
+                .add(nullSafe(corte.getDineroBbva()))
+                .add(nullSafe(corte.getDineroMercadoLibre()))
+                .add(nullSafe(corte.getDineroNu()))
+                .add(nullSafe(corte.getDineroDidi()));
+        if (contado.compareTo(BigDecimal.ZERO) == 0) {
+            return nullSafe(corte.getSaldoTotal());
+        }
+        return contado;
+    }
+
+    /** Flujo después de los ids (0 = desde el inicio). Sin base del corte. */
     private BigDecimal flujoDisponible(String u, long despuesIngresoId, long despuesGastoId, long despuesMovId) {
         BigDecimal ingresos = despuesIngresoId <= 0
                 ? nullSafe(ingresoRepository.sumaTotal(u))
