@@ -839,12 +839,12 @@ public class FinanzasService {
     }
 
     /**
-     * Disponible = ingresos − gastos líquidos − abonos a deudas propias
-     * − préstamos otorgados + cobros de préstamos.
+     * Disponible / “Debería tener” = ingresos − gastos líquidos − abonos a deudas
+     * − préstamos otorgados + cobros.
      * <p>
-     * No usa el monto del corte de Saldo: el corte es solo conteo físico.
-     * Si hay corte, se toman solo movimientos <strong>posteriores</strong> a ese punto
-     * (marcas de id); si no hay corte, el flujo completo.
+     * No depende del monto contado en Saldo (Tuve/Tengo). El corte solo sirve
+     * para comparar lo físico con este teórico. Las marcas del último corte
+     * delimitan desde cuándo se acumula el flujo (sin sumar el efectivo del corte).
      */
     @Transactional
     public BigDecimal calcularEsperadoActual() {

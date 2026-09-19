@@ -162,7 +162,7 @@ export class SaldoComponent implements OnInit, OnDestroy {
     );
   }
 
-  /** real − esperado del corte. Negativo = faltó. */
+  /** real − Debería (flujo). Negativo = faltó al contar. */
   diffDe(s: SaldoSnapshot): number {
     return this.redondear(this.realDe(s) - this.n(s.saldoTotal));
   }
@@ -174,8 +174,8 @@ export class SaldoComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * Neto desde el último corte: ingresos − gastos − abonos (sin sumar el monto del corte).
-   * Lo calcula el backend en `esperado`.
+   * Neto desde el último punto de marcas: ingresos − gastos − abonos.
+   * No suma el efectivo del corte (Tuve); Saldo solo compara ese teórico con lo contado.
    */
   recalcularEsperado(): void {
     this.cargandoEsperado = true;
@@ -195,13 +195,9 @@ export class SaldoComponent implements OnInit, OnDestroy {
     });
   }
 
-  /**
-   * Lo que deberías tener al contar: efectivo del último corte (Tuve)
-   * + neto de ingresos/gastos/abonos posteriores. El disponible de Deudas
-   * no usa este total; solo el flujo (ingresos − gastos − abonos).
-   */
+  /** Igual al disponible: flujo de ingresos − gastos − abonos (sin Tuve). */
   get deberia(): number {
-    return this.redondear(this.tuve + this.esperado);
+    return this.esperado;
   }
 
   private n(v: number | string | null | undefined): number {
