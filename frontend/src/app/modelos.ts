@@ -27,7 +27,7 @@ export interface Gasto {
   categoria: string;
   monto: number;
   motivo?: string;
-  formaPago?: 'EFECTIVO' | 'TARJETA' | string;
+  formaPago?: 'EFECTIVO' | 'TARJETA' | 'DISPOSICION' | string;
   cuentaId?: number | null;
   cuenta?: Cuenta | null;
   movimientoId?: number | null;

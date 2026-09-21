@@ -214,9 +214,10 @@ button.total-btn.activo {
   grid-column: 1 / -1;
 }
 .hint-tdc-recs {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.45rem;
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  gap: 0.28rem;
   margin: 0;
   width: 100%;
   max-width: 100%;
@@ -254,57 +255,83 @@ button.total-btn.activo {
 .hint-tdc-recs .hint-tdc-rec {
   margin: 0;
 }
-/* (grid de .hint-tdc-recs definido arriba con el bloque-tarjeta) */
 .rec-card {
   display: grid;
-  gap: 0.25rem;
-  padding: 0.65rem 0.75rem;
-  border-radius: 0.8rem;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  grid-template-areas:
+    "rank nombre libre ok"
+    ". meta libre ok";
+  column-gap: 0.28rem;
+  row-gap: 0.02rem;
+  align-items: center;
+  flex: 1 1 0;
+  padding: 0.32rem 0.4rem;
+  border-radius: 0.5rem;
   border: 1px solid var(--linea);
-  background:
-    linear-gradient(145deg, color-mix(in srgb, var(--acento) 12%, transparent), transparent 60%),
-    color-mix(in srgb, var(--superficie-2) 85%, transparent);
-  transition: transform 0.2s var(--ease-out), border-color 0.2s ease, box-shadow 0.2s ease;
+  background: color-mix(in srgb, var(--superficie-2) 88%, transparent);
+  transition: border-color 0.15s ease, background 0.15s ease;
   min-width: 0;
-  max-width: 100%;
-  overflow-wrap: anywhere;
+  max-width: none;
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  box-shadow: none;
+}
+.rec-card.sin-credito {
+  opacity: 0.72;
 }
 .rec-card.elegida {
   border-color: color-mix(in srgb, var(--acento) 55%, var(--linea));
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--acento) 25%, transparent);
-}
-.rec-top {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
-  min-width: 0;
+  background: color-mix(in srgb, var(--acento) 10%, var(--superficie-2));
 }
 .rec-rank {
-  font-size: 0.72rem;
+  grid-area: rank;
+  font-size: 0.68rem;
   font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  letter-spacing: 0.02em;
   color: var(--acento);
+  line-height: 1;
+  min-width: 1.15rem;
 }
 .rec-ok {
-  font-size: 0.72rem;
+  grid-area: ok;
+  font-size: 0.8rem;
   font-weight: 700;
   color: var(--ok);
+  line-height: 1;
 }
 .rec-nombre {
+  grid-area: nombre;
   font-family: var(--fuente-display);
-  font-size: 1.02rem;
-  letter-spacing: -0.02em;
+  font-size: 0.8rem;
+  font-weight: 650;
+  letter-spacing: -0.01em;
   color: var(--texto);
-  overflow-wrap: anywhere;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  line-height: 1.15;
 }
 .rec-meta {
+  grid-area: meta;
   margin: 0;
-  font-size: 0.8rem;
+  font-size: 0.65rem;
   color: var(--texto-suave);
-  line-height: 1.35;
-  overflow-wrap: anywhere;
+  line-height: 1.15;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.rec-libre {
+  grid-area: libre;
+  font-size: 0.78rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--texto);
+  line-height: 1.1;
+  white-space: nowrap;
+  justify-self: end;
 }
 .hint-tdc-rec {
   flex: 1 1 100%;
@@ -319,22 +346,6 @@ button.total-btn.activo {
 .hint-tdc-rec strong {
   color: var(--texto);
   font-weight: 700;
-}
-.usar-rec {
-  justify-self: start;
-  margin-top: 0.2rem;
-  padding: 0.35rem 0.75rem;
-  min-height: 2.2rem;
-  border: 1px solid color-mix(in srgb, var(--acento) 45%, var(--linea));
-  border-radius: 0.55rem;
-  background: color-mix(in srgb, var(--acento) 14%, var(--superficie));
-  color: var(--acento);
-  font-size: 0.82rem;
-  font-weight: 700;
-  cursor: pointer;
-}
-.usar-rec:hover {
-  filter: brightness(1.05);
 }
 .btn-toggle {
   display: inline-flex;
@@ -601,6 +612,65 @@ tr.editando td {
 
 button:disabled { opacity: 0.65; cursor: not-allowed; transform: none; filter: none; }
 
+@media (min-width: 721px) {
+  .bloque-tarjeta,
+  .alta > .bloque-tarjeta {
+    max-width: none;
+    width: 100%;
+    flex: 1 1 100%;
+  }
+  .hint-tdc-recs {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.45rem;
+    width: 100%;
+  }
+  .rec-card {
+    flex: unset;
+    width: 100%;
+    min-width: 0;
+    align-items: start;
+    grid-template-columns: auto minmax(0, 1fr) auto auto;
+    grid-template-areas:
+      "rank nombre nombre ok"
+      "rank meta libre ok";
+    padding: 0.55rem 0.65rem;
+    border-radius: 0.65rem;
+    column-gap: 0.4rem;
+    row-gap: 0.2rem;
+    box-sizing: border-box;
+  }
+  .rec-rank {
+    font-size: 0.78rem;
+    min-width: 1.3rem;
+    padding-top: 0.15rem;
+  }
+  .rec-nombre {
+    font-size: 0.95rem;
+    white-space: normal;
+    overflow: visible;
+    text-overflow: unset;
+    overflow-wrap: anywhere;
+    line-height: 1.25;
+  }
+  .rec-meta {
+    font-size: 0.78rem;
+    white-space: normal;
+    overflow: visible;
+    text-overflow: unset;
+    line-height: 1.25;
+  }
+  .rec-libre {
+    font-size: 1rem;
+    color: var(--acento);
+    align-self: end;
+  }
+  .rec-ok {
+    font-size: 0.95rem;
+    padding-top: 0.1rem;
+  }
+}
+
 @media (max-width: 720px) {
   /* Un solo scroll vertical de toda la pantalla */
   :host {
@@ -736,25 +806,37 @@ button:disabled { opacity: 0.65; cursor: not-allowed; transform: none; filter: n
   .buscar-wrap { max-width: none; width: 100%; }
   .buscar { max-width: none; width: 100%; }
   .hint-tdc-recs {
-    grid-template-columns: 1fr;
+    flex-direction: column;
+    gap: 0.3rem;
   }
   .rec-card {
-    animation: rec-in 0.4s var(--ease-out) both;
-    border-radius: 1rem;
-    padding: 0.8rem 0.85rem;
-    box-shadow: 0 10px 26px rgba(0, 0, 0, 0.18);
-  }
-  .rec-card:nth-child(2) { animation-delay: 0.08s; }
-  .rec-card.elegida {
-    box-shadow:
-      0 12px 28px color-mix(in srgb, var(--acento) 18%, transparent),
-      inset 0 0 0 1px color-mix(in srgb, var(--acento) 30%, transparent);
-  }
-  .rec-card .usar-rec {
+    flex: none;
     width: 100%;
-    justify-self: stretch;
-    min-height: 2.55rem;
-    border-radius: 0.75rem;
+    grid-template-columns: auto minmax(0, 1fr) auto auto;
+    grid-template-areas:
+      "rank nombre libre ok"
+      ". meta libre ok";
+    padding: 0.55rem 0.7rem;
+    border-radius: 0.65rem;
+    box-shadow: none;
+    animation: none;
+    column-gap: 0.45rem;
+    row-gap: 0.1rem;
+  }
+  .rec-card.elegida {
+    box-shadow: none;
+  }
+  .rec-nombre {
+    font-size: 0.95rem;
+  }
+  .rec-meta {
+    font-size: 0.78rem;
+    white-space: normal;
+  }
+  .rec-libre {
+    font-size: 1.05rem;
+    color: var(--acento);
+    text-align: right;
   }
   .items-lista > li {
     animation: rec-in 0.35s var(--ease-out) both;

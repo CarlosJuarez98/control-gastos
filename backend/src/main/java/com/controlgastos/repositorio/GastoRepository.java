@@ -21,18 +21,20 @@ public interface GastoRepository extends JpaRepository<Gasto, Long> {
     @Query("select coalesce(sum(g.monto), 0) from Gasto g where g.propietario = ?1 and g.fecha between ?2 and ?3")
     BigDecimal sumaEntre(String propietario, LocalDate desde, LocalDate hasta);
 
-    /** Gastos que sí restan de liquidez (efectivo / sin forma = viejos). */
+    /** Gastos que sí restan de liquidez (efectivo / sin forma = viejos). TDC y disposición no. */
     @Query("""
             select coalesce(sum(g.monto), 0) from Gasto g
             where g.propietario = ?1
-              and (g.formaPago is null or upper(g.formaPago) <> 'TARJETA')
+              and (g.formaPago is null
+                   or (upper(g.formaPago) <> 'TARJETA' and upper(g.formaPago) <> 'DISPOSICION'))
             """)
     BigDecimal sumaLiquidaTotal(String propietario);
 
     @Query("""
             select coalesce(sum(g.monto), 0) from Gasto g
             where g.propietario = ?1
-              and (g.formaPago is null or upper(g.formaPago) <> 'TARJETA')
+              and (g.formaPago is null
+                   or (upper(g.formaPago) <> 'TARJETA' and upper(g.formaPago) <> 'DISPOSICION'))
               and g.fecha between ?2 and ?3
             """)
     BigDecimal sumaLiquidaEntre(String propietario, LocalDate desde, LocalDate hasta);
@@ -61,7 +63,24 @@ public interface GastoRepository extends JpaRepository<Gasto, Long> {
             select coalesce(sum(g.monto), 0) from Gasto g
             where g.propietario = ?1
               and g.id > ?2
-              and (g.formaPago is null or upper(g.formaPago) <> 'TARJETA')
+              and (g.formaPago is null
+                   or (upper(g.formaPago) <> 'TARJETA' and upper(g.formaPago) <> 'DISPOSICION'))
             """)
     BigDecimal sumaLiquidaDespuesDeId(String propietario, Long id);
+
+    /** Disposiciones de efectivo con TDC: suman a tu disponible. */
+    @Query("""
+            select coalesce(sum(g.monto), 0) from Gasto g
+            where g.propietario = ?1
+              and upper(g.formaPago) = 'DISPOSICION'
+            """)
+    BigDecimal sumaDisposicionesTotal(String propietario);
+
+    @Query("""
+            select coalesce(sum(g.monto), 0) from Gasto g
+            where g.propietario = ?1
+              and g.id > ?2
+              and upper(g.formaPago) = 'DISPOSICION'
+            """)
+    BigDecimal sumaDisposicionesDespuesDeId(String propietario, Long id);
 }

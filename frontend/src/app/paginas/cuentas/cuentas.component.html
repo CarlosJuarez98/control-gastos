@@ -98,7 +98,11 @@
             <h4>{{ grupo.etiqueta }}</h4>
             <ul class="cuentas">
               @for (c of grupo.cuentas; track c.id) {
-                <li [id]="'cuenta-' + c.id" [class.activa]="seleccionada?.id === c.id">
+                <li
+                  [id]="'cuenta-' + c.id"
+                  [class.activa]="seleccionada?.id === c.id"
+                  [class.saldada]="enCero(c)"
+                >
                   <a [routerLink]="linkCuenta(c)" (click)="alClicCuenta($event, c)">
                     <strong>{{ c.nombre }}</strong>
                     @if (esTdc(c) && c.bloqueada) {
@@ -170,11 +174,13 @@
                   }
                   <span class="mono">{{ c.saldoActual | currency:'MXN':'symbol-narrow':'1.2-2' }}</span>
                 </a>
-                <button type="button" class="icono peligro" (click)="eliminarCuenta(c)" title="Borrar" aria-label="Borrar">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                  </svg>
-                </button>
+                @if (puedeQuitarDeLista(c)) {
+                  <button type="button" class="icono peligro" (click)="eliminarCuenta(c)" title="Borrar" aria-label="Borrar">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                  </button>
+                }
               </div>
             </li>
             @if (esMovil && seleccionada?.id === c.id) {
@@ -267,7 +273,7 @@
               [disabled]="guardandoBloqueo"
               (click)="toggleBloqueoTdc()"
             >
-              {{ seleccionada.bloqueada ? 'Desbloquear compras' : 'Bloquear compras' }}
+              {{ etiquetaBloqueoTdc() }}
             </button>
           }
           @if (puedeEliminarCuenta) {
@@ -335,7 +341,7 @@
           [disabled]="guardandoBloqueo"
           (click)="toggleBloqueoTdc()"
         >
-          {{ seleccionada.bloqueada ? 'Desbloquear compras' : 'Bloquear compras' }}
+          {{ etiquetaBloqueoTdc() }}
         </button>
       }
     }
@@ -521,6 +527,17 @@
                 @for (t of tipos; track t) { <option [value]="t">{{ etiquetaTipo(t) }}</option> }
               </select>
             </label>
+            @if (esTdc(seleccionada)) {
+              <button
+                type="button"
+                class="secundario"
+                [class.bloqueo-activo]="seleccionada.bloqueada"
+                [disabled]="guardandoBloqueo"
+                (click)="toggleBloqueoTdc()"
+              >
+                {{ etiquetaBloqueoTdc() }}
+              </button>
+            }
             @if (puedeEliminarCuenta) {
               <button type="button" class="peligro" (click)="eliminarCuenta()">Eliminar cuenta</button>
             }

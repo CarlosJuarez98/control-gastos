@@ -25,7 +25,7 @@ public class Gasto {
     @Column(length = 200)
     private String motivo;
 
-    /** EFECTIVO o TARJETA (null = EFECTIVO, datos viejos). */
+    /** EFECTIVO, TARJETA o DISPOSICION (null = EFECTIVO, datos viejos). */
     @Column(length = 20)
     private String formaPago;
 

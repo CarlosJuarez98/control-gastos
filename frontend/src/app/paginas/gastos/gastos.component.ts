@@ -43,6 +43,8 @@ export class GastosComponent implements OnInit, OnDestroy {
   items: Gasto[] = [];
   cuentas: Cuenta[] = [];
   cuentasTdc: Cuenta[] = [];
+  /** true si el usuario eligió otra TDC distinta de la 1ª sugerida. */
+  private tdcElegidaManual = false;
   grupos: GrupoQuincena[] = [];
   total = 0;
   totalQuincenaActual = 0;
@@ -53,7 +55,7 @@ export class GastosComponent implements OnInit, OnDestroy {
     categoria: string;
     monto: string;
     motivo: string;
-    formaPago: 'EFECTIVO' | 'TARJETA';
+    formaPago: 'EFECTIVO' | 'TARJETA' | 'DISPOSICION';
     cuentaId: number | null;
     aMeses: boolean;
     meses: string;
@@ -127,22 +129,12 @@ export class GastosComponent implements OnInit, OnDestroy {
     this.altaAbierta = !this.altaAbierta;
   }
 
-  /** Misma lista que Deudas → cuentas tipo TDC (activas). */
-  private cargarTarjetas(): void {
+  /** Misma lista que Deudas → cuentas tipo TDC (activas), orden por conveniencia. */
+  private cargarTarjetas(autoSeleccionar = true): void {
     this.api.cuentas().subscribe({
       next: (r) => {
         this.cuentas = r;
-        this.cuentasTdc = r
-          .filter((c) => (c.tipo || '').toUpperCase() === 'TDC' && !c.bloqueada)
-          .sort((a, b) =>
-            (a.nombre || '').localeCompare(b.nombre || '', 'es', { sensitivity: 'base' })
-          );
-        if (
-          this.form.cuentaId != null &&
-          !this.cuentasTdc.some((c) => c.id === this.form.cuentaId)
-        ) {
-          this.form.cuentaId = null;
-        }
+        this.ordenarYSincronizarTdcs(autoSeleccionar);
         this.cdr.markForCheck();
       },
       error: () => {
@@ -153,47 +145,116 @@ export class GastosComponent implements OnInit, OnDestroy {
     });
   }
 
-  alCambiarFormaPago(): void {
-    this.form.cuentaId = null;
-    this.form.aMeses = false;
-    if (this.form.formaPago === 'TARJETA') {
-      this.cargarTarjetas();
+  /** Ordena TDC por conveniencia y deja seleccionada la mejor (1ª). */
+  private ordenarYSincronizarTdcs(autoSeleccionar: boolean): void {
+    const monto = parseDineroSuma(this.form.monto).total;
+    const recs = recomendarTdcs(
+      this.cuentas.filter((c) => (c.tipo || '').toUpperCase() === 'TDC'),
+      this.form.fecha,
+      monto,
+      Number.POSITIVE_INFINITY,
+      this.optsRecomendacionTdc(),
+    );
+    this.cuentasTdc = recs.map((r) => r.cuenta);
+    if (
+      this.form.cuentaId != null &&
+      !this.cuentasTdc.some((c) => c.id === this.form.cuentaId)
+    ) {
+      this.form.cuentaId = null;
+      this.tdcElegidaManual = false;
+    }
+    if (
+      autoSeleccionar &&
+      this.esConTdc &&
+      (!this.tdcElegidaManual || this.form.cuentaId == null)
+    ) {
+      this.form.cuentaId = this.cuentasTdc[0]?.id ?? null;
     }
   }
 
-  /** Hasta 2 TDC: cubren el monto (crédito libre) y mejor plazo de pago. */
-  get recomendacionesTdc(): RecomendacionTdc[] {
-    if (this.form.formaPago !== 'TARJETA') return [];
-    const monto = parseDineroSuma(this.form.monto).total;
-    return recomendarTdcs(this.cuentasTdc, this.form.fecha, monto, 2);
+  private optsRecomendacionTdc(): { permitirSobregiro?: boolean } | undefined {
+    return this.esDisposicion ? { permitirSobregiro: true } : undefined;
   }
 
-  /** Hay monto pero ninguna TDC con crédito libre suficiente. */
+  /** Compra o disposición: usan TDC. */
+  get esConTdc(): boolean {
+    return this.form.formaPago === 'TARJETA' || this.form.formaPago === 'DISPOSICION';
+  }
+
+  get esDisposicion(): boolean {
+    return this.form.formaPago === 'DISPOSICION';
+  }
+
+  alCambiarFormaPago(): void {
+    this.form.cuentaId = null;
+    this.form.aMeses = false;
+    this.tdcElegidaManual = false;
+    if (this.esDisposicion) {
+      this.form.categoria = 'Disposición';
+    } else if (this.form.categoria === 'Disposición') {
+      this.form.categoria = 'Yo';
+    }
+    if (this.esConTdc) {
+      this.cargarTarjetas(true);
+    }
+  }
+
+  /** Al cambiar monto o fecha, reordena y elige automáticamente la mejor. */
+  alCambiarContextoTdc(): void {
+    if (!this.esConTdc) return;
+    this.tdcElegidaManual = false;
+    if (!this.cuentas.length) {
+      this.cargarTarjetas(true);
+      return;
+    }
+    this.ordenarYSincronizarTdcs(true);
+    this.cdr.markForCheck();
+  }
+
+  /** Todas las TDC activas, ordenadas por cuál conviene más. */
+  get recomendacionesTdc(): RecomendacionTdc[] {
+    if (!this.esConTdc) return [];
+    const monto = parseDineroSuma(this.form.monto).total;
+    return recomendarTdcs(
+      this.cuentasTdc,
+      this.form.fecha,
+      monto,
+      Number.POSITIVE_INFINITY,
+      this.optsRecomendacionTdc(),
+    );
+  }
+
+  /** Hay monto pero ninguna TDC con crédito libre suficiente (no aplica a disposición). */
   get sinTdcParaMonto(): boolean {
-    if (this.form.formaPago !== 'TARJETA') return false;
+    if (!this.esConTdc || this.esDisposicion) return false;
     const monto = parseDineroSuma(this.form.monto).total;
     if (!(monto > 0) || !this.cuentasTdc.length) return false;
-    return this.recomendacionesTdc.length === 0;
+    return this.recomendacionesTdc.every((r) => !r.cubreMonto);
   }
 
-  /** Compra de contado (no a meses): ciclo de pago según corte de la TDC elegida. */
+  /** Compra/disposición de contado: ciclo de pago según corte de la TDC elegida. */
   get calendarioPagoUnico(): CalendarioTdc | null {
-    if (this.form.formaPago !== 'TARJETA' || this.form.aMeses) return null;
+    if (!this.esConTdc || this.form.aMeses) return null;
     if (this.form.cuentaId == null) return null;
     const c = this.cuentasTdc.find((x) => x.id === this.form.cuentaId);
     if (!c) return null;
     return calendarioCompraTdc(c, this.form.fecha);
   }
 
-  etiquetaOpcionTdc(c: Cuenta): string {
-    // Solo el nombre: textos largos en <option> ensanchan el form en móvil
-    return c.nombre || 'TDC';
+  etiquetaOpcionTdc(c: Cuenta, indice = 0): string {
+    const nombre = c.nombre || 'TDC';
+    return indice === 0 ? `${nombre} · 1ª` : `${nombre}`;
   }
 
   usarRecomendacionTdc(id: number | null | undefined): void {
     if (id == null) return;
+    this.tdcElegidaManual = id !== this.cuentasTdc[0]?.id;
     this.form.cuentaId = id;
     this.cdr.markForCheck();
+  }
+
+  alElegirTdcSelect(): void {
+    this.tdcElegidaManual = this.form.cuentaId != null && this.form.cuentaId !== this.cuentasTdc[0]?.id;
   }
 
   private fechaLocal(d = new Date()): string {
@@ -206,6 +267,7 @@ export class GastosComponent implements OnInit, OnDestroy {
 
   alEscribirMonto(v: string): void {
     this.form.monto = formatDineroInputFlexible(v);
+    this.alCambiarContextoTdc();
     this.cdr.markForCheck();
   }
 
@@ -216,6 +278,7 @@ export class GastosComponent implements OnInit, OnDestroy {
     if (!/[+;]$/.test(cur)) {
       this.form.monto = formatDineroInputFlexible(cur + '+');
     }
+    this.alCambiarContextoTdc();
     this.cdr.detectChanges();
     const valor = this.form.monto;
     setTimeout(() => {
@@ -411,8 +474,9 @@ export class GastosComponent implements OnInit, OnDestroy {
 
   private etiquetaPago(g: Gasto): string {
     const forma = (g.formaPago || 'EFECTIVO').toUpperCase();
-    if (forma === 'TARJETA') {
-      const base = g.cuenta?.nombre ? `Tarjeta · ${g.cuenta.nombre}` : 'Tarjeta';
+    if (forma === 'TARJETA' || forma === 'DISPOSICION') {
+      const tipo = forma === 'DISPOSICION' ? 'Disposición' : 'Tarjeta';
+      const base = g.cuenta?.nombre ? `${tipo} · ${g.cuenta.nombre}` : tipo;
       if (g.meses && g.meses > 1) return `${base} · ${g.meses} meses`;
       return base;
     }
@@ -429,7 +493,7 @@ export class GastosComponent implements OnInit, OnDestroy {
 
   get puedeGuardar(): boolean {
     if (!this.puedeGuardarMonto) return false;
-    if (this.form.formaPago === 'TARJETA') {
+    if (this.esConTdc) {
       if (!this.form.cuentaId) return false;
       if (this.form.aMeses) {
         const m = Number(String(this.form.meses).replace(/\D/g, ''));
@@ -446,22 +510,26 @@ export class GastosComponent implements OnInit, OnDestroy {
     this.error = '';
     this.editandoId = g.id;
     if (this.esMovil) this.altaAbierta = true;
-    const forma = ((original.formaPago || 'EFECTIVO').toUpperCase() === 'TARJETA'
-      ? 'TARJETA'
-      : 'EFECTIVO') as 'EFECTIVO' | 'TARJETA';
+    const raw = (original.formaPago || 'EFECTIVO').toUpperCase();
+    const forma = (raw === 'TARJETA' || raw === 'DISPOSICION' ? raw : 'EFECTIVO') as
+      | 'EFECTIVO'
+      | 'TARJETA'
+      | 'DISPOSICION';
     const meses = original.meses && original.meses > 1 ? original.meses : null;
-    const cuentaId = forma === 'TARJETA' ? (original.cuentaId ?? original.cuenta?.id ?? null) : null;
-    this.cargarTarjetas();
+    const conTdc = forma === 'TARJETA' || forma === 'DISPOSICION';
+    const cuentaId = conTdc ? (original.cuentaId ?? original.cuenta?.id ?? null) : null;
     this.form = {
       fecha: (original.fecha || '').slice(0, 10) || fechaHoyLocal(),
-      categoria: original.categoria || 'Yo',
+      categoria: forma === 'DISPOSICION' ? 'Disposición' : (original.categoria || 'Yo'),
       monto: formatDineroInput(String(original.monto)),
       motivo: original.motivo || '',
       formaPago: forma,
       cuentaId,
-      aMeses: forma === 'TARJETA' && !!meses,
+      aMeses: conTdc && !!meses,
       meses: meses ? String(meses) : '',
     };
+    this.tdcElegidaManual = conTdc && cuentaId != null;
+    this.cargarTarjetas(false);
     this.cdr.markForCheck();
     queueMicrotask(() => {
       document.querySelector<HTMLElement>('form.alta')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -472,6 +540,7 @@ export class GastosComponent implements OnInit, OnDestroy {
     this.editandoId = null;
     this.error = '';
     this.hoy = fechaHoyLocal();
+    this.tdcElegidaManual = false;
     this.form = {
       fecha: this.hoy,
       categoria: 'Yo',
@@ -504,7 +573,7 @@ export class GastosComponent implements OnInit, OnDestroy {
       return;
     }
     const { total: monto } = parseDineroSuma(this.form.monto);
-    if (this.form.formaPago === 'TARJETA') {
+    if (this.esConTdc) {
       if (!this.form.cuentaId) {
         this.error = this.cuentasTdc.length
           ? 'Elige una TDC de la lista'
@@ -514,7 +583,7 @@ export class GastosComponent implements OnInit, OnDestroy {
       }
       const tdc = this.cuentasTdc.some((c) => c.id === this.form.cuentaId);
       if (!tdc) {
-        this.error = 'Solo puedes pagar con una tarjeta de crédito (TDC)';
+        this.error = 'Solo puedes usar una tarjeta de crédito (TDC)';
         this.cdr.markForCheck();
         return;
       }
@@ -530,17 +599,17 @@ export class GastosComponent implements OnInit, OnDestroy {
     }
 
     const meses =
-      this.form.formaPago === 'TARJETA' && this.form.aMeses
+      this.esConTdc && this.form.aMeses
         ? Number(this.form.meses)
         : null;
 
     const body: Gasto = {
       fecha: this.form.fecha,
-      categoria: this.form.categoria,
+      categoria: this.esDisposicion ? 'Disposición' : this.form.categoria,
       motivo: this.form.motivo,
       monto,
       formaPago: this.form.formaPago,
-      cuentaId: this.form.formaPago === 'TARJETA' ? this.form.cuentaId : null,
+      cuentaId: this.esConTdc ? this.form.cuentaId : null,
       meses,
     };
 
@@ -566,7 +635,7 @@ export class GastosComponent implements OnInit, OnDestroy {
             monto: '',
             motivo: '',
             formaPago: formaGuardada,
-            cuentaId: formaGuardada === 'TARJETA' ? cuentaGuardada : null,
+            cuentaId: formaGuardada === 'TARJETA' || formaGuardada === 'DISPOSICION' ? cuentaGuardada : null,
             aMeses: false,
             meses: '',
           };

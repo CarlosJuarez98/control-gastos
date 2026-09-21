@@ -52,14 +52,29 @@
 @if (!esMovil || altaAbierta || editandoId) {
 <form class="alta" enterAvance (ngSubmit)="guardar()">
   <label class="campo-fecha">Fecha
-    <input type="date" [(ngModel)]="form.fecha" name="fecha" [max]="hoy" required />
+    <input
+      type="date"
+      [(ngModel)]="form.fecha"
+      name="fecha"
+      [max]="hoy"
+      required
+      (ngModelChange)="alCambiarContextoTdc()"
+    />
   </label>
-  <label class="campo-categoria">Categoría
-    <select [(ngModel)]="form.categoria" name="categoria">
-      @for (c of categorias; track c) { <option [value]="c">{{ c }}</option> }
-    </select>
+  @if (!esDisposicion) {
+    <label class="campo-categoria">Categoría
+      <select [(ngModel)]="form.categoria" name="categoria">
+        @for (c of categorias; track c) { <option [value]="c">{{ c }}</option> }
+      </select>
+    </label>
+  }
+  <label class="campo-motivo">{{ esDisposicion ? 'Nota' : 'Motivo' }}
+    <input
+      [(ngModel)]="form.motivo"
+      name="motivo"
+      [placeholder]="esDisposicion ? 'Cajero, app…' : 'Cena, gasolina…'"
+    />
   </label>
-  <label class="campo-motivo">Motivo <input [(ngModel)]="form.motivo" name="motivo" placeholder="Cena, gasolina…" /></label>
   <label class="campo-monto">Monto
     <div class="monto-wrap">
       <span class="simbolo">$</span>
@@ -84,47 +99,63 @@
       >+</button>
     </div>
   </label>
-  <label class="campo-pago">Cómo pagaste
+  <label class="campo-pago">Tipo
     <select [(ngModel)]="form.formaPago" name="formaPago" (ngModelChange)="alCambiarFormaPago()">
       <option value="EFECTIVO">Efectivo</option>
       <option value="TARJETA">Tarjeta</option>
+      <option value="DISPOSICION">Disposición TDC</option>
     </select>
   </label>
-  @if (form.formaPago === 'TARJETA') {
+  @if (esConTdc) {
     <div class="bloque-tarjeta">
       <label class="campo-tdc">TDC
-        <select [(ngModel)]="form.cuentaId" name="cuentaId" required>
-          <option [ngValue]="null">Elige tarjeta…</option>
-          @for (c of cuentasTdc; track c.id) {
-            <option [ngValue]="c.id">{{ etiquetaOpcionTdc(c) }}</option>
+        <select
+          [(ngModel)]="form.cuentaId"
+          name="cuentaId"
+          required
+          (ngModelChange)="alElegirTdcSelect()"
+        >
+          @for (c of cuentasTdc; track c.id; let i = $index) {
+            <option [ngValue]="c.id">{{ etiquetaOpcionTdc(c, i) }}</option>
           }
         </select>
       </label>
       @if (recomendacionesTdc.length) {
-        <div class="hint-tdc-recs" role="list" aria-label="Tarjetas recomendadas">
+        <div class="hint-tdc-recs" role="list" aria-label="Tarjetas por conveniencia">
           @for (rec of recomendacionesTdc; track rec.cuenta.id; let i = $index) {
-            <article class="rec-card" role="listitem" [class.elegida]="form.cuentaId === rec.cuenta.id">
-              <div class="rec-top">
-                <span class="rec-rank">{{ i === 0 ? '1ª opción' : '2ª opción' }}</span>
-                @if (form.cuentaId === rec.cuenta.id) {
-                  <span class="rec-ok">Elegida</span>
+            <button
+              type="button"
+              class="rec-card"
+              role="listitem"
+              [class.elegida]="form.cuentaId === rec.cuenta.id"
+              [class.sin-credito]="!esDisposicion && !rec.cubreMonto"
+              (click)="usarRecomendacionTdc(rec.cuenta.id)"
+            >
+              <span class="rec-rank">{{ i + 1 }}ª</span>
+              <span class="rec-nombre">{{ rec.cuenta.nombre }}</span>
+              <span class="rec-meta">
+                @if (rec.diasHastaPago >= 0) {
+                  {{ rec.etiquetaPagoCorta }} · {{ rec.diasHastaPago }}d
+                } @else {
+                  Sin corte
                 }
-              </div>
-              <strong class="rec-nombre">{{ rec.cuenta.nombre }}</strong>
-              <p class="rec-meta">
-                Pago {{ rec.etiquetaPagoCorta }} · {{ rec.diasHastaPago }}d
-                @if (rec.creditoDisponible != null) {
-                  · libre {{ rec.creditoDisponible | currency:'MXN':'symbol-narrow':'1.0-0' }}
+                @if (!esDisposicion && !rec.cubreMonto) {
+                  · no cubre
                 }
-              </p>
-              @if (form.cuentaId !== rec.cuenta.id) {
-                <button type="button" class="usar-rec" (click)="usarRecomendacionTdc(rec.cuenta.id)">Usar esta</button>
+              </span>
+              @if (rec.creditoDisponible != null) {
+                <span class="rec-libre">{{ rec.creditoDisponible | currency:'MXN':'symbol-narrow':'1.0-0' }}</span>
               }
-            </article>
+              @if (form.cuentaId === rec.cuenta.id) {
+                <span class="rec-ok" aria-label="Elegida">✓</span>
+              }
+            </button>
           }
         </div>
       } @else if (sinTdcParaMonto) {
         <p class="hint-tdc-rec hint-tdc-aviso">Ninguna TDC con crédito libre para este monto</p>
+      } @else if (!cuentasTdc.length) {
+        <p class="hint-tdc-rec hint-tdc-aviso">No hay TDC activas; en Deudas usa «Volver a usar» si las bloqueaste</p>
       }
       <label class="campo-toggle">
         <span>Plazo</span>
@@ -161,7 +192,7 @@
   }
   <div class="alta-acciones">
     <button type="submit" [disabled]="guardando || !puedeGuardar">
-      {{ guardando ? 'Guardando…' : (editandoId ? 'Guardar cambios' : 'Agregar gasto') }}
+      {{ guardando ? 'Guardando…' : (editandoId ? 'Guardar cambios' : (esDisposicion ? 'Registrar disposición' : 'Agregar gasto')) }}
     </button>
     @if (editandoId) {
       <button type="button" class="secundario" (click)="cancelarEdicion()">Cancelar</button>

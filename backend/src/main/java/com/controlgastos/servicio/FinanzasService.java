@@ -242,24 +242,34 @@ public class FinanzasService {
         String forma = gasto.getFormaPago() == null || gasto.getFormaPago().isBlank()
                 ? "EFECTIVO"
                 : gasto.getFormaPago().trim().toUpperCase(Locale.ROOT);
-        if (!forma.equals("EFECTIVO") && !forma.equals("TARJETA")) {
+        if (!forma.equals("EFECTIVO") && !forma.equals("TARJETA") && !forma.equals("DISPOSICION")) {
             throw new IllegalArgumentException("Forma de pago inválida");
         }
         gasto.setFormaPago(forma);
         gasto.setPropietario(u);
 
+        boolean conTdc = forma.equals("TARJETA") || forma.equals("DISPOSICION");
+        if (forma.equals("DISPOSICION")) {
+            gasto.setCategoria("Disposición");
+        }
+
         String concepto = gasto.getMotivo() != null && !gasto.getMotivo().isBlank()
                 ? gasto.getMotivo()
-                : "Gasto " + gasto.getCategoria();
+                : (forma.equals("DISPOSICION")
+                        ? "Disposición de efectivo"
+                        : "Gasto " + gasto.getCategoria());
 
-        if (forma.equals("TARJETA")) {
+        if (conTdc) {
             Long cuentaId = gasto.getCuentaId();
             if (cuentaId == null) {
-                throw new IllegalArgumentException("Elige la TDC con la que pagaste");
+                throw new IllegalArgumentException(
+                        forma.equals("DISPOSICION")
+                                ? "Elige la TDC de la disposición"
+                                : "Elige la TDC con la que pagaste");
             }
             Cuenta cuenta = obtenerCuenta(cuentaId);
             if (!"TDC".equalsIgnoreCase(cuenta.getTipo())) {
-                throw new IllegalArgumentException("Solo puedes pagar con una tarjeta de crédito (TDC)");
+                throw new IllegalArgumentException("Solo puedes usar una tarjeta de crédito (TDC)");
             }
             boolean mismaTdc =
                     existing != null
@@ -267,7 +277,7 @@ public class FinanzasService {
                             && existing.getCuentaId().equals(cuentaId);
             if (cuenta.isBloqueada() && !mismaTdc) {
                 throw new IllegalArgumentException(
-                        "La tarjeta «" + cuenta.getNombre() + "» está bloqueada; no admite compras nuevas");
+                        "La tarjeta «" + cuenta.getNombre() + "» está bloqueada; no admite movimientos nuevos");
             }
 
             if (existing == null || existing.getMovimientoId() == null) {
@@ -344,7 +354,7 @@ public class FinanzasService {
      */
     private void sincronizarPlanMeses(Gasto guardado, String concepto) {
         String u = Sesion.usuario();
-        boolean aMeses = "TARJETA".equalsIgnoreCase(guardado.getFormaPago())
+        boolean aMeses = esFormaConTdc(guardado.getFormaPago())
                 && guardado.getMeses() != null
                 && guardado.getMeses() > 1;
 
@@ -371,7 +381,8 @@ public class FinanzasService {
             tdc = cuentaRepository.findById(cid).map(Cuenta::getNombre).orElse("TDC");
         }
         String motivo = truncar(
-                concepto + " · " + meses + " meses (" + tdc + ")",
+                (esFormaDisposicion(guardado.getFormaPago()) ? "Disposición" : concepto)
+                        + " · " + meses + " meses (" + tdc + ")",
                 120);
 
         if (plan == null) {
@@ -625,10 +636,15 @@ public class FinanzasService {
     /**
      * Quita de la lista una cuenta en $0. No borra movimientos:
      * los abonos/cargos siguen contando en el saldo disponible.
+     * Las TDC no se archivan: se dejan de usar (bloqueo de compras).
      */
     @Transactional
     public void archivarCuenta(Long id) {
         Cuenta cuenta = obtenerCuenta(id);
+        if (esCuentaTdc(cuenta)) {
+            throw new IllegalArgumentException(
+                    "Las TDC no se eliminan; usa «Dejar de usar» para quitarlas de compras");
+        }
         BigDecimal saldo = nullSafe(cuenta.getSaldoActual());
         if (saldo.compareTo(BigDecimal.ZERO) != 0) {
             throw new IllegalArgumentException("Solo puedes eliminar cuentas con saldo en $0");
@@ -841,11 +857,12 @@ public class FinanzasService {
     /**
      * Disponible / “Debería tener” =
      *   dinero contado en el último corte (efectivo + apps)
-     *   + ingresos − gastos líquidos − abonos − préstamos + cobros
+     *   + ingresos + disposiciones TDC − gastos líquidos − abonos − préstamos + cobros
      *     posteriores a ese corte.
      * <p>
      * Así, al guardar un corte no se pone en 0: partes del efectivo que
-     * acabas de contar y luego sumas/restas lo nuevo. Los gastos TDC no entran.
+     * acabas de contar y luego sumas/restas lo nuevo. Los gastos TDC no entran;
+     * las disposiciones sí suman (recibiste efectivo / liquidez).
      */
     @Transactional
     public BigDecimal calcularEsperadoActual() {
@@ -885,6 +902,9 @@ public class FinanzasService {
         BigDecimal gastos = despuesGastoId <= 0
                 ? nullSafe(gastoRepository.sumaLiquidaTotal(u))
                 : nullSafe(gastoRepository.sumaLiquidaDespuesDeId(u, despuesGastoId));
+        BigDecimal disposiciones = despuesGastoId <= 0
+                ? nullSafe(gastoRepository.sumaDisposicionesTotal(u))
+                : nullSafe(gastoRepository.sumaDisposicionesDespuesDeId(u, despuesGastoId));
         BigDecimal abonos = despuesMovId <= 0
                 ? nullSafe(movimientoRepository.sumaAbonosTotal(u))
                 : nullSafe(movimientoRepository.sumaAbonosDespuesDeId(u, despuesMovId));
@@ -894,7 +914,7 @@ public class FinanzasService {
         BigDecimal cobros = despuesMovId <= 0
                 ? nullSafe(movimientoRepository.sumaCobrosPrestamoOtorgadoTotal(u))
                 : nullSafe(movimientoRepository.sumaCobrosPrestamoOtorgadoDespuesDeId(u, despuesMovId));
-        return ingresos.subtract(gastos).subtract(abonos).subtract(prestamos).add(cobros);
+        return ingresos.add(disposiciones).subtract(gastos).subtract(abonos).subtract(prestamos).add(cobros);
     }
 
     /** Cada guardado es un corte nuevo (historial); no sobrescribe el anterior. */
@@ -1004,8 +1024,17 @@ public class FinanzasService {
     }
 
     private boolean esGastoLiquido(Gasto g) {
-        String fp = g.getFormaPago();
-        return fp == null || !"TARJETA".equalsIgnoreCase(fp.trim());
+        return !esFormaConTdc(g.getFormaPago());
+    }
+
+    private static boolean esFormaConTdc(String formaPago) {
+        if (formaPago == null || formaPago.isBlank()) return false;
+        String fp = formaPago.trim().toUpperCase(Locale.ROOT);
+        return "TARJETA".equals(fp) || "DISPOSICION".equals(fp);
+    }
+
+    private static boolean esFormaDisposicion(String formaPago) {
+        return formaPago != null && "DISPOSICION".equalsIgnoreCase(formaPago.trim());
     }
 
     private void marcarPuntoDeCorte(String u, SaldoSnapshot saldo) {

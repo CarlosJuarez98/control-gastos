@@ -28,7 +28,10 @@ public final class CategoriaGastoNormalizer {
             Map.entry("comida", "Comida"),
             Map.entry("despensa", "Despensa"),
             Map.entry("salida", "Salida"),
-            Map.entry("salidas", "Salida")
+            Map.entry("salidas", "Salida"),
+            Map.entry("disposicion", "Disposición"),
+            Map.entry("disposicion de efectivo", "Disposición"),
+            Map.entry("disposicion efectivo", "Disposición")
     );
 
     private CategoriaGastoNormalizer() {}

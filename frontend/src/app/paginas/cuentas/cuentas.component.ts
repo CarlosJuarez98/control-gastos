@@ -199,6 +199,10 @@ export class CuentasComponent implements OnInit, OnDestroy {
     return !!c && (c.tipo || '').toUpperCase() === 'TDC';
   }
 
+  enCero(c: Cuenta): boolean {
+    return Number(c.saldoActual) === 0;
+  }
+
   /** TDC, tienda, préstamo o terreno: pueden tener corte / límite de pago. */
   esConCalendario(c?: Cuenta | null): boolean {
     const t = (c?.tipo || '').toUpperCase();
@@ -396,7 +400,24 @@ export class CuentasComponent implements OnInit, OnDestroy {
   }
 
   get puedeEliminarCuenta(): boolean {
-    return !!this.seleccionada?.id && Number(this.seleccionada.saldoActual) === 0;
+    if (!this.seleccionada?.id || Number(this.seleccionada.saldoActual) !== 0) return false;
+    // Las TDC se dejan de usar (bloqueo), no se eliminan.
+    return !this.esTdc(this.seleccionada);
+  }
+
+  /** TDC saldada u otra: texto del botón de bloqueo. */
+  etiquetaBloqueoTdc(c?: Cuenta | null): string {
+    const cuenta = c || this.seleccionada;
+    if (!cuenta) return 'Dejar de usar';
+    const saldada = Number(cuenta.saldoActual) === 0;
+    if (cuenta.bloqueada) {
+      return saldada ? 'Volver a usar' : 'Desbloquear compras';
+    }
+    return saldada ? 'Dejar de usar' : 'Bloquear compras';
+  }
+
+  puedeQuitarDeLista(c: Cuenta): boolean {
+    return Number(c.saldoActual) === 0 && !this.esTdc(c);
   }
 
   private fechaLocal(d = new Date()): string {
@@ -459,7 +480,14 @@ export class CuentasComponent implements OnInit, OnDestroy {
       .sort((a, b) => this.porNombre(a, b));
   }
 
-  /** Mis deudas agrupadas por tipo; cada bloque ordenado A→Z. */
+  /** TDC en $0: se quedan en el bloque TDC (abajo), no en Saldadas. */
+  private tdcEnCero(): Cuenta[] {
+    return this.cuentas
+      .filter((c) => this.esTdc(c) && Number(c.saldoActual) === 0)
+      .sort((a, b) => this.porNombre(a, b));
+  }
+
+  /** Mis deudas agrupadas por tipo; cada bloque ordenado A→Z. TDC en $0 al final del grupo TDC. */
   get gruposMisDeudas(): { tipo: string; etiqueta: string; cuentas: Cuenta[] }[] {
     const orden = ['TDC', 'PRESTAMO', 'TIENDA', 'TERRENO', 'OTRO'];
     const mapa = new Map<string, Cuenta[]>();
@@ -470,13 +498,29 @@ export class CuentasComponent implements OnInit, OnDestroy {
       list.push(c);
       mapa.set(t, list);
     }
+    const cero = this.tdcEnCero();
+    if (cero.length) {
+      const list = mapa.get('TDC') || [];
+      list.push(...cero);
+      mapa.set('TDC', list);
+    }
     return orden
       .filter((t) => (mapa.get(t) || []).length > 0)
-      .map((t) => ({
-        tipo: t,
-        etiqueta: this.etiquetaTipo(t),
-        cuentas: (mapa.get(t) || []).slice().sort((a, b) => this.porNombre(a, b)),
-      }));
+      .map((t) => {
+        const raw = mapa.get(t) || [];
+        const cuentas =
+          t === 'TDC'
+            ? [
+                ...raw
+                  .filter((c) => Number(c.saldoActual) !== 0)
+                  .sort((a, b) => this.porNombre(a, b)),
+                ...raw
+                  .filter((c) => Number(c.saldoActual) === 0)
+                  .sort((a, b) => this.porNombre(a, b)),
+              ]
+            : raw.slice().sort((a, b) => this.porNombre(a, b));
+        return { tipo: t, etiqueta: this.etiquetaTipo(t), cuentas };
+      });
   }
 
   get meDebenPendientes(): Cuenta[] {
@@ -487,7 +531,7 @@ export class CuentasComponent implements OnInit, OnDestroy {
 
   get cuentasSaldadas(): Cuenta[] {
     return this.cuentas
-      .filter((c) => Number(c.saldoActual) === 0)
+      .filter((c) => Number(c.saldoActual) === 0 && !this.esTdc(c))
       .sort((a, b) => this.porNombre(a, b));
   }
 
@@ -727,6 +771,10 @@ export class CuentasComponent implements OnInit, OnDestroy {
   async eliminarCuenta(c?: Cuenta): Promise<void> {
     const cuenta = c || this.seleccionada;
     if (!cuenta?.id) return;
+    if (this.esTdc(cuenta)) {
+      this.error = 'Las TDC no se eliminan; usa «Dejar de usar» para quitarlas de compras';
+      return;
+    }
     if (Number(cuenta.saldoActual) !== 0) {
       this.error = 'Solo puedes eliminar cuentas con saldo en $0';
       return;

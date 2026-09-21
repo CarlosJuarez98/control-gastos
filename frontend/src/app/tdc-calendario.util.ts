@@ -289,33 +289,67 @@ export interface RecomendacionTdc extends CalendarioTdc {
 }
 
 /**
- * Hasta 2 TDC recomendadas para una compra:
- * - Con monto > 0: solo las que tienen crédito libre ≥ monto; orden por más días a pago.
- * - Sin monto: las de mejor plazo (igual que antes).
+ * Todas las TDC activas (no bloqueadas), ordenadas por conveniencia:
+ * - Con monto > 0 (y sin sobregiro): primero las que cubren con crédito libre.
+ * - Dentro de cada grupo: más días hasta el pago, luego más crédito libre.
+ * - `permitirSobregiro`: no filtra ni prioriza por límite (disposiciones).
+ * - Sin calendario de corte/pago van al final.
  */
 export function recomendarTdcs(
   cuentas: Cuenta[],
   fechaCompra: Date | string,
   monto = 0,
-  max = 2,
+  max = Number.POSITIVE_INFINITY,
+  opts?: { permitirSobregiro?: boolean },
 ): RecomendacionTdc[] {
-  const montoOk = Number.isFinite(monto) && monto > 0;
-  const cals: RecomendacionTdc[] = [];
+  const permitirSobregiro = !!opts?.permitirSobregiro;
+  const montoOk = !permitirSobregiro && Number.isFinite(monto) && monto > 0;
+  const conCal: RecomendacionTdc[] = [];
+  const sinCal: RecomendacionTdc[] = [];
   for (const c of cuentas) {
     if ((c.tipo || '').toUpperCase() !== 'TDC' || c.bloqueada) continue;
-    const cal = calendarioCompraTdc(c, fechaCompra);
-    if (!cal) continue;
     const disponible = creditoDisponibleDe(c);
-    const cubre = disponible != null && disponible + 1e-9 >= monto;
-    if (montoOk && !cubre) continue;
-    cals.push({ ...cal, creditoDisponible: disponible, cubreMonto: cubre });
+    // Sin límite capturado o sobregiro permitido: no descartar.
+    const cubre =
+      permitirSobregiro ||
+      !montoOk ||
+      disponible == null ||
+      disponible + 1e-9 >= monto;
+    const cal = calendarioCompraTdc(c, fechaCompra);
+    if (!cal) {
+      sinCal.push({
+        cuenta: c,
+        diaCorte: Number(c.diaCorte) || 0,
+        diaLimitePago: Number(c.diaLimitePago) || 0,
+        fechaCorte: aMedianoche(new Date()),
+        fechaPago: aMedianoche(new Date()),
+        diasHastaPago: -1,
+        quincenaPago: 'despues',
+        etiquetaQuincenaPago: 'Sin corte / pago capturado',
+        etiquetaPagoCorta: '—',
+        creditoDisponible: disponible,
+        cubreMonto: cubre,
+      });
+      continue;
+    }
+    conCal.push({ ...cal, creditoDisponible: disponible, cubreMonto: cubre });
   }
-  cals.sort(
-    (a, b) =>
+  const porConveniencia = (a: RecomendacionTdc, b: RecomendacionTdc) => {
+    if (montoOk) {
+      const ca = a.cubreMonto ? 1 : 0;
+      const cb = b.cubreMonto ? 1 : 0;
+      if (cb !== ca) return cb - ca;
+    }
+    return (
       b.diasHastaPago - a.diasHastaPago ||
       (b.creditoDisponible ?? -Infinity) - (a.creditoDisponible ?? -Infinity) ||
-      (a.cuenta.nombre || '').localeCompare(b.cuenta.nombre || '', 'es'),
-  );
+      (a.cuenta.nombre || '').localeCompare(b.cuenta.nombre || '', 'es')
+    );
+  };
+  conCal.sort(porConveniencia);
+  sinCal.sort(porConveniencia);
+  const cals = conCal.concat(sinCal);
+  if (!Number.isFinite(max)) return cals;
   return cals.slice(0, Math.max(0, max));
 }
 

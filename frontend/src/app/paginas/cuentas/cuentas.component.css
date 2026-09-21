@@ -1,6 +1,8 @@
 :host {
   display: flex;
   flex-direction: column;
+  height: 100%;
+  max-height: 100%;
   min-height: 0;
   max-width: 100%;
   overflow-x: hidden;
@@ -83,6 +85,8 @@
 .layout {
   flex: 1 1 auto;
   min-height: 0;
+  height: 100%;
+  max-height: 100%;
   display: grid;
   grid-template-columns: 280px 1fr;
   gap: 0.85rem;
@@ -90,7 +94,12 @@
 
 .lista-cuentas {
   min-height: 0;
-  overflow: auto;
+  height: 100%;
+  max-height: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
   display: grid;
   gap: 0.75rem;
   align-content: start;
@@ -212,9 +221,13 @@
 
 .detalle {
   min-height: 0;
-  /* El historial (.movs-wrap) scrollea dentro; evita que overflow-y:hidden del wrap
-     aplasté la tabla y deje el panel sin scroll. */
-  overflow: hidden;
+  height: 100%;
+  max-height: 100%;
+  /* Scroll del panel completo (formularios + historial); evita historial aplastado. */
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
   border: 1px solid color-mix(in srgb, var(--linea) 90%, transparent);
   border-radius: 1.1rem;
   background:
@@ -230,6 +243,12 @@
   box-shadow:
     0 16px 40px rgba(0, 0, 0, 0.22),
     inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.detalle-lateral {
+  min-height: 0;
+  height: 100%;
+  max-height: 100%;
 }
 
 .detalle-cab {
@@ -400,11 +419,13 @@ button.btn-redito:hover {
   display: block;
   width: 100%;
   max-width: 100%;
-  flex: 1 1 auto;
-  min-height: 10rem;
-  overflow: auto;
+  flex: 0 0 auto;
+  min-height: 0;
+  /* Solo scroll horizontal de la tabla; el vertical lo hace .detalle */
+  overflow-x: auto;
+  overflow-y: visible;
   -webkit-overflow-scrolling: touch;
-  overscroll-behavior: contain;
+  overscroll-behavior-x: contain;
   touch-action: pan-x pan-y;
   margin-top: 0.35rem;
   border: 1px solid color-mix(in srgb, var(--linea) 90%, transparent);
@@ -729,7 +750,7 @@ tr.editando td {
     height: 100%;
     max-height: 100%;
     overflow-y: auto;
-    overflow-x: clip;
+    overflow-x: hidden;
     -webkit-overflow-scrolling: touch;
     overscroll-behavior-y: contain;
     padding-bottom: max(1.5rem, env(safe-area-inset-bottom));
@@ -738,20 +759,28 @@ tr.editando td {
   .layout {
     grid-template-columns: 1fr;
     flex: 0 0 auto;
+    height: auto;
+    max-height: none;
     min-height: unset;
     overflow: visible;
     gap: 0;
   }
 
   .lista-cuentas,
-  .detalle {
+  .detalle,
+  .detalle-lateral,
+  .detalle-inline,
+  .detalle-inline .detalle {
     overflow: visible;
+    height: auto;
+    max-height: none;
     min-height: unset;
   }
 
   .movs-wrap {
     flex: 0 0 auto;
     min-height: unset;
+    max-height: none;
     overflow: visible;
   }
 
@@ -994,7 +1023,7 @@ tr.editando td {
     height: 100%;
     max-height: 100%;
     overflow-y: auto;
-    overflow-x: clip;
+    overflow-x: hidden;
     -webkit-overflow-scrolling: touch;
     padding-bottom: 1rem;
   }
