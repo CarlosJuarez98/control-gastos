@@ -298,16 +298,21 @@ public class FinanzasService {
                         "La tarjeta «" + cuenta.getNombre() + "» está bloqueada; no admite movimientos nuevos");
             }
 
+            normalizarMesesTarjeta(gasto);
+            normalizarTotalDeudaDisposicion(gasto);
+            BigDecimal cargo = montoCargoTdc(gasto);
+            String conceptoCargo = conceptoCargoTdc(gasto, concepto, cargo);
+
             if (existing == null || existing.getMovimientoId() == null) {
                 MovimientoCuenta mov = new MovimientoCuenta();
                 mov.setCuenta(cuenta);
                 mov.setFecha(gasto.getFecha());
                 mov.setTipo("CARGO");
-                mov.setMonto(gasto.getMonto());
+                mov.setMonto(cargo);
                 mov.setPropietario(u);
-                mov.setConcepto(concepto);
+                mov.setConcepto(conceptoCargo);
                 MovimientoCuenta savedMov = movimientoRepository.save(mov);
-                aplicarSaldo(cuenta, "CARGO", gasto.getMonto());
+                aplicarSaldo(cuenta, "CARGO", cargo);
                 cuentaRepository.save(cuenta);
                 gasto.setMovimientoId(savedMov.getId());
             } else {
@@ -322,10 +327,10 @@ public class FinanzasService {
                 }
                 mov.setCuenta(destino);
                 mov.setFecha(gasto.getFecha());
-                mov.setMonto(gasto.getMonto());
-                mov.setConcepto(concepto);
+                mov.setMonto(cargo);
+                mov.setConcepto(conceptoCargo);
                 movimientoRepository.save(mov);
-                aplicarSaldo(destino, "CARGO", gasto.getMonto());
+                aplicarSaldo(destino, "CARGO", cargo);
                 cuentaRepository.save(destino);
                 gasto.setMovimientoId(mov.getId());
                 gasto.setCuenta(destino);
@@ -333,7 +338,6 @@ public class FinanzasService {
             if (gasto.getCuenta() == null) {
                 gasto.setCuenta(cuenta);
             }
-            normalizarMesesTarjeta(gasto);
         } else {
             if (existing != null && existing.getMovimientoId() != null) {
                 movimientoRepository.findById(existing.getMovimientoId()).ifPresent(mov -> {
@@ -347,6 +351,7 @@ public class FinanzasService {
             gasto.setCuenta(null);
             gasto.setMovimientoId(null);
             gasto.setMeses(null);
+            gasto.setTotalDeuda(null);
         }
 
         Gasto guardado = gastoRepository.save(gasto);
@@ -364,6 +369,52 @@ public class FinanzasService {
             throw new IllegalArgumentException("El plazo a meses debe ser entre 2 y 48");
         }
         gasto.setMeses(m);
+    }
+
+    /**
+     * Disposición a meses: total que cobra el banco (con interés).
+     * El monto del gasto sigue siendo lo recibido (disponible).
+     */
+    private void normalizarTotalDeudaDisposicion(Gasto gasto) {
+        if (!esFormaDisposicion(gasto.getFormaPago())
+                || gasto.getMeses() == null
+                || gasto.getMeses() <= 1) {
+            gasto.setTotalDeuda(null);
+            return;
+        }
+        BigDecimal total = gasto.getTotalDeuda();
+        if (total == null || total.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException(
+                    "En disposición a meses indica el total que cobra el banco (incluye interés)");
+        }
+        if (total.compareTo(gasto.getMonto()) < 0) {
+            throw new IllegalArgumentException(
+                    "El total del banco debe ser al menos el monto recibido (el resto es interés)");
+        }
+        gasto.setTotalDeuda(total.setScale(2, java.math.RoundingMode.HALF_UP));
+    }
+
+    /**
+     * Disponible usa {@code gasto.monto} (efectivo recibido).
+     * El cargo TDC en disposición a meses es el total del banco.
+     */
+    private static BigDecimal montoCargoTdc(Gasto gasto) {
+        if (esFormaDisposicion(gasto.getFormaPago())
+                && gasto.getMeses() != null
+                && gasto.getMeses() > 1
+                && gasto.getTotalDeuda() != null
+                && gasto.getTotalDeuda().compareTo(BigDecimal.ZERO) > 0) {
+            return gasto.getTotalDeuda().setScale(2, java.math.RoundingMode.HALF_UP);
+        }
+        return gasto.getMonto();
+    }
+
+    private static String conceptoCargoTdc(Gasto gasto, String concepto, BigDecimal cargo) {
+        if (!esFormaDisposicion(gasto.getFormaPago()) || cargo.compareTo(gasto.getMonto()) <= 0) {
+            return concepto;
+        }
+        BigDecimal interes = cargo.subtract(gasto.getMonto()).setScale(2, java.math.RoundingMode.HALF_UP);
+        return truncar(concepto + " (interés $" + interes.toPlainString() + ")", 200);
     }
 
     /**
@@ -391,8 +442,8 @@ public class FinanzasService {
         }
 
         int meses = guardado.getMeses();
-        BigDecimal cuota = guardado.getMonto()
-                .divide(BigDecimal.valueOf(meses), 2, java.math.RoundingMode.HALF_UP);
+        BigDecimal totalDeuda = montoCargoTdc(guardado);
+        BigDecimal cuota = totalDeuda.divide(BigDecimal.valueOf(meses), 2, java.math.RoundingMode.HALF_UP);
         String tdc = "TDC";
         Long cid = guardado.getCuentaId();
         if (cid != null) {
@@ -427,7 +478,7 @@ public class FinanzasService {
         plan.setMotivo(motivo);
         plan.setMonto(cuota);
         plan.setMesesTotales(meses);
-        plan.setMontoTotal(guardado.getMonto());
+        plan.setMontoTotal(totalDeuda);
         plan.setPropietario(u);
         if (plan.getMesesRestantes() != null && plan.getMesesRestantes() == 0) {
             plan.setActivo(false);

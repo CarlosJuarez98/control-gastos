@@ -42,6 +42,14 @@ public class Gasto {
     @Column(name = "MESES")
     private Integer meses;
 
+    /**
+     * Disposición a meses: total que cobra el banco (incluye interés).
+     * {@code monto} = efectivo recibido (disponible); la cuota del plan es total ÷ meses.
+     * Columna legacy {@code CUOTA_MENSUAL} (antes se guardaba la cuota; ahora el total).
+     */
+    @Column(name = "CUOTA_MENSUAL", precision = 14, scale = 2)
+    private BigDecimal totalDeuda;
+
     @Column(name = "PROPIETARIO", length = 80)
     private String propietario;
 
@@ -63,6 +71,8 @@ public class Gasto {
     public void setMovimientoId(Long movimientoId) { this.movimientoId = movimientoId; }
     public Integer getMeses() { return meses; }
     public void setMeses(Integer meses) { this.meses = meses; }
+    public BigDecimal getTotalDeuda() { return totalDeuda; }
+    public void setTotalDeuda(BigDecimal totalDeuda) { this.totalDeuda = totalDeuda; }
     public String getPropietario() { return propietario; }
     public void setPropietario(String propietario) { this.propietario = propietario; }
 

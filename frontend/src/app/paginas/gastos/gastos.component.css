@@ -189,7 +189,7 @@ button.total-btn.activo {
 .bloque-tarjeta {
   flex: 1 1 100%;
   width: 100%;
-  max-width: 36rem;
+  max-width: min(100%, 48rem);
   min-width: 0;
   display: grid;
   grid-template-columns: minmax(0, 1.35fr) minmax(0, 0.9fr);
@@ -199,19 +199,58 @@ button.total-btn.activo {
   align-items: start;
 }
 .alta > .bloque-tarjeta {
-  max-width: 36rem;
+  max-width: min(100%, 48rem);
 }
 .alta > .bloque-tarjeta > .campo-tdc {
   max-width: 16rem;
 }
-.alta > .bloque-tarjeta > .campo-toggle,
-.alta > .bloque-tarjeta > .campo-meses {
-  max-width: 10rem;
-}
 .bloque-tarjeta > .campo-tdc,
+.bloque-tarjeta > .etiqueta-tdc,
 .bloque-tarjeta > .hint-tdc-recs,
-.bloque-tarjeta > .hint-tdc-rec {
+.bloque-tarjeta > .hint-tdc-rec,
+.bloque-tarjeta > .fila-plazo {
   grid-column: 1 / -1;
+}
+.etiqueta-tdc {
+  font-size: 0.8rem;
+  color: var(--texto-suave);
+  margin: 0;
+}
+.fila-plazo {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: flex-end;
+  width: 100%;
+  min-width: 0;
+}
+.fila-plazo > .campo-toggle {
+  flex: 0 0 7.25rem;
+  width: 7.25rem;
+  min-width: 6.5rem;
+  max-width: 7.5rem;
+}
+.fila-plazo > .campo-meses {
+  flex: 0 0 5.25rem;
+  width: 5.25rem;
+  min-width: 4.75rem;
+  max-width: 5.5rem;
+}
+.fila-plazo > .campo-cuota {
+  flex: 0 0 9.5rem;
+  width: 9.5rem;
+  min-width: 8.5rem;
+  max-width: 11rem;
+}
+.fila-plazo > .hint-plazo-inline {
+  flex: 1 1 10rem;
+  margin: 0;
+  min-width: 0;
+  align-self: center;
+  padding-bottom: 0.35rem;
+  font-size: 0.78rem;
+  line-height: 1.25;
+  color: var(--texto-suave);
 }
 .hint-tdc-recs {
   display: flex;
@@ -227,10 +266,19 @@ button.total-btn.activo {
 .bloque-tarjeta > label,
 .bloque-tarjeta .campo-tdc,
 .bloque-tarjeta .campo-meses,
+.bloque-tarjeta .campo-cuota,
 .bloque-tarjeta .campo-toggle {
   width: 100%;
   max-width: 100%;
   min-width: 0;
+}
+.fila-plazo > label {
+  display: grid;
+  gap: 0.22rem;
+  font-size: 0.8rem;
+  color: var(--texto-suave);
+  align-content: start;
+  box-sizing: border-box;
 }
 .bloque-tarjeta select,
 .bloque-tarjeta input,
@@ -799,8 +847,31 @@ button:disabled { opacity: 0.65; cursor: not-allowed; transform: none; filter: n
   }
   .bloque-tarjeta > .campo-tdc,
   .bloque-tarjeta > .campo-toggle,
-  .bloque-tarjeta > .campo-meses {
+  .bloque-tarjeta > .campo-meses,
+  .bloque-tarjeta > .campo-cuota {
     max-width: none;
+  }
+  .fila-plazo {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 0.5rem;
+    align-items: start;
+  }
+  .fila-plazo > .campo-toggle,
+  .fila-plazo > .campo-meses,
+  .fila-plazo > .campo-cuota {
+    width: auto;
+    min-width: 0;
+    max-width: none;
+    flex: none;
+  }
+  .fila-plazo.con-total > .campo-cuota,
+  .fila-plazo > .hint-plazo-inline {
+    grid-column: 1 / -1;
+  }
+  .fila-plazo > .hint-plazo-inline {
+    padding-bottom: 0;
+    align-self: start;
   }
   label.campo-toggle { width: auto; min-width: 0; max-width: none; }
   .buscar-wrap { max-width: none; width: 100%; }

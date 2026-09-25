@@ -75,7 +75,7 @@
       [placeholder]="esDisposicion ? 'Cajero, app…' : 'Cena, gasolina…'"
     />
   </label>
-  <label class="campo-monto">Monto
+  <label class="campo-monto">{{ esDisposicion ? 'Monto recibido' : 'Monto' }}
     <div class="monto-wrap">
       <span class="simbolo">$</span>
       <input
@@ -85,7 +85,7 @@
         [(ngModel)]="form.monto"
         name="monto"
         required
-        placeholder="100+50+25"
+        [placeholder]="esDisposicion ? '2000' : '100+50+25'"
         (ngModelChange)="alEscribirMonto($event)"
         (keydown)="soloMonto($event)"
       />
@@ -108,18 +108,7 @@
   </label>
   @if (esConTdc) {
     <div class="bloque-tarjeta">
-      <label class="campo-tdc">TDC
-        <select
-          [(ngModel)]="form.cuentaId"
-          name="cuentaId"
-          required
-          (ngModelChange)="alElegirTdcSelect()"
-        >
-          @for (c of cuentasTdc; track c.id; let i = $index) {
-            <option [ngValue]="c.id">{{ etiquetaOpcionTdc(c, i) }}</option>
-          }
-        </select>
-      </label>
+      <span class="etiqueta-tdc">TDC</span>
       @if (recomendacionesTdc.length) {
         <div class="hint-tdc-recs" role="list" aria-label="Tarjetas por conveniencia">
           @for (rec of recomendacionesTdc; track rec.cuenta.id; let i = $index) {
@@ -157,37 +146,67 @@
       } @else if (!cuentasTdc.length) {
         <p class="hint-tdc-rec hint-tdc-aviso">No hay TDC activas; en Deudas usa «Volver a usar» si las bloqueaste</p>
       }
-      <label class="campo-toggle">
-        <span>Plazo</span>
-        <button
-          type="button"
-          class="btn-toggle"
-          [class.activo]="form.aMeses"
-          [attr.aria-pressed]="form.aMeses"
-          (click)="form.aMeses = !form.aMeses"
-        >A meses</button>
-      </label>
-      @if (form.aMeses) {
-        <label class="campo-meses">Meses
-          <input
-            class="sin-spin"
-            type="text"
-            inputmode="numeric"
-            pattern="[0-9]*"
-            [(ngModel)]="form.meses"
-            name="meses"
-            required
-            autocomplete="off"
-            placeholder="12"
-          />
+      <div
+        class="fila-plazo"
+        [class.con-meses]="form.aMeses"
+        [class.con-total]="esDisposicion && form.aMeses"
+      >
+        <label class="campo-toggle">
+          <span>Plazo</span>
+          <button
+            type="button"
+            class="btn-toggle"
+            [class.activo]="form.aMeses"
+            [attr.aria-pressed]="form.aMeses"
+            (click)="alToggleAMeses()"
+          >A meses</button>
         </label>
-      } @else {
-        @if (calendarioPagoUnico; as pagoUnico) {
-          <p class="hint-tdc-rec">
-            Pago único · vence {{ pagoUnico.etiquetaPagoCorta }}
-          </p>
+        @if (form.aMeses) {
+          <label class="campo-meses">Meses
+            <input
+              class="sin-spin"
+              type="text"
+              inputmode="numeric"
+              pattern="[0-9]*"
+              [(ngModel)]="form.meses"
+              name="meses"
+              required
+              autocomplete="off"
+              placeholder="3"
+            />
+          </label>
+          @if (esDisposicion) {
+            <label class="campo-cuota">Total banco
+              <div class="monto-wrap">
+                <span class="simbolo">$</span>
+                <input
+                  type="text"
+                  inputmode="decimal"
+                  autocomplete="off"
+                  [(ngModel)]="form.totalDeuda"
+                  name="totalDeuda"
+                  required
+                  placeholder="2287.47"
+                  (ngModelChange)="alEscribirTotalDeuda($event)"
+                  (keydown)="soloMonto($event)"
+                />
+              </div>
+            </label>
+            @if (previewDisposicion; as prev) {
+              <p class="hint-plazo-inline">
+                {{ prev.meses }}×{{ prev.cuota | currency:'MXN':'symbol-narrow':'1.2-2' }}
+                · interés {{ prev.interes | currency:'MXN':'symbol-narrow':'1.2-2' }}
+              </p>
+            }
+          }
+        } @else {
+          @if (calendarioPagoUnico; as pagoUnico) {
+            <p class="hint-plazo-inline">
+              Pago único · vence {{ pagoUnico.etiquetaPagoCorta }}
+            </p>
+          }
         }
-      }
+      </div>
     </div>
   }
   <div class="alta-acciones">

@@ -20,6 +20,7 @@ export interface GastoFila {
   montoTxt: string;
   pago: string;
   meses?: number | null;
+  totalDeuda?: number | null;
 }
 
 export interface GrupoQuincena {
@@ -59,6 +60,8 @@ export class GastosComponent implements OnInit, OnDestroy {
     cuentaId: number | null;
     aMeses: boolean;
     meses: string;
+    /** Solo disposición a meses: total que cobra el banco. */
+    totalDeuda: string;
   } = {
     fecha: fechaHoyLocal(),
     categoria: 'Yo',
@@ -68,6 +71,7 @@ export class GastosComponent implements OnInit, OnDestroy {
     cuentaId: null,
     aMeses: false,
     meses: '',
+    totalDeuda: '',
   };
   categorias = ['Yo', 'Familia', 'Vehiculos', 'Casa', 'Mama', 'Otro'];
   filtro = '';
@@ -188,6 +192,8 @@ export class GastosComponent implements OnInit, OnDestroy {
   alCambiarFormaPago(): void {
     this.form.cuentaId = null;
     this.form.aMeses = false;
+    this.form.meses = '';
+    this.form.totalDeuda = '';
     this.tdcElegidaManual = false;
     if (this.esDisposicion) {
       this.form.categoria = 'Disposición';
@@ -197,6 +203,35 @@ export class GastosComponent implements OnInit, OnDestroy {
     if (this.esConTdc) {
       this.cargarTarjetas(true);
     }
+  }
+
+  /** Al activar/desactivar “A meses”. */
+  alToggleAMeses(): void {
+    this.form.aMeses = !this.form.aMeses;
+    if (!this.form.aMeses) {
+      this.form.meses = '';
+      this.form.totalDeuda = '';
+    }
+  }
+
+  /** Interés y cuota: total banco ÷ meses. */
+  get previewDisposicion(): {
+    total: number;
+    interes: number;
+    cuota: number;
+    meses: number;
+    recibido: number;
+  } | null {
+    if (!this.esDisposicion || !this.form.aMeses) return null;
+    const meses = Number(String(this.form.meses).replace(/\D/g, ''));
+    const total = parseDineroSuma(this.form.totalDeuda).total;
+    const recibido = parseDineroSuma(this.form.monto).total;
+    if (!meses || meses < 2 || !Number.isFinite(total) || total <= 0 || !Number.isFinite(recibido) || recibido <= 0) {
+      return null;
+    }
+    const cuota = Math.round((total / meses) * 100) / 100;
+    const interes = Math.round((total - recibido) * 100) / 100;
+    return { total, interes, cuota, meses, recibido };
   }
 
   /** Al cambiar monto o fecha, reordena y elige automáticamente la mejor. */
@@ -241,20 +276,11 @@ export class GastosComponent implements OnInit, OnDestroy {
     return calendarioCompraTdc(c, this.form.fecha);
   }
 
-  etiquetaOpcionTdc(c: Cuenta, indice = 0): string {
-    const nombre = c.nombre || 'TDC';
-    return indice === 0 ? `${nombre} · 1ª` : `${nombre}`;
-  }
-
   usarRecomendacionTdc(id: number | null | undefined): void {
     if (id == null) return;
     this.tdcElegidaManual = id !== this.cuentasTdc[0]?.id;
     this.form.cuentaId = id;
     this.cdr.markForCheck();
-  }
-
-  alElegirTdcSelect(): void {
-    this.tdcElegidaManual = this.form.cuentaId != null && this.form.cuentaId !== this.cuentasTdc[0]?.id;
   }
 
   private fechaLocal(d = new Date()): string {
@@ -268,6 +294,11 @@ export class GastosComponent implements OnInit, OnDestroy {
   alEscribirMonto(v: string): void {
     this.form.monto = formatDineroInputFlexible(v);
     this.alCambiarContextoTdc();
+    this.cdr.markForCheck();
+  }
+
+  alEscribirTotalDeuda(v: string): void {
+    this.form.totalDeuda = formatDineroInputFlexible(v);
     this.cdr.markForCheck();
   }
 
@@ -408,6 +439,7 @@ export class GastosComponent implements OnInit, OnDestroy {
         montoTxt: `$${formatDineroNumero(monto)}`,
         pago: this.etiquetaPago(g),
         meses: g.meses && g.meses > 1 ? g.meses : null,
+        totalDeuda: g.totalDeuda && g.totalDeuda > 0 ? Number(g.totalDeuda) : null,
       });
       totales.set(clave, (totales.get(clave) || 0) + monto);
     }
@@ -477,7 +509,13 @@ export class GastosComponent implements OnInit, OnDestroy {
     if (forma === 'TARJETA' || forma === 'DISPOSICION') {
       const tipo = forma === 'DISPOSICION' ? 'Disposición' : 'Tarjeta';
       const base = g.cuenta?.nombre ? `${tipo} · ${g.cuenta.nombre}` : tipo;
-      if (g.meses && g.meses > 1) return `${base} · ${g.meses} meses`;
+      if (g.meses && g.meses > 1) {
+        if (forma === 'DISPOSICION' && g.totalDeuda && g.totalDeuda > 0) {
+          const cuota = Math.round((g.totalDeuda / g.meses) * 100) / 100;
+          return `${base} · ${g.meses}×$${formatDineroNumero(cuota)}`;
+        }
+        return `${base} · ${g.meses} meses`;
+      }
       return base;
     }
     return 'Efectivo';
@@ -498,6 +536,12 @@ export class GastosComponent implements OnInit, OnDestroy {
       if (this.form.aMeses) {
         const m = Number(String(this.form.meses).replace(/\D/g, ''));
         if (!m || m < 2 || m > 48) return false;
+        if (this.esDisposicion) {
+          const total = parseDineroSuma(this.form.totalDeuda).total;
+          const recibido = parseDineroSuma(this.form.monto).total;
+          if (!Number.isFinite(total) || total <= 0) return false;
+          if (total < recibido) return false;
+        }
       }
     }
     return true;
@@ -518,6 +562,10 @@ export class GastosComponent implements OnInit, OnDestroy {
     const meses = original.meses && original.meses > 1 ? original.meses : null;
     const conTdc = forma === 'TARJETA' || forma === 'DISPOSICION';
     const cuentaId = conTdc ? (original.cuentaId ?? original.cuenta?.id ?? null) : null;
+    const totalDeudaTxt =
+      forma === 'DISPOSICION' && original.totalDeuda && original.totalDeuda > 0
+        ? formatDineroInput(String(original.totalDeuda))
+        : '';
     this.form = {
       fecha: (original.fecha || '').slice(0, 10) || fechaHoyLocal(),
       categoria: forma === 'DISPOSICION' ? 'Disposición' : (original.categoria || 'Yo'),
@@ -527,6 +575,7 @@ export class GastosComponent implements OnInit, OnDestroy {
       cuentaId,
       aMeses: conTdc && !!meses,
       meses: meses ? String(meses) : '',
+      totalDeuda: totalDeudaTxt,
     };
     this.tdcElegidaManual = conTdc && cuentaId != null;
     this.cargarTarjetas(false);
@@ -550,6 +599,7 @@ export class GastosComponent implements OnInit, OnDestroy {
       cuentaId: null,
       aMeses: false,
       meses: '',
+      totalDeuda: '',
     };
     if (this.esMovil) this.altaAbierta = false;
     this.cdr.markForCheck();
@@ -595,12 +645,30 @@ export class GastosComponent implements OnInit, OnDestroy {
           return;
         }
         this.form.meses = String(m);
+        if (this.esDisposicion) {
+          const total = parseDineroSuma(this.form.totalDeuda).total;
+          if (!Number.isFinite(total) || total <= 0) {
+            this.error = 'Indica el total que cobra el banco (incluye interés)';
+            this.cdr.markForCheck();
+            return;
+          }
+          if (total < monto) {
+            this.error = 'El total del banco debe ser al menos el monto recibido';
+            this.cdr.markForCheck();
+            return;
+          }
+        }
       }
     }
 
     const meses =
       this.esConTdc && this.form.aMeses
         ? Number(this.form.meses)
+        : null;
+
+    const totalDeuda =
+      this.esDisposicion && this.form.aMeses
+        ? parseDineroSuma(this.form.totalDeuda).total
         : null;
 
     const body: Gasto = {
@@ -611,6 +679,7 @@ export class GastosComponent implements OnInit, OnDestroy {
       formaPago: this.form.formaPago,
       cuentaId: this.esConTdc ? this.form.cuentaId : null,
       meses,
+      totalDeuda,
     };
 
     this.guardando = true;
@@ -626,6 +695,7 @@ export class GastosComponent implements OnInit, OnDestroy {
     req.subscribe({
       next: () => {
         this.guardando = false;
+        this.cdr.markForCheck();
         if (eraAlta) {
           // Misma fecha (y categoría/pago) lista para otro gasto del día
           this.editandoId = null;
@@ -638,6 +708,7 @@ export class GastosComponent implements OnInit, OnDestroy {
             cuentaId: formaGuardada === 'TARJETA' || formaGuardada === 'DISPOSICION' ? cuentaGuardada : null,
             aMeses: false,
             meses: '',
+            totalDeuda: '',
           };
           if (this.esMovil) this.altaAbierta = true;
         } else {

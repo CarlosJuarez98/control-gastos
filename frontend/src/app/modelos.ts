@@ -36,6 +36,11 @@ export interface Gasto {
   movimientoId?: number | null;
   /** Plazo MSI (2–48). Null/1 = de contado. */
   meses?: number | null;
+  /**
+   * Disposición a meses: total que cobra el banco (con interés).
+   * `monto` = efectivo recibido (disponible); cuota = total ÷ meses.
+   */
+  totalDeuda?: number | null;
 }
 
 export interface GastoMensual {
