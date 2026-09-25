@@ -146,6 +146,99 @@
 .acciones { grid-area: acciones; }
 .nav-top { grid-area: nav; }
 
+/* Hamburguesa: solo móvil */
+.menu-btn {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 2.35rem;
+  height: 2.35rem;
+  padding: 0;
+  border: 1px solid var(--linea);
+  border-radius: 0.65rem;
+  background: transparent;
+  color: var(--texto);
+  cursor: pointer;
+  flex: 0 0 auto;
+}
+
+.menu-btn .hamburguesa {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+  width: 1.1rem;
+}
+
+.menu-btn .hamburguesa span {
+  display: block;
+  height: 2px;
+  width: 100%;
+  border-radius: 1px;
+  background: currentColor;
+}
+
+.menu-nav-backdrop,
+.menu-nav-panel {
+  display: none;
+}
+
+/* Solo para medir anchos del dock móvil; nunca visible */
+.dock-measure {
+  position: fixed !important;
+  left: -10000px !important;
+  top: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  display: flex !important;
+  gap: 0.12rem;
+  padding: 0.28rem;
+  white-space: nowrap;
+  z-index: -1;
+}
+
+.dock-measure-item {
+  display: grid;
+  justify-items: center;
+  gap: 0.08rem;
+  padding: 0.32rem 0.4rem 0.28rem;
+  box-sizing: border-box;
+}
+
+.dock-measure-item .dock-ico {
+  font-size: 1.05rem;
+  line-height: 1;
+  width: 1.55rem;
+  height: 1.55rem;
+  display: grid;
+  place-items: center;
+}
+
+.dock-measure-item .dock-lbl {
+  font-size: 0.68rem;
+  font-weight: 650;
+  letter-spacing: 0.01em;
+  line-height: 1.1;
+  white-space: nowrap;
+}
+
+.dock-measure-item.dock-menu .hamburguesa {
+  width: 1.15rem;
+  height: 1.55rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 3px;
+}
+
+.dock-measure-item.dock-menu .hamburguesa span {
+  display: block;
+  height: 2px;
+  width: 100%;
+  border-radius: 1px;
+  background: currentColor;
+}
+
 /* Dock inferior: solo móvil (ver media query) */
 .nav-dock {
   display: none;
@@ -396,7 +489,9 @@ main > *:not(router-outlet) {
 @media (prefers-reduced-motion: reduce) {
   .shell,
   main > *:not(router-outlet),
-  .nav-dock {
+  .nav-dock,
+  .menu-nav-panel,
+  .menu-nav-backdrop {
     animation: none !important;
     opacity: 1 !important;
     transform: none !important;
@@ -480,6 +575,73 @@ main > *:not(router-outlet) {
     display: none !important;
   }
 
+  .acciones {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+  }
+
+  .menu-nav-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 45;
+    background: rgba(0, 0, 0, 0.45);
+    animation: fade-in 0.2s ease both;
+  }
+
+  .menu-nav-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    position: fixed;
+    left: max(0.45rem, env(safe-area-inset-left));
+    right: max(0.45rem, env(safe-area-inset-right));
+    bottom: calc(4.35rem + env(safe-area-inset-bottom));
+    z-index: 50;
+    max-height: min(70dvh, 28rem);
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    margin: 0;
+    padding: 0.45rem;
+    border: 1px solid color-mix(in srgb, var(--linea) 80%, transparent);
+    border-radius: 1.1rem;
+    background:
+      linear-gradient(180deg, color-mix(in srgb, var(--superficie) 94%, #fff 4%), var(--superficie-2));
+    box-shadow:
+      0 16px 40px rgba(0, 0, 0, 0.5),
+      inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    backdrop-filter: blur(18px) saturate(1.25);
+    animation: menu-sheet-in 0.28s var(--ease-out) both;
+  }
+
+  .menu-nav-panel a {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    padding: 0.75rem 0.85rem;
+    border-radius: 0.7rem;
+    color: var(--texto);
+    text-decoration: none;
+    font-weight: 650;
+    font-size: 1rem;
+    line-height: 1.25;
+    min-height: 2.75rem;
+    white-space: nowrap;
+  }
+
+  .menu-nav-panel a.activo {
+    background: color-mix(in srgb, var(--acento) 20%, transparent);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--acento) 35%, transparent);
+  }
+
+  .menu-nav-panel .nav-ico {
+    width: 1.35rem;
+    text-align: center;
+    opacity: 0.9;
+    flex: 0 0 auto;
+  }
+
   .brand-mark {
     font-size: 1.05rem;
     letter-spacing: -0.03em;
@@ -531,15 +693,15 @@ main > *:not(router-outlet) {
   }
 
   .nav-dock {
-    display: grid;
-    grid-auto-flow: column;
-    grid-auto-columns: 1fr;
-    gap: 0.08rem;
+    display: flex;
+    align-items: stretch;
+    justify-content: space-evenly;
+    gap: 0.12rem;
     position: fixed;
     left: max(0.45rem, env(safe-area-inset-left));
     right: max(0.45rem, env(safe-area-inset-right));
     bottom: max(0.4rem, env(safe-area-inset-bottom));
-    z-index: 40;
+    z-index: 55;
     padding: 0.28rem;
     border-radius: 1.1rem;
     border: 1px solid color-mix(in srgb, var(--linea) 80%, transparent);
@@ -553,24 +715,26 @@ main > *:not(router-outlet) {
     animation: dock-in 0.45s var(--ease-out) both;
   }
 
-  .nav-dock a {
+  .nav-dock a,
+  .nav-dock .dock-menu {
     display: grid;
     justify-items: center;
     gap: 0.08rem;
-    padding: 0.32rem 0.08rem 0.28rem;
+    padding: 0.32rem 0.4rem 0.28rem;
     border-radius: 0.8rem;
     color: var(--texto-suave);
     text-decoration: none;
     font-weight: 650;
     min-height: 2.95rem;
-    min-width: 0;
+    flex: 0 0 auto;
     transition:
       background 0.2s var(--ease-out),
       color 0.2s ease,
       transform 0.2s var(--ease-out);
   }
 
-  .nav-dock a:active {
+  .nav-dock a:active,
+  .nav-dock .dock-menu:active {
     transform: scale(0.94);
   }
 
@@ -598,14 +762,47 @@ main > *:not(router-outlet) {
     transform: translateY(-1px) scale(1.06);
   }
 
-  .nav-dock .dock-lbl {
-    font-size: 0.62rem;
+  .nav-dock a .dock-lbl,
+  .nav-dock .dock-menu .dock-lbl {
+    display: block;
+    font-size: 0.68rem;
     letter-spacing: 0.01em;
     line-height: 1.1;
-    max-width: 100%;
-    overflow: hidden;
-    text-overflow: ellipsis;
     white-space: nowrap;
+  }
+
+  .nav-dock .dock-menu {
+    display: grid;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    font: inherit;
+    color: var(--texto-suave);
+    appearance: none;
+  }
+
+  .nav-dock .dock-menu[aria-expanded='true'],
+  .nav-dock .dock-menu.ruta-overflow {
+    color: var(--texto);
+    background: color-mix(in srgb, var(--acento) 22%, transparent);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--acento) 35%, transparent);
+  }
+
+  .nav-dock .dock-menu .hamburguesa {
+    width: 1.15rem;
+    height: 1.55rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 3px;
+  }
+
+  .nav-dock .dock-menu .hamburguesa span {
+    display: block;
+    height: 2px;
+    width: 100%;
+    border-radius: 1px;
+    background: currentColor;
   }
 
   .perfil-panel {
@@ -624,6 +821,11 @@ main > *:not(router-outlet) {
 
 @keyframes dock-in {
   from { opacity: 0; transform: translateY(18px) scale(0.96); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes menu-sheet-in {
+  from { opacity: 0; transform: translateY(12px); }
   to { opacity: 1; transform: none; }
 }
 

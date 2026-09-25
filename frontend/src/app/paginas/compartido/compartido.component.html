@@ -1,0 +1,1244 @@
+<section class="cab">
+  <div>
+    <h1>Compartido</h1>
+  </div>
+</section>
+
+<div class="tabs-movil" [class.abierto]="menuTabsAbierto">
+  <button
+    type="button"
+    class="tabs-movil-btn"
+    (click)="toggleMenuTabs()"
+    [attr.aria-expanded]="menuTabsAbierto"
+    aria-controls="menu-tabs-compartido"
+  >
+    <span class="tabs-movil-actual">{{ etiquetaTab(tab) }}</span>
+    <span class="hamburguesa" aria-hidden="true">
+      <span></span><span></span><span></span>
+    </span>
+  </button>
+  @if (menuTabsAbierto) {
+    <div id="menu-tabs-compartido" class="tabs-movil-panel" role="menu">
+      @for (t of tabs; track t.id) {
+        <button
+          type="button"
+          role="menuitem"
+          [class.activo]="tab === t.id"
+          (click)="setTab(t.id)"
+        >{{ t.label }}</button>
+      }
+    </div>
+  }
+</div>
+
+<nav class="tabs tabs-desktop" aria-label="Secciones compartido">
+  @for (t of tabs; track t.id) {
+    <button type="button" [class.activo]="tab === t.id" (click)="setTab(t.id)">{{ t.label }}</button>
+  }
+</nav>
+
+@if (error) { <p class="error">{{ error }}</p> }
+@if (ok) { <p class="ok">{{ ok }}</p> }
+
+@if (tab === 'resumen') {
+  <div class="totales">
+    <div>
+      <span class="lbl">Me deben</span>
+      <strong>{{ (resumen?.totalMeDeben || 0) | currency:'MXN':'symbol-narrow':'1.0-0' }}</strong>
+    </div>
+    <div>
+      <span class="lbl">A favor</span>
+      <strong>{{ (resumen?.totalAFavor || 0) | currency:'MXN':'symbol-narrow':'1.0-0' }}</strong>
+    </div>
+    <div>
+      <span class="lbl">Guardado</span>
+      <strong>{{ (resumen?.totalGuardado || 0) | currency:'MXN':'symbol-narrow':'1.0-0' }}</strong>
+    </div>
+  </div>
+
+  @if (resumen?.fijosPendientesCobro?.length) {
+    <div class="aviso-cobro">
+      <strong>Fijos por cobrar</strong>
+      <ul>
+        @for (f of resumen!.fijosPendientesCobro!; track f.id) {
+          <li>
+            <span>{{ f.concepto }} · día {{ f.diaCobro }} · {{ f.monto | currency:'MXN':'symbol-narrow':'1.0-0' }}</span>
+            <button type="button" class="chip-btn on" (click)="irCobrarFijo(f.id)">Cobrar</button>
+          </li>
+        }
+      </ul>
+    </div>
+  }
+
+  @if (resumen?.porCuenta?.length || resumen?.porTdc?.length) {
+    <div class="cards-globales">
+      @if (resumen?.porCuenta?.length) {
+        <p class="cards-titulo">Por cuenta</p>
+        <div class="cards-row">
+          @for (c of resumen!.porCuenta!; track c.concepto) {
+            <article class="card-cuenta" [class.ok]="c.pendiente <= 0">
+              <header>
+                <strong>{{ c.concepto }}</strong>
+              </header>
+              <p class="card-totales">
+                @if ((c.total || 0) > 0) {
+                  <span>Total {{ c.total | currency:'MXN':'symbol-narrow':'1.0-0' }}</span>
+                }
+                @if (c.pendiente > 0) {
+                  <span class="falta">Falta {{ c.pendiente | currency:'MXN':'symbol-narrow':'1.0-0' }}</span>
+                } @else if (c.anticipo > 0) {
+                  <span class="favor-lbl">Anticipo {{ c.anticipo | currency:'MXN':'symbol-narrow':'1.0-0' }}</span>
+                }
+              </p>
+              <p class="card-meta">
+                @if (c.personas > 0) {
+                  {{ c.personas }} {{ c.personas === 1 ? 'persona' : 'personas' }}
+                } @else if (c.anticipo > 0) {
+                  Anticipo
+                }
+              </p>
+              @if (c.deudores?.length) {
+                <ul class="card-deudores">
+                  @for (d of c.deudores; track d) {
+                    <li>{{ d }}</li>
+                  }
+                </ul>
+              }
+            </article>
+          }
+        </div>
+      }
+      @if (resumen?.porTdc?.length) {
+        <p class="cards-titulo">Cargado a TDC</p>
+        <div class="cards-row">
+          @for (t of resumen!.porTdc!; track t.cuentaId) {
+            <article class="card-cuenta tdc">
+              <header>
+                <strong>{{ t.nombre }}</strong>
+                <span class="card-monto">{{ t.monto | currency:'MXN':'symbol-narrow':'1.0-0' }}</span>
+              </header>
+              <p class="card-meta">
+                {{ t.gastos }} {{ t.gastos === 1 ? 'cargo' : 'cargos' }} compartido{{ t.gastos === 1 ? '' : 's' }}
+              </p>
+              @if (t.conceptos?.length) {
+                <ul class="card-deudores">
+                  @for (n of t.conceptos; track n) {
+                    <li>{{ n }}</li>
+                  }
+                </ul>
+              }
+            </article>
+          }
+        </div>
+      }
+    </div>
+  }
+
+  <div class="lista-scroll">
+    @if (!(resumen?.personas?.length)) {
+      <p class="vacio">Agrega personas y registra un gasto compartido.</p>
+    } @else {
+      <ul class="lista">
+        @for (p of resumen!.personas; track p.id) {
+          <li class="fila" [class.abierta]="abonoPersonaId === p.id || guardadoPersonaId === p.id || adelantoPersonaId === p.id || anticipoPersonaId === p.id || prestarPersonaId === p.id">
+            <div class="fila-top">
+              <div class="info">
+                <strong>{{ p.nombre }}</strong>
+                <div class="chips">
+                  @if (p.debe > 0) {
+                    <span class="chip debe">Debe {{ p.debe | currency:'MXN':'symbol-narrow':'1.0-0' }}</span>
+                  }
+                  @if (p.aFavor > 0) {
+                    <span class="chip favor">A favor {{ p.aFavor | currency:'MXN':'symbol-narrow':'1.0-0' }}</span>
+                  }
+                  @if (p.efectivoGuardado > 0) {
+                    <span class="chip guardado">Guardado {{ p.efectivoGuardado | currency:'MXN':'symbol-narrow':'1.0-0' }}</span>
+                  }
+                  @if (p.debe <= 0 && p.aFavor <= 0 && p.efectivoGuardado <= 0) {
+                    <span class="chip neutro">Al corriente</span>
+                  }
+                </div>
+                @if (p.porCuenta?.length) {
+                  <ul class="por-cuenta">
+                    @for (c of p.porCuenta; track c.concepto) {
+                      <li>
+                        <span class="cuenta-nom">{{ c.concepto }}</span>
+                        @if (c.pendiente > 0) {
+                          <strong>debe {{ c.pendiente | currency:'MXN':'symbol-narrow':'1.0-0' }}</strong>
+                        }
+                        @if ((c.anticipo || 0) > 0) {
+                          <span class="cuenta-ant">a favor {{ c.anticipo | currency:'MXN':'symbol-narrow':'1.0-0' }}</span>
+                        }
+                        @if (c.detalle) {
+                          <span class="cuenta-det">{{ c.detalle }}</span>
+                        }
+                      </li>
+                    }
+                  </ul>
+                } @else if (p.detalleDeuda) {
+                  <p class="detalle-deuda">{{ p.detalleDeuda }}</p>
+                }
+              </div>
+              <div class="acciones">
+                <button
+                  type="button"
+                  class="icono"
+                  title="Abono"
+                  aria-label="Abono"
+                  (click)="abrirAbono(p)"
+                >
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="1.8"/>
+                    <path d="M12 8v5.5M9.5 11.5 12 14l2.5-2.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                </button>
+                @if (p.aFavor > 0) {
+                  <button
+                    type="button"
+                    class="icono"
+                    title="Dar / prestar"
+                    aria-label="Dar / prestar"
+                    (click)="abrirPrestar(p)"
+                  >
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M4 12h11" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                      <path d="M12 8l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                      <path d="M19 7v10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                    </svg>
+                  </button>
+                  @if (cuentasDestinoDe(p).length) {
+                    <button
+                      type="button"
+                      class="icono"
+                      title="A favor → cuenta"
+                      aria-label="Mandar a favor a una cuenta"
+                      (click)="abrirAplicarAnticipo(p)"
+                    >
+                      <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M5 12h9" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                        <path d="M11 8l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M17 7h2a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1h-2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                      </svg>
+                    </button>
+                  }
+                } @else {
+                  <button
+                    type="button"
+                    class="icono"
+                    title="Prestar"
+                    aria-label="Prestar"
+                    (click)="abrirPrestar(p)"
+                  >
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M4 12h11" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                      <path d="M12 8l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                      <path d="M19 7v10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                    </svg>
+                  </button>
+                }
+                @if (fijosDePersona(p.id).length) {
+                  <button
+                    type="button"
+                    class="icono"
+                    title="Adelanto"
+                    aria-label="Adelanto"
+                    (click)="abrirAdelanto(p)"
+                  >
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <rect x="4" y="5" width="16" height="15" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/>
+                      <path d="M8 3v4M16 3v4M4 10h16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                      <path d="M10 15h5M13 12.5v5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                    </svg>
+                  </button>
+                }
+                <button
+                  type="button"
+                  class="icono"
+                  title="A guardar"
+                  aria-label="A guardar"
+                  (click)="abrirGuardado(p)"
+                >
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M4 8h16v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+                    <path d="M4 8l2.2-3.5h11.6L20 8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+                    <path d="M9 13h6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            @if (abonoPersonaId === p.id) {
+              <form class="panel-inline" enterAvance (ngSubmit)="enviarAbono()">
+                <label>Monto
+                  <input [(ngModel)]="abono.monto" name="abonoMonto" inputmode="decimal" required />
+                </label>
+                <label>Fecha
+                  <input type="date" [(ngModel)]="abono.fecha" name="abonoFecha" />
+                </label>
+                <label class="span-all">¿A qué cuenta?
+                  <select [(ngModel)]="abono.conceptoDestino" name="abonoDestino">
+                    <option value="">General (deudas más viejas)</option>
+                    @for (c of cuentasDestinoDe(p); track c) {
+                      <option [ngValue]="c">{{ c }}</option>
+                    }
+                  </select>
+                </label>
+                <div class="chip-row span-all">
+                  <span class="chip-lbl">Medio</span>
+                  <button type="button" class="chip-btn" [class.on]="abono.medio === 'EFECTIVO'" (click)="abono.medio = 'EFECTIVO'">Efectivo</button>
+                  <button type="button" class="chip-btn" [class.on]="abono.medio === 'GUARDADO'" (click)="abono.medio = 'GUARDADO'">De guardado</button>
+                  <button type="button" class="chip-btn" [class.on]="abono.medio === 'PRESTADO'" (click)="abono.medio = 'PRESTADO'">Prestado</button>
+                </div>
+                @if (abono.medio === 'PRESTADO') {
+                  <div class="chip-row span-all">
+                    <span class="chip-lbl">Prestas con</span>
+                    <button type="button" class="chip-btn" [class.on]="abono.formaPagoPrestamo === 'EFECTIVO'" (click)="abono.formaPagoPrestamo = 'EFECTIVO'">Efectivo</button>
+                    <button type="button" class="chip-btn" [class.on]="abono.formaPagoPrestamo === 'TARJETA'" (click)="abono.formaPagoPrestamo = 'TARJETA'">Tarjeta</button>
+                  </div>
+                  @if (abono.formaPagoPrestamo === 'TARJETA') {
+                    <label class="span-all">TDC
+                      <select [(ngModel)]="abono.cuentaId" name="abonoTdc">
+                        @for (c of cuentasTdc; track c.id) {
+                          <option [ngValue]="c.id">{{ etiquetaTdc(c) }}</option>
+                        }
+                      </select>
+                    </label>
+                  }
+                }
+                <p
+                  class="hint-pago span-all"
+                  [class.aviso]="avisoAbono"
+                >
+                  @if (abono.conceptoDestino) {
+                    Solo cubre <strong>{{ abono.conceptoDestino }}</strong>; si sobra, queda a favor de esa cuenta.
+                  } @else {
+                    Abono general: se reparte a las deudas más viejas, en este orden:
+                    @if (previewAbonoGeneral(p); as preview) {
+                      @if (preview.length) {
+                        <ul class="preview-abono">
+                          @for (line of preview; track line) {
+                            <li>{{ line }}</li>
+                          }
+                        </ul>
+                      } @else {
+                        (sin deudas pendientes; el monto quedará a favor)
+                      }
+                    }
+                  }
+                  @if (abono.medio === 'GUARDADO') {
+                    Sale de su caja ({{ (p.efectivoGuardado || 0) | currency:'MXN':'symbol-narrow':'1.0-0' }}).
+                    @if (superaGuardadoPersona(p.efectivoGuardado, abono.monto)) { No alcanza. }
+                  }
+                  @if (abono.medio === 'PRESTADO') {
+                    Tú cubres el abono prestándole: se pone al corriente y te queda debiendo el préstamo.
+                    @if (abono.formaPagoPrestamo === 'EFECTIVO') {
+                      @if (saldoDisponible != null) {
+                        Disponible: {{ saldoDisponible | currency:'MXN':'symbol-narrow':'1.0-0' }}.
+                      }
+                    } @else {
+                      @if (creditoLibre(abono.cuentaId); as libre) {
+                        Crédito libre: {{ libre | currency:'MXN':'symbol-narrow':'1.0-0' }}.
+                      }
+                    }
+                  }
+                </p>
+                <div class="acciones span-all">
+                  <button type="submit">Registrar</button>
+                  <button type="button" class="secundario" (click)="cerrarPanelesPersona()">Cancelar</button>
+                </div>
+              </form>
+            }
+
+            @if (anticipoPersonaId === p.id) {
+              <form class="panel-inline" enterAvance (ngSubmit)="enviarAplicarAnticipo(p)">
+                <p class="hint-pago span-all">
+                  Tiene a favor {{ p.aFavor | currency:'MXN':'symbol-narrow':'1.0-0' }}.
+                  Elige a qué cuenta mandarlo (ej. Spotify). No es dinero nuevo.
+                </p>
+                <label class="span-all">Cuenta
+                  <select [(ngModel)]="anticipoForm.conceptoDestino" name="antDestino" required>
+                    @for (c of cuentasDestinoDe(p); track c) {
+                      <option [ngValue]="c">{{ c }}</option>
+                    }
+                  </select>
+                </label>
+                <label>Monto
+                  <input [(ngModel)]="anticipoForm.monto" name="antMonto" inputmode="decimal" required />
+                </label>
+                <div class="acciones span-all">
+                  <button type="submit" [disabled]="!anticipoForm.conceptoDestino">Mandar a favor</button>
+                  <button type="button" class="secundario" (click)="cerrarPanelesPersona()">Cancelar</button>
+                </div>
+              </form>
+            }
+
+            @if (prestarPersonaId === p.id) {
+              <form class="panel-inline" enterAvance (ngSubmit)="enviarPrestar(p)">
+                <p class="hint-pago span-all">
+                  «Dame lo de mi favor y préstame tanto». El a favor siempre sale de efectivo.
+                  El préstamo puede ser de efectivo o de TDC (queda en el corte de esa tarjeta).
+                </p>
+                <label>De su a favor
+                  <input
+                    [(ngModel)]="prestarForm.montoFavor"
+                    name="prestFavor"
+                    inputmode="decimal"
+                    [attr.max]="p.aFavor"
+                    placeholder="0"
+                  />
+                </label>
+                <label>Préstamo extra
+                  <input
+                    [(ngModel)]="prestarForm.montoPrestamo"
+                    name="prestExtra"
+                    inputmode="decimal"
+                    placeholder="0"
+                  />
+                </label>
+                <label>Fecha
+                  <input type="date" [(ngModel)]="prestarForm.fecha" name="prestFecha" />
+                </label>
+                @if (montoPrestamoPreview > 0) {
+                  <div class="chip-row span-all">
+                    <span class="chip-lbl">Préstamo con</span>
+                    <button
+                      type="button"
+                      class="chip-btn"
+                      [class.on]="prestarForm.formaPago === 'EFECTIVO'"
+                      (click)="prestarForm.formaPago = 'EFECTIVO'"
+                    >Efectivo</button>
+                    <button
+                      type="button"
+                      class="chip-btn"
+                      [class.on]="prestarForm.formaPago === 'TARJETA'"
+                      (click)="prestarForm.formaPago = 'TARJETA'"
+                    >Tarjeta</button>
+                  </div>
+                  @if (prestarForm.formaPago === 'TARJETA') {
+                    <label class="span-all">TDC
+                      <select [(ngModel)]="prestarForm.cuentaId" name="prestTdc">
+                        @for (c of cuentasTdc; track c.id) {
+                          <option [ngValue]="c.id">{{ etiquetaTdc(c) }}</option>
+                        }
+                      </select>
+                    </label>
+                  }
+                }
+                <p
+                  class="hint-pago span-all"
+                  [class.aviso]="avisoPrestar"
+                >
+                  Total a entregar:
+                  <strong>{{ montoPrestarTotal | currency:'MXN':'symbol-narrow':'1.0-0' }}</strong>.
+                  @if (montoPrestamoPreview > 0 && prestarForm.formaPago === 'EFECTIVO') {
+                    @if (saldoDisponible != null) {
+                      Disponible: {{ saldoDisponible | currency:'MXN':'symbol-narrow':'1.0-0' }}.
+                    }
+                  }
+                  @if (montoPrestamoPreview > 0 && prestarForm.formaPago === 'TARJETA') {
+                    @if (creditoLibre(prestarForm.cuentaId); as libre) {
+                      Crédito libre: {{ libre | currency:'MXN':'symbol-narrow':'1.0-0' }}.
+                    }
+                  }
+                  @if (montoPrestamoPreview > 0) {
+                    Te deberá {{ montoPrestamoPreview | currency:'MXN':'symbol-narrow':'1.0-0' }} (Abono después).
+                  }
+                </p>
+                <div class="acciones span-all">
+                  <button
+                    type="submit"
+                    [disabled]="montoPrestarTotal <= 0 || (montoPrestamoPreview > 0 && prestarForm.formaPago === 'TARJETA' && !prestarForm.cuentaId)"
+                  >Entregar</button>
+                  <button type="button" class="secundario" (click)="cerrarPanelesPersona()">Cancelar</button>
+                </div>
+              </form>
+            }
+
+            @if (adelantoPersonaId === p.id) {
+              <form class="panel-inline" enterAvance (ngSubmit)="enviarAdelanto()">
+                <label class="span-all">Servicio fijo
+                  <select [(ngModel)]="adelantoForm.servicioFijoId" name="adelFijo" required>
+                    @for (s of fijosDePersona(p.id); track s.id) {
+                      <option [ngValue]="s.id">{{ s.concepto }} ({{ s.monto | currency:'MXN':'symbol-narrow':'1.0-0' }}/mes)</option>
+                    }
+                  </select>
+                </label>
+                <label>Meses
+                  <input type="number" min="1" max="24" [(ngModel)]="adelantoForm.meses" name="adelMeses" required />
+                </label>
+                <label>Fecha
+                  <input type="date" [(ngModel)]="adelantoForm.fecha" name="adelFecha" />
+                </label>
+                <div class="chip-row span-all">
+                  @for (n of [1, 2, 3, 6]; track n) {
+                    <button type="button" class="chip-btn" [class.on]="adelantoForm.meses === n" (click)="adelantoForm.meses = n">{{ n }}</button>
+                  }
+                </div>
+                <div class="chip-row span-all">
+                  <span class="chip-lbl">Medio</span>
+                  <button type="button" class="chip-btn" [class.on]="adelantoForm.medio === 'EFECTIVO'" (click)="adelantoForm.medio = 'EFECTIVO'">Efectivo</button>
+                  <button type="button" class="chip-btn" [class.on]="adelantoForm.medio === 'GUARDADO'" (click)="adelantoForm.medio = 'GUARDADO'">De guardado</button>
+                </div>
+                <p
+                  class="hint-pago span-all"
+                  [class.aviso]="adelantoForm.medio === 'GUARDADO' && superaGuardadoPersona(p.efectivoGuardado, '' + montoAdelantoPreview)"
+                >
+                  Cuota {{ cuotaAdelanto(p.id) | currency:'MXN':'symbol-narrow':'1.0-0' }}/mes
+                  × {{ adelantoForm.meses || 0 }}
+                  = <strong>{{ montoAdelantoPreview | currency:'MXN':'symbol-narrow':'1.0-0' }}</strong>.
+                  @if (adelantoForm.medio === 'EFECTIVO') {
+                    @if (saldoDisponible != null) {
+                      Disponible: {{ saldoDisponible | currency:'MXN':'symbol-narrow':'1.0-0' }}.
+                    }
+                  } @else {
+                    De su caja:
+                    <strong>{{ (p.efectivoGuardado || 0) | currency:'MXN':'symbol-narrow':'1.0-0' }}</strong>.
+                    @if (superaGuardadoPersona(p.efectivoGuardado, '' + montoAdelantoPreview)) {
+                      No alcanza.
+                    }
+                  }
+                </p>
+                <div class="acciones span-all">
+                  <button type="submit" [disabled]="!adelantoForm.servicioFijoId || montoAdelantoPreview <= 0">Registrar adelanto</button>
+                  <button type="button" class="secundario" (click)="cerrarPanelesPersona()">Cancelar</button>
+                </div>
+              </form>
+            }
+
+            @if (guardadoPersonaId === p.id) {
+              <form class="panel-inline" enterAvance (ngSubmit)="enviarGuardado()">
+                <p class="hint-pago span-all">
+                  Efectivo que te dejan para guardar (caja aparte). No es abono de deuda ni entra a tu disponible de Saldo.
+                </p>
+                <label>Monto
+                  <input [(ngModel)]="guardadoForm.monto" name="guardMonto" inputmode="decimal" required placeholder="200" />
+                </label>
+                <label>Fecha
+                  <input type="date" [(ngModel)]="guardadoForm.fecha" name="guardFecha" />
+                </label>
+                <div class="chip-row span-all">
+                  <button
+                    type="button"
+                    class="chip-btn"
+                    [class.on]="guardadoForm.tipo === 'DEJAR'"
+                    (click)="guardadoForm.tipo = 'DEJAR'"
+                  >Me dan a guardar</button>
+                  <button
+                    type="button"
+                    class="chip-btn"
+                    [class.on]="guardadoForm.tipo === 'DEVOLVER'"
+                    (click)="guardadoForm.tipo = 'DEVOLVER'"
+                  >Les devuelvo</button>
+                </div>
+                <p
+                  class="hint-pago span-all"
+                  [class.aviso]="guardadoForm.tipo === 'DEVOLVER' && superaGuardadoPersona(p.efectivoGuardado, guardadoForm.monto)"
+                >
+                  Ya tiene guardados:
+                  <strong>{{ (p.efectivoGuardado || 0) | currency:'MXN':'symbol-narrow':'1.0-0' }}</strong>.
+                  @if (guardadoForm.tipo === 'DEJAR') {
+                    Al registrar, suma a su caja.
+                  } @else {
+                    Al devolver, resta de su caja.
+                    @if (superaGuardadoPersona(p.efectivoGuardado, guardadoForm.monto)) {
+                      No alcanza lo guardado.
+                    }
+                  }
+                </p>
+                <label class="span-all">Nota
+                  <input [(ngModel)]="guardadoForm.concepto" name="guardConcepto" placeholder="opcional" />
+                </label>
+                <div class="acciones span-all">
+                  <button type="submit">
+                    {{ guardadoForm.tipo === 'DEJAR' ? 'Registrar que me dieron' : 'Registrar devolución' }}
+                  </button>
+                  <button type="button" class="secundario" (click)="cerrarPanelesPersona()">Cancelar</button>
+                </div>
+              </form>
+            }
+          </li>
+        }
+      </ul>
+    }
+  </div>
+}
+
+@if (tab === 'gasto') {
+  <form class="alta gasto-form" enterAvance (ngSubmit)="registrarGasto()">
+    <div class="chip-row span-all">
+      <button type="button" class="chip-btn" [class.on]="gastoForm.tipo === 'SERVICIO'" (click)="gastoForm.tipo = 'SERVICIO'">Servicio</button>
+      <button type="button" class="chip-btn" [class.on]="gastoForm.tipo === 'COMPRA'" (click)="gastoForm.tipo = 'COMPRA'">Compra</button>
+    </div>
+
+    <label class="span2">Concepto
+      <input [(ngModel)]="gastoForm.concepto" name="gConcepto" required placeholder="ej. CFE / súper" />
+    </label>
+    <label>Monto
+      <input
+        [(ngModel)]="gastoForm.monto"
+        name="gMonto"
+        inputmode="decimal"
+        (blur)="onMontoGasto()"
+        required
+        placeholder="399"
+      />
+    </label>
+    <label>Fecha
+      <input type="date" [(ngModel)]="gastoForm.fecha" name="gFecha" />
+    </label>
+
+    <div class="chip-row span-all">
+      <span class="chip-lbl">Pago</span>
+      <button type="button" class="chip-btn" [class.on]="gastoForm.formaPago === 'EFECTIVO'" (click)="gastoForm.formaPago = 'EFECTIVO'">Efectivo</button>
+      <button type="button" class="chip-btn" [class.on]="gastoForm.formaPago === 'TARJETA'" (click)="gastoForm.formaPago = 'TARJETA'">Tarjeta</button>
+      @if (gastoForm.formaPago === 'TARJETA') {
+        <button type="button" class="chip-btn" [class.on]="gastoForm.aMeses" (click)="gastoForm.aMeses = !gastoForm.aMeses">A meses</button>
+      }
+    </div>
+    <p class="hint-pago span-all" [class.aviso]="gastoForm.formaPago === 'EFECTIVO' ? superaDisponibleEfectivo(gastoForm.monto) : superaCreditoTdc(gastoForm.monto, gastoForm.cuentaId)">
+      @if (gastoForm.formaPago === 'EFECTIVO') {
+        @if (saldoDisponible != null) {
+          Disponible: <strong>{{ saldoDisponible | currency:'MXN':'symbol-narrow':'1.0-0' }}</strong>
+          @if (superaDisponibleEfectivo(gastoForm.monto)) {
+            — no te alcanza
+          }
+        }
+      } @else {
+        @if (creditoLibre(gastoForm.cuentaId); as libre) {
+          Crédito libre: <strong>{{ libre | currency:'MXN':'symbol-narrow':'1.0-0' }}</strong>
+          @if (superaCreditoTdc(gastoForm.monto, gastoForm.cuentaId)) {
+            — no alcanza
+          }
+        }
+      }
+    </p>
+
+    @if (gastoForm.formaPago === 'TARJETA') {
+      <label class="span2">TDC
+        <select [(ngModel)]="gastoForm.cuentaId" name="gTdc">
+          @for (c of cuentasTdc; track c.id) {
+            <option [ngValue]="c.id">{{ etiquetaTdc(c) }}</option>
+          }
+        </select>
+      </label>
+      @if (gastoForm.aMeses) {
+        <label>Meses
+          <input [(ngModel)]="gastoForm.meses" name="gMeses" inputmode="numeric" placeholder="3" />
+        </label>
+      }
+    }
+
+    <fieldset class="participantes span-all">
+      <legend>
+        ¿Quiénes? ·
+        @if (gastoForm.tipo === 'COMPRA') { partes }
+        @else { perfiles }
+      </legend>
+      <p class="hint-pago span-all">
+        @if (gastoForm.tipo === 'COMPRA') {
+          Si alguien se lleva 3 (o paga 3), súbele el número: el monto se reparte proporcional.
+        } @else {
+          Streaming u otros: si alguien usa 3 perfiles, súbele a 3.
+        }
+      </p>
+      <div class="chip-row span-all">
+        <div class="persona-slot" [class.on]="gastoForm.incluyePrincipal">
+          <button
+            type="button"
+            class="chip-btn persona"
+            [class.on]="gastoForm.incluyePrincipal"
+            (click)="gastoForm.incluyePrincipal = !gastoForm.incluyePrincipal"
+          >Yo también</button>
+          @if (gastoForm.incluyePrincipal) {
+            <div class="perfil-step" (click)="$event.stopPropagation()">
+              <button type="button" class="step" (click)="ajustarPerfilesPrincipal('gasto', -1)" [attr.aria-label]="gastoForm.tipo === 'COMPRA' ? 'Menos partes' : 'Menos perfiles'">−</button>
+              <span class="n">{{ gastoPerfilesPrincipal }}</span>
+              <button type="button" class="step" (click)="ajustarPerfilesPrincipal('gasto', 1)" [attr.aria-label]="gastoForm.tipo === 'COMPRA' ? 'Más partes' : 'Más perfiles'">+</button>
+            </div>
+          }
+        </div>
+        @for (p of personasActivas; track p.id) {
+          <div class="persona-slot" [class.on]="estaSeleccionada(p.id)">
+            <button
+              type="button"
+              class="chip-btn persona"
+              [class.on]="estaSeleccionada(p.id)"
+              (click)="togglePersona(p.id)"
+            >
+              {{ p.nombre }}
+            </button>
+            @if (estaSeleccionada(p.id)) {
+              <div class="perfil-step" (click)="$event.stopPropagation()">
+                <button type="button" class="step" (click)="ajustarPerfiles(gastoPerfiles, p.id, -1, personasSeleccionadas)" [attr.aria-label]="gastoForm.tipo === 'COMPRA' ? 'Menos partes' : 'Menos perfiles'">−</button>
+                <span class="n">{{ perfilesDe(gastoPerfiles, p.id) }}</span>
+                <button type="button" class="step" (click)="ajustarPerfiles(gastoPerfiles, p.id, 1, personasSeleccionadas)" [attr.aria-label]="gastoForm.tipo === 'COMPRA' ? 'Más partes' : 'Más perfiles'">+</button>
+              </div>
+            }
+          </div>
+        }
+      </div>
+      @if (personasActivas.length === 0) {
+        <p class="vacio mini">Primero agrega personas.</p>
+      }
+    </fieldset>
+
+    @if (previewPartes.length) {
+      <div class="preview span-all">
+        <div class="reparto-chips">
+          @for (parte of previewPartes; track $index) {
+            <span class="chip" [class.yo]="$index === 0 && gastoForm.incluyePrincipal" [class.neutro]="!($index === 0 && gastoForm.incluyePrincipal)">
+              {{ previewNombres[$index] }}
+              @if (previewPerfilesLabels[$index] > 1) {
+                <small>×{{ previewPerfilesLabels[$index] }}</small>
+              }
+              {{ parte | currency:'MXN':'symbol-narrow':'1.0-0' }}
+            </span>
+          }
+        </div>
+      </div>
+    }
+
+    <button type="submit" class="span-all btn-registrar" [disabled]="!puedeRegistrarGasto">
+      Registrar gasto
+    </button>
+  </form>
+
+  <h2 class="sub">Últimos</h2>
+  <div class="lista-scroll corta">
+    @if (!gastos.length) {
+      <p class="vacio">Aún no hay gastos compartidos.</p>
+    } @else {
+      <ul class="lista">
+        @for (g of gastos; track g.id) {
+          <li class="fila">
+            <div class="fila-top">
+              <div class="info col">
+                <strong>{{ g.concepto }}</strong>
+                <span class="meta">
+                  {{ g.tipo }} · {{ fechaTxt(g.fecha) }} · {{ g.montoTotal | currency:'MXN':'symbol-narrow':'1.0-0' }}
+                  · {{ g.formaPago }}
+                  @if (g.periodo) { · {{ g.periodo }} }
+                </span>
+              </div>
+              <div class="acciones">
+                <button
+                  type="button"
+                  class="icono"
+                  title="Reparto"
+                  aria-label="Reparto"
+                  (click)="empezarRecalculo(g)"
+                >
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <circle cx="8" cy="9" r="2.5" fill="none" stroke="currentColor" stroke-width="1.8"/>
+                    <circle cx="16" cy="9" r="2.5" fill="none" stroke="currentColor" stroke-width="1.8"/>
+                    <circle cx="12" cy="16" r="2.5" fill="none" stroke="currentColor" stroke-width="1.8"/>
+                    <path d="M10 10.2 11.2 14.2M14 10.2 12.8 14.2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+                  </svg>
+                </button>
+                <button
+                  type="button"
+                  class="icono peligro"
+                  title="Anular"
+                  aria-label="Anular"
+                  (click)="anularGasto(g)"
+                >
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
+            @if (recalculandoId === g.id) {
+              <form class="panel-inline" enterAvance (ngSubmit)="confirmarRecalculo(g)">
+                <p class="hint-pago span-all">
+                  Marca a todos los que participan ahora (puedes quitar o agregar). El total ya pagado no cambia.
+                </p>
+                <div class="chip-row span-all">
+                  <div class="persona-slot" [class.on]="recalculoIncluyePrincipal">
+                    <button
+                      type="button"
+                      class="chip-btn persona"
+                      [class.on]="recalculoIncluyePrincipal"
+                      (click)="toggleRecalcIncluyePrincipal()"
+                    >Yo también</button>
+                    @if (recalculoIncluyePrincipal) {
+                      <div class="perfil-step" (click)="$event.stopPropagation()">
+                        <button type="button" class="step" (click)="ajustarPerfilesPrincipal('recalc', -1)">−</button>
+                        <span class="n">{{ recalculoPerfilesPrincipal }}</span>
+                        <button type="button" class="step" (click)="ajustarPerfilesPrincipal('recalc', 1)">+</button>
+                      </div>
+                    }
+                  </div>
+                  @for (p of personasActivas; track p.id) {
+                    <div class="persona-slot" [class.on]="recalcSeleccionada(p.id)">
+                      <button
+                        type="button"
+                        class="chip-btn persona"
+                        [class.on]="recalcSeleccionada(p.id)"
+                        (click)="toggleRecalcPersona(p.id)"
+                      >
+                        {{ p.nombre }}
+                      </button>
+                      @if (recalcSeleccionada(p.id)) {
+                        <div class="perfil-step" (click)="$event.stopPropagation()">
+                          <button type="button" class="step" (click)="ajustarPerfiles(recalculoPerfiles, p.id, -1, recalculoPersonas)">−</button>
+                          <span class="n">{{ perfilesDe(recalculoPerfiles, p.id) }}</span>
+                          <button type="button" class="step" (click)="ajustarPerfiles(recalculoPerfiles, p.id, 1, recalculoPersonas)">+</button>
+                        </div>
+                      }
+                    </div>
+                  }
+                </div>
+                @if (!recalculoIncluyePrincipal) {
+                  <p class="hint-pago span-all">Sin tu cuota: ellos pagan el 100% (tú solo prestaste el pago).</p>
+                }
+                <div class="chip-row span-all">
+                  <button
+                    type="button"
+                    class="chip-btn"
+                    [class.on]="!recalculoProporcional"
+                    (click)="recalculoProporcional = false"
+                  >Por cuotas</button>
+                  <button
+                    type="button"
+                    class="chip-btn"
+                    [class.on]="recalculoProporcional"
+                    [disabled]="!recalculoIncluyePrincipal"
+                    (click)="recalculoProporcional = true"
+                  >Proporcional días</button>
+                </div>
+                @if (recalculoProporcional) {
+                  @if (recalculoHayEntradas) {
+                    <label class="span-all">Fecha en que entró el nuevo
+                      <input type="date" [(ngModel)]="recalculoFechaIngreso" name="recalcIngreso" />
+                    </label>
+                  }
+                  @if (recalculoHaySalidas) {
+                    <label class="span-all">Fecha en que salió quien quitaste
+                      <input type="date" [(ngModel)]="recalculoFechaSalida" name="recalcSalida" />
+                    </label>
+                  }
+                  <p class="hint-pago span-all">
+                    Quien se queda: mes completo.
+                    @if (recalculoHayEntradas) { Quien entra: desde su fecha. }
+                    @if (recalculoHaySalidas) { Quien sale: hasta su fecha (sigue debiendo su parte). }
+                  </p>
+                }
+                <div class="acciones span-all">
+                  <button type="submit" [disabled]="recalculoPersonas.size < 1">Recalcular</button>
+                  <button type="button" class="secundario" (click)="cancelarRecalculo()">Cancelar</button>
+                </div>
+              </form>
+            }
+          </li>
+        }
+      </ul>
+    }
+  </div>
+}
+
+@if (tab === 'fijos') {
+  <form id="form-fijo" class="alta gasto-form" enterAvance (ngSubmit)="crearServicioFijo()">
+    @if (editFijoId != null) {
+      <p class="hint-pago span-all">
+        Editando fijo — los cobros ya hechos no cambian; solo aplica a cobros nuevos
+        @if (!fijoForm.yoPago) {
+          y a tu parte en Mensuales
+        }.
+      </p>
+    }
+    <label class="span2">Concepto
+      <input [(ngModel)]="fijoForm.concepto" name="fConcepto" required placeholder="ej. CFE" />
+    </label>
+    <label>Monto / mes
+      <input [(ngModel)]="fijoForm.monto" name="fMonto" inputmode="decimal" required placeholder="800" />
+    </label>
+    <label>Día del mes
+      <input
+        type="number"
+        min="1"
+        max="31"
+        [(ngModel)]="fijoForm.diaCobro"
+        name="fDia"
+        required
+        placeholder="15"
+      />
+    </label>
+    <fieldset class="participantes span-all">
+      <legend>¿Quién paga?</legend>
+      <div class="chip-row">
+        <button
+          type="button"
+          class="chip-btn"
+          [class.on]="fijoForm.yoPago"
+          (click)="setFijoYoPago(true)"
+        >Yo pago</button>
+        <button
+          type="button"
+          class="chip-btn"
+          [class.on]="!fijoForm.yoPago"
+          (click)="setFijoYoPago(false)"
+        >Otro paga</button>
+      </div>
+      @if (!fijoForm.yoPago) {
+        <p class="hint-pago">
+          Tu parte se mete sola en <strong>Mensuales</strong> como fijo
+          @if (previewCuotaFijoYo > 0) {
+            ({{ previewCuotaFijoYo | currency:'MXN':'symbol-narrow':'1.0-0' }}/mes)
+          }.
+        </p>
+      }
+    </fieldset>
+    <fieldset class="participantes span-all">
+      <legend>Participan · perfiles</legend>
+      <div class="chip-row">
+        <div class="persona-slot" [class.on]="fijoForm.incluyePrincipal">
+          <button
+            type="button"
+            class="chip-btn persona"
+            [class.on]="fijoForm.incluyePrincipal"
+            [disabled]="!fijoForm.yoPago"
+            (click)="fijoForm.incluyePrincipal = !fijoForm.incluyePrincipal"
+          >Yo también</button>
+          @if (fijoForm.incluyePrincipal) {
+            <div class="perfil-step" (click)="$event.stopPropagation()">
+              <button type="button" class="step" (click)="ajustarPerfilesPrincipal('fijo', -1)">−</button>
+              <span class="n">{{ fijoPerfilesPrincipal }}</span>
+              <button type="button" class="step" (click)="ajustarPerfilesPrincipal('fijo', 1)">+</button>
+            </div>
+          }
+        </div>
+        @for (p of personasActivas; track p.id) {
+          <div class="persona-slot" [class.on]="fijoSeleccionada(p.id)">
+            <button
+              type="button"
+              class="chip-btn persona"
+              [class.on]="fijoSeleccionada(p.id)"
+              (click)="toggleFijoPersona(p.id)"
+            >
+              {{ p.nombre }}
+            </button>
+            @if (fijoSeleccionada(p.id)) {
+              <div class="perfil-step" (click)="$event.stopPropagation()">
+                <button type="button" class="step" (click)="ajustarPerfiles(fijoPerfiles, p.id, -1, fijoPersonas)">−</button>
+                <span class="n">{{ perfilesDe(fijoPerfiles, p.id) }}</span>
+                <button type="button" class="step" (click)="ajustarPerfiles(fijoPerfiles, p.id, 1, fijoPersonas)">+</button>
+              </div>
+            }
+          </div>
+        }
+      </div>
+    </fieldset>
+    <div class="acciones span-all">
+      <button type="submit" class="btn-registrar" [disabled]="!puedeCrearFijo">
+        {{ editFijoId != null ? 'Actualizar fijo' : 'Guardar fijo' }}
+      </button>
+      @if (editFijoId != null) {
+        <button type="button" class="secundario" (click)="cancelarEditFijo()">Cancelar</button>
+      }
+    </div>
+  </form>
+
+  <div class="lista-scroll">
+    @if (!serviciosFijos.length) {
+      <p class="vacio">Aún no hay servicios fijos.</p>
+    } @else {
+      <ul class="lista">
+        @for (s of serviciosFijos; track s.id) {
+          <li class="fila">
+            <div class="fila-top">
+              <div class="info col">
+                <strong>{{ s.concepto }}</strong>
+                <span class="meta">
+                  {{ s.monto | currency:'MXN':'symbol-narrow':'1.0-0' }}/mes
+                  · día {{ s.diaCobro || 1 }}
+                  · {{ (s.incluyePrincipal !== false ? idsDeServicio(s).length + 1 : idsDeServicio(s).length) }} personas
+                </span>
+                @if (s.yoPago === false) {
+                  <span class="chip guardado">Otro paga · mi parte en Mensuales</span>
+                } @else if (s.incluyePrincipal === false) {
+                  <span class="chip neutro">Solo presto el pago</span>
+                }
+                @if (ultimoCobroDe(s.id); as uc) {
+                  <span class="meta cobro">
+                    Último: {{ uc.periodo || '—' }} · cobrado {{ formatFechaCorta(uc.fecha) }}
+                  </span>
+                }
+              </div>
+              <div class="acciones">
+                @if (s.yoPago !== false) {
+                  <button
+                    type="button"
+                    class="icono"
+                    title="Cobrar mes"
+                    aria-label="Cobrar mes"
+                    (click)="abrirCobro(s)"
+                  >
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <rect x="4" y="5" width="16" height="15" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/>
+                      <path d="M8 3v4M16 3v4M4 10h16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                      <path d="M9 15.5l2 2 4-4.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                  </button>
+                }
+                <button
+                  type="button"
+                  class="icono"
+                  title="Editar"
+                  aria-label="Editar"
+                  (click)="empezarEditFijo(s)"
+                >
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M4 20h4.5L19 9.5 14.5 5 4 15.5V20z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+                    <path d="M12.5 7l4.5 4.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                  </svg>
+                </button>
+                <button
+                  type="button"
+                  class="icono peligro"
+                  title="Quitar"
+                  aria-label="Quitar"
+                  (click)="quitarServicioFijo(s)"
+                >
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
+            @if (cobrandoId === s.id) {
+              <form class="panel-inline" enterAvance (ngSubmit)="cobrarServicio(s)">
+                <label>Periodo (mes)
+                  <input
+                    type="month"
+                    [(ngModel)]="cobroForm.periodo"
+                    name="cPeriodo"
+                    (ngModelChange)="onPeriodoCobroChange(s)"
+                  />
+                </label>
+                <label>Fecha de cobro
+                  <input type="date" [(ngModel)]="cobroForm.fecha" name="cFecha" />
+                </label>
+                <div class="chip-row span-all">
+                  <span class="chip-lbl">Pago</span>
+                  <button type="button" class="chip-btn" [class.on]="cobroForm.formaPago === 'EFECTIVO'" (click)="cobroForm.formaPago = 'EFECTIVO'">Efectivo</button>
+                  <button type="button" class="chip-btn" [class.on]="cobroForm.formaPago === 'TARJETA'" (click)="cobroForm.formaPago = 'TARJETA'">Tarjeta</button>
+                  @if (cobroForm.formaPago === 'TARJETA') {
+                    <button type="button" class="chip-btn" [class.on]="cobroForm.aMeses" (click)="cobroForm.aMeses = !cobroForm.aMeses">A meses</button>
+                  }
+                </div>
+                @if (cobroForm.formaPago === 'TARJETA') {
+                  <label class="span-all">TDC
+                    <select [(ngModel)]="cobroForm.cuentaId" name="cTdc">
+                      @for (c of cuentasTdc; track c.id) {
+                        <option [ngValue]="c.id">{{ etiquetaTdc(c) }}</option>
+                      }
+                    </select>
+                  </label>
+                  @if (cobroForm.aMeses) {
+                    <label>Meses
+                      <input [(ngModel)]="cobroForm.meses" name="cMeses" inputmode="numeric" placeholder="3" />
+                    </label>
+                  }
+                }
+                <p
+                  class="hint-pago span-all"
+                  [class.aviso]="cobroForm.formaPago === 'EFECTIVO' ? superaDisponibleEfectivo('' + s.monto) : superaCreditoTdc('' + s.monto, cobroForm.cuentaId)"
+                >
+                  @if (cobroForm.formaPago === 'EFECTIVO') {
+                    @if (saldoDisponible != null) {
+                      Disponible: <strong>{{ saldoDisponible | currency:'MXN':'symbol-narrow':'1.0-0' }}</strong>
+                      @if (superaDisponibleEfectivo('' + s.monto)) {
+                        — no te alcanza
+                      }
+                    }
+                  } @else {
+                    @if (creditoLibre(cobroForm.cuentaId); as libre) {
+                      Crédito libre: <strong>{{ libre | currency:'MXN':'symbol-narrow':'1.0-0' }}</strong>
+                      @if (superaCreditoTdc('' + s.monto, cobroForm.cuentaId)) {
+                        — no alcanza
+                      }
+                    }
+                  }
+                </p>
+                <div class="acciones span-all">
+                  <button type="submit">Confirmar cobro</button>
+                  <button type="button" class="secundario" (click)="cancelarCobro()">Cancelar</button>
+                </div>
+              </form>
+            }
+          </li>
+        }
+      </ul>
+    }
+  </div>
+}
+
+@if (tab === 'personas') {
+  @if (esMovil) {
+    <button
+      type="button"
+      class="toggle-alta"
+      [class.abierto]="altaAbierta"
+      (click)="altaAbierta = !altaAbierta"
+      [attr.aria-expanded]="altaAbierta"
+    >
+      <span>{{ altaAbierta ? 'Ocultar alta' : 'Agregar persona' }}</span>
+      <span class="chev" aria-hidden="true">{{ altaAbierta ? '▾' : '▸' }}</span>
+    </button>
+  }
+
+  @if (!esMovil || altaAbierta) {
+    <form class="alta" enterAvance (ngSubmit)="crearPersona()">
+      <label class="campo-nombre">Nombre
+        <input
+          [(ngModel)]="nombreNuevo"
+          name="nombreNuevo"
+          required
+          maxlength="120"
+          placeholder="ej. Ana"
+          autocomplete="off"
+        />
+      </label>
+      <button type="submit" [disabled]="!puedeCrearPersona">Agregar</button>
+    </form>
+  }
+
+  <div class="toolbar">
+    <button type="button" class="btn-mini secundario" (click)="toggleInactivas()">
+      {{ mostrarInactivas ? 'Ocultar inactivas' : 'Ver inactivas' }}
+    </button>
+    <span class="count">{{ personas.length }}</span>
+  </div>
+
+  <div class="lista-scroll">
+    @if (personas.length === 0) {
+      <p class="vacio">Aún no hay personas.</p>
+    } @else {
+      <ul class="lista">
+        @for (p of personas; track p.id) {
+          <li class="fila" [class.inactiva]="!p.activa">
+            @if (editId === p.id) {
+              <form class="edit-row" enterAvance (ngSubmit)="guardarEdit(p)">
+                <input [(ngModel)]="editNombre" name="editNombre" required maxlength="120" autocomplete="off" />
+                <button
+                  type="submit"
+                  class="icono"
+                  title="Guardar"
+                  aria-label="Guardar"
+                  [disabled]="!puedeGuardarEdit"
+                >
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M6 12.5l4 4 8-9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                </button>
+                <button
+                  type="button"
+                  class="icono"
+                  title="Cancelar"
+                  aria-label="Cancelar"
+                  (click)="cancelarEdit()"
+                >
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                  </svg>
+                </button>
+              </form>
+            } @else {
+              <div class="fila-top">
+                <div class="info">
+                  <strong>{{ p.nombre }}</strong>
+                  <div class="chips">
+                    @if (!p.activa) { <span class="chip neutro">Inactiva</span> }
+                    @if ((p.efectivoGuardado || 0) > 0) {
+                      <span class="chip guardado">Guardado {{ p.efectivoGuardado | currency:'MXN':'symbol-narrow':'1.0-0' }}</span>
+                    }
+                  </div>
+                </div>
+                <div class="acciones">
+                  @if (p.activa) {
+                    <button
+                      type="button"
+                      class="icono"
+                      title="A guardar"
+                      aria-label="A guardar"
+                      (click)="abrirGuardado(p)"
+                    >
+                      <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M4 8h16v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+                        <path d="M4 8l2.2-3.5h11.6L20 8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+                        <path d="M9 13h6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                      </svg>
+                    </button>
+                    <button
+                      type="button"
+                      class="icono"
+                      title="Editar"
+                      aria-label="Editar"
+                      (click)="empezarEdit(p)"
+                    >
+                      <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M4 20h4.5L19 9.5 14.5 5 4 15.5V20z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+                        <path d="M12.5 7l4.5 4.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                      </svg>
+                    </button>
+                    <button
+                      type="button"
+                      class="icono peligro"
+                      title="Quitar"
+                      aria-label="Quitar"
+                      (click)="desactivar(p)"
+                    >
+                      <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                      </svg>
+                    </button>
+                  } @else {
+                    <button
+                      type="button"
+                      class="icono"
+                      title="Reactivar"
+                      aria-label="Reactivar"
+                      (click)="reactivar(p)"
+                    >
+                      <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M19.5 12a7.5 7.5 0 1 1-2.2-5.3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                        <path d="M19.5 5.5v4.2h-4.2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                      </svg>
+                    </button>
+                  }
+                </div>
+              </div>
+            }
+          </li>
+        }
+      </ul>
+    }
+  </div>
+}
+
+@if (tab === 'historial') {
+  <div class="lista-scroll">
+    @if (!movimientos.length) {
+      <p class="vacio">Sin movimientos aún.</p>
+    } @else {
+      <ul class="lista">
+        @for (m of movimientos; track m.id) {
+          <li class="fila">
+            <div class="fila-top">
+              <div class="info col">
+                <strong>{{ m.persona?.nombre || '?' }} · {{ tipoMovLabel(m.tipo) }}</strong>
+                <span class="meta">
+                  {{ fechaTxt(m.fecha) }} · {{ m.monto | currency:'MXN':'symbol-narrow':'1.0-0' }}
+                  @if (m.desdeGuardado) { · guardado }
+                  @if (m.concepto) { · {{ m.concepto }} }
+                </span>
+              </div>
+            </div>
+          </li>
+        }
+      </ul>
+    }
+  </div>
+}
+

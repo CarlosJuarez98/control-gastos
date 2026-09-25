@@ -67,16 +67,63 @@
     <router-outlet />
   </main>
   @if (mostrarNav) {
-    <nav class="nav-dock" aria-label="Navegación rápida">
+    @if (menuNavAbierto && overflowLinks.length > 0) {
+      <div class="menu-nav-backdrop" (click)="cerrarMenuNav()" aria-hidden="true"></div>
+      <div id="menu-nav-app" class="menu-nav-panel" role="menu" aria-label="Más secciones">
+        @for (l of overflowLinks; track l.path) {
+          <a
+            role="menuitem"
+            [routerLink]="l.path"
+            routerLinkActive="activo"
+            [routerLinkActiveOptions]="{ exact: l.exact }"
+            (click)="cerrarMenuNav()"
+          >
+            <span class="nav-ico" aria-hidden="true">{{ l.icon }}</span>
+            <span>{{ l.label }}</span>
+          </a>
+        }
+      </div>
+    }
+    <div class="dock-measure" #dockMeasure aria-hidden="true">
       @for (l of links; track l.path) {
+        <span class="dock-measure-item" data-dock-measure="item">
+          <span class="dock-ico">{{ l.icon }}</span>
+          <span class="dock-lbl">{{ l.label }}</span>
+        </span>
+      }
+      <span class="dock-measure-item dock-menu" data-dock-measure="menu">
+        <span class="hamburguesa" aria-hidden="true">
+          <span></span><span></span><span></span>
+        </span>
+        <span class="dock-lbl">Menú</span>
+      </span>
+    </div>
+    <nav class="nav-dock" #navDock aria-label="Navegación rápida">
+      @for (l of dockLinks; track l.path) {
         <a
           [routerLink]="l.path"
           routerLinkActive="activo"
           [routerLinkActiveOptions]="{ exact: l.exact }"
         >
           <span class="dock-ico" aria-hidden="true">{{ l.icon }}</span>
-          <span class="dock-lbl">{{ l.short }}</span>
+          <span class="dock-lbl">{{ l.label }}</span>
         </a>
+      }
+      @if (overflowLinks.length > 0) {
+        <button
+          type="button"
+          class="menu-btn dock-menu"
+          [class.ruta-overflow]="rutaEnOverflow"
+          (click)="toggleMenuNav()"
+          [attr.aria-expanded]="menuNavAbierto"
+          aria-controls="menu-nav-app"
+          aria-label="Más módulos"
+        >
+          <span class="hamburguesa" aria-hidden="true">
+            <span></span><span></span><span></span>
+          </span>
+          <span class="dock-lbl">Menú</span>
+        </button>
       }
     </nav>
   }
@@ -111,3 +158,4 @@
 }
 
 <app-confirm-dialog />
+<app-loading-dialog />

@@ -2,7 +2,10 @@ import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import {
-  Cuenta, Denominacion, Gasto, GastoMensual, Ingreso, Movimiento, Resumen, SaldoSnapshot, UsuarioAcceso
+  AnularGastoCompartidoResponse,
+  Cuenta, Denominacion, Gasto, GastoCompartido, GastoMensual, Ingreso, Movimiento,
+  MovimientoPersonaCompartida, PersonaCompartida, Resumen, ResumenCompartido,
+  SaldoSnapshot, ServicioFijoCompartido, UsuarioAcceso
 } from './modelos';
 
 @Injectable({ providedIn: 'root' })
@@ -168,5 +171,228 @@ export class ApiService {
 
   eliminarUsuario(id: number): Observable<void> {
     return this.http.delete<void>(`${this.base}/usuarios/${id}`);
+  }
+
+  personasCompartidas(incluirInactivas = false): Observable<PersonaCompartida[]> {
+    let params = new HttpParams();
+    if (incluirInactivas) params = params.set('incluirInactivas', 'true');
+    return this.http.get<PersonaCompartida[]>(`${this.base}/compartido/personas`, { params });
+  }
+
+  crearPersonaCompartida(body: { nombre: string }): Observable<PersonaCompartida> {
+    return this.http.post<PersonaCompartida>(`${this.base}/compartido/personas`, body);
+  }
+
+  actualizarPersonaCompartida(id: number, body: { nombre: string }): Observable<PersonaCompartida> {
+    return this.http.put<PersonaCompartida>(`${this.base}/compartido/personas/${id}`, body);
+  }
+
+  desactivarPersonaCompartida(id: number): Observable<void> {
+    return this.http.delete<void>(`${this.base}/compartido/personas/${id}`);
+  }
+
+  reactivarPersonaCompartida(id: number): Observable<PersonaCompartida> {
+    return this.http.post<PersonaCompartida>(`${this.base}/compartido/personas/${id}/reactivar`, {});
+  }
+
+  resumenCompartido(): Observable<ResumenCompartido> {
+    return this.http.get<ResumenCompartido>(`${this.base}/compartido/resumen`);
+  }
+
+  gastosCompartidos(): Observable<GastoCompartido[]> {
+    return this.http.get<GastoCompartido[]>(`${this.base}/compartido/gastos`);
+  }
+
+  registrarGastoCompartido(body: {
+    tipo: string;
+    concepto: string;
+    monto: number;
+    fecha: string;
+    personaIds: number[];
+    formaPago: string;
+    cuentaId?: number | null;
+    meses?: number | null;
+    servicioFijoId?: number | null;
+    periodo?: string | null;
+    incluyePrincipal?: boolean;
+    perfiles?: number[];
+    perfilesPrincipal?: number;
+  }): Observable<GastoCompartido> {
+    return this.http.post<GastoCompartido>(`${this.base}/compartido/gastos`, body);
+  }
+
+  recalcularGastoCompartido(
+    id: number,
+    body: {
+      personaIds: number[];
+      proporcionalDias?: boolean;
+      fechaIngreso?: string;
+      fechaSalida?: string;
+      incluyePrincipal?: boolean;
+      perfiles?: number[];
+      perfilesPrincipal?: number;
+    }
+  ): Observable<GastoCompartido> {
+    return this.http.post<GastoCompartido>(`${this.base}/compartido/gastos/${id}/recalcular`, body);
+  }
+
+  anularGastoCompartido(id: number): Observable<AnularGastoCompartidoResponse> {
+    return this.http.delete<AnularGastoCompartidoResponse>(`${this.base}/compartido/gastos/${id}`);
+  }
+
+  serviciosFijosCompartidos(): Observable<ServicioFijoCompartido[]> {
+    return this.http.get<ServicioFijoCompartido[]>(`${this.base}/compartido/servicios-fijos`);
+  }
+
+  crearServicioFijoCompartido(body: {
+    concepto: string;
+    monto: number;
+    personaIds: number[];
+    diaCobro?: number | null;
+    incluyePrincipal?: boolean;
+    yoPago?: boolean;
+    perfiles?: number[];
+    perfilesPrincipal?: number;
+  }): Observable<ServicioFijoCompartido> {
+    return this.http.post<ServicioFijoCompartido>(`${this.base}/compartido/servicios-fijos`, body);
+  }
+
+  actualizarServicioFijoCompartido(
+    id: number,
+    body: {
+      concepto: string;
+      monto: number;
+      personaIds: number[];
+      diaCobro?: number | null;
+      incluyePrincipal?: boolean;
+      yoPago?: boolean;
+      perfiles?: number[];
+      perfilesPrincipal?: number;
+    }
+  ): Observable<ServicioFijoCompartido> {
+    return this.http.put<ServicioFijoCompartido>(`${this.base}/compartido/servicios-fijos/${id}`, body);
+  }
+
+  desactivarServicioFijoCompartido(id: number): Observable<void> {
+    return this.http.delete<void>(`${this.base}/compartido/servicios-fijos/${id}`);
+  }
+
+  cobrarServicioFijoCompartido(
+    id: number,
+    body: {
+      fecha: string;
+      formaPago: string;
+      cuentaId?: number | null;
+      meses?: number | null;
+      periodo?: string | null;
+    }
+  ): Observable<GastoCompartido> {
+    return this.http.post<GastoCompartido>(
+      `${this.base}/compartido/servicios-fijos/${id}/cobrar`,
+      body
+    );
+  }
+
+  abonarPersonaCompartida(
+    personaId: number,
+    body: {
+      monto: number;
+      fecha: string;
+      medio: string;
+      concepto?: string;
+      conceptoDestino?: string | null;
+      formaPagoPrestamo?: string;
+      cuentaId?: number | null;
+    }
+  ): Observable<MovimientoPersonaCompartida> {
+    return this.http.post<MovimientoPersonaCompartida>(
+      `${this.base}/compartido/personas/${personaId}/abonos`,
+      body
+    );
+  }
+
+  aplicarAnticipoCompartido(
+    personaId: number,
+    body: { conceptoDestino: string; monto: number }
+  ): Observable<MovimientoPersonaCompartida> {
+    return this.http.post<MovimientoPersonaCompartida>(
+      `${this.base}/compartido/personas/${personaId}/aplicar-anticipo`,
+      body
+    );
+  }
+
+  entregarFavorPrestamoCompartido(
+    personaId: number,
+    body: {
+      montoFavor: number;
+      montoPrestamo: number;
+      fecha: string;
+      formaPagoPrestamo?: string;
+      cuentaId?: number | null;
+    }
+  ): Observable<{
+    entregado: number;
+    deFavor: number;
+    prestamo: number;
+    quedaDebiendo: number;
+    mensaje: string;
+  }> {
+    return this.http.post<{
+      entregado: number;
+      deFavor: number;
+      prestamo: number;
+      quedaDebiendo: number;
+      mensaje: string;
+    }>(`${this.base}/compartido/personas/${personaId}/entregar-favor-prestamo`, body);
+  }
+
+  adelantoFijoCompartido(
+    personaId: number,
+    body: { servicioFijoId: number; meses: number; fecha: string; medio: string }
+  ): Observable<MovimientoPersonaCompartida> {
+    return this.http.post<MovimientoPersonaCompartida>(
+      `${this.base}/compartido/personas/${personaId}/adelanto-fijo`,
+      body
+    );
+  }
+
+  guardadoPersonaCompartida(
+    personaId: number,
+    body: { monto: number; fecha: string; tipo: string; concepto?: string }
+  ): Observable<MovimientoPersonaCompartida> {
+    return this.http.post<MovimientoPersonaCompartida>(
+      `${this.base}/compartido/personas/${personaId}/guardado`,
+      body
+    );
+  }
+
+  movimientosPersonaCompartida(personaId: number): Observable<MovimientoPersonaCompartida[]> {
+    return this.http.get<MovimientoPersonaCompartida[]>(
+      `${this.base}/compartido/personas/${personaId}/movimientos`
+    );
+  }
+
+  movimientosCompartidos(): Observable<MovimientoPersonaCompartida[]> {
+    return this.http.get<MovimientoPersonaCompartida[]>(`${this.base}/compartido/movimientos`);
+  }
+
+  previewRepartoCompartido(monto: number, personas: number): Observable<{
+    monto: number;
+    personas: number;
+    partePrincipal: number;
+    partesOtros: number[];
+    /** [principal, ...otros] */
+    partes: number[];
+  }> {
+    const params = new HttpParams()
+      .set('monto', String(monto))
+      .set('personas', String(personas));
+    return this.http.get<{
+      monto: number;
+      personas: number;
+      partePrincipal: number;
+      partesOtros: number[];
+      partes: number[];
+    }>(`${this.base}/compartido/reparto`, { params });
   }
 }

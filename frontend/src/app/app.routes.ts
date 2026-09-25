@@ -7,6 +7,7 @@ import { CuentasComponent } from './paginas/cuentas/cuentas.component';
 import { SaldoComponent } from './paginas/saldo/saldo.component';
 import { LoginComponent } from './paginas/login/login.component';
 import { UsuariosComponent } from './paginas/usuarios/usuarios.component';
+import { CompartidoComponent } from './paginas/compartido/compartido.component';
 import { adminGuard, authGuard, guestGuard } from './auth.guard';
 
 export const routes: Routes = [
@@ -19,6 +20,7 @@ export const routes: Routes = [
   { path: 'cuentas', component: CuentasComponent, canActivate: [authGuard] },
   { path: 'cuentas/:id', component: CuentasComponent, canActivate: [authGuard] },
   { path: 'saldo', component: SaldoComponent, canActivate: [authGuard] },
+  { path: 'compartido', component: CompartidoComponent, canActivate: [authGuard] },
   { path: 'usuarios', component: UsuariosComponent, canActivate: [adminGuard] },
   { path: '**', redirectTo: 'login' },
 ];

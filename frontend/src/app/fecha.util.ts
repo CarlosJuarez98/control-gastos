@@ -13,6 +13,46 @@ export function fechaHoyLocal(d = new Date()): string {
   return `${y}-${m}-${day}`;
 }
 
+/** Periodo actual yyyy-MM para input type=month */
+export function periodoActual(d = new Date()): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  return `${y}-${m}`;
+}
+
+/**
+ * Fecha de cobro en un periodo: si el mes no tiene ese día (31, feb 29/30),
+ * usa el último día del mes (un día antes / el máximo válido).
+ */
+export function fechaCobroEnPeriodo(
+  periodoYyyyMm: string,
+  diaCobro: number | null | undefined,
+  noFuturo = true
+): string {
+  const dia = Math.max(1, Math.min(31, Math.round(Number(diaCobro) || 1)));
+  const m = /^(\d{4})-(\d{2})$/.exec((periodoYyyyMm || '').trim());
+  const y = m ? Number(m[1]) : new Date().getFullYear();
+  const mo = m ? Number(m[2]) : new Date().getMonth() + 1;
+  const max = new Date(y, mo, 0).getDate(); // último día del mes
+  const d = Math.min(dia, max);
+  let out = `${y}-${String(mo).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+  if (noFuturo) {
+    const hoy = fechaHoyLocal();
+    if (out > hoy) out = hoy;
+  }
+  return out;
+}
+
+/** Siguiente mes tras un periodo yyyy-MM; si no hay, periodo actual. */
+export function siguientePeriodo(periodo: string | null | undefined): string {
+  if (!periodo || !/^\d{4}-\d{2}$/.test(periodo)) {
+    return periodoActual();
+  }
+  const [ys, ms] = periodo.split('-').map(Number);
+  const d = new Date(ys, ms - 1 + 1, 1);
+  return periodoActual(d);
+}
+
 /** Formato fijo: 08-sep-2026 */
 export function formatFechaCorta(valor: string | Date | null | undefined): string {
   if (valor == null || valor === '') return '';

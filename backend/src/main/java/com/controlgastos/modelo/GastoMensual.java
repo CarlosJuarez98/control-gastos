@@ -41,6 +41,13 @@ public class GastoMensual {
     @Column(name = "GASTO_ORIGEN_ID")
     private Long gastoOrigenId;
 
+    /**
+     * Servicio fijo compartido donde otro paga y tú solo tienes tu parte
+     * (espejo en Mensuales).
+     */
+    @Column(name = "SERVICIO_FIJO_COMPARTIDO_ID")
+    private Long servicioFijoCompartidoId;
+
     /** Día del mes de pago (1–31), opcional. Null = repartir en ambas quincenas. */
     @Column(name = "DIA_PAGO")
     private Integer diaPago;
@@ -63,6 +70,10 @@ public class GastoMensual {
     public void setMontoTotal(BigDecimal montoTotal) { this.montoTotal = montoTotal; }
     public Long getGastoOrigenId() { return gastoOrigenId; }
     public void setGastoOrigenId(Long gastoOrigenId) { this.gastoOrigenId = gastoOrigenId; }
+    public Long getServicioFijoCompartidoId() { return servicioFijoCompartidoId; }
+    public void setServicioFijoCompartidoId(Long servicioFijoCompartidoId) {
+        this.servicioFijoCompartidoId = servicioFijoCompartidoId;
+    }
     public Integer getDiaPago() { return diaPago; }
     public void setDiaPago(Integer diaPago) { this.diaPago = diaPago; }
 

@@ -12,4 +12,9 @@ public interface GastoMensualRepository extends JpaRepository<GastoMensual, Long
     Optional<GastoMensual> findByGastoOrigenIdAndActivoTrue(Long gastoOrigenId);
 
     List<GastoMensual> findByGastoOrigenId(Long gastoOrigenId);
+
+    Optional<GastoMensual> findByServicioFijoCompartidoIdAndPropietario(
+            Long servicioFijoCompartidoId, String propietario);
+
+    List<GastoMensual> findByServicioFijoCompartidoId(Long servicioFijoCompartidoId);
 }

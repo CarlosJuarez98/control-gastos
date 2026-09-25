@@ -455,11 +455,13 @@ public class FinanzasService {
     public GastoMensual guardarMensual(GastoMensual g) {
         String u = Sesion.usuario();
         Long gastoOrigenConservar = null;
+        Long servicioFijoConservar = null;
         if (g.getId() != null) {
             GastoMensual existing = gastoMensualRepository.findById(g.getId())
                     .orElseThrow(() -> new IllegalArgumentException("Gasto mensual no encontrado"));
             exigirPropietario(u, existing.getPropietario());
             gastoOrigenConservar = existing.getGastoOrigenId();
+            servicioFijoConservar = existing.getServicioFijoCompartidoId();
         }
 
         if (g.getMotivo() == null || g.getMotivo().isBlank()) {
@@ -504,11 +506,67 @@ public class FinanzasService {
             g.setDiaPago(null);
         }
 
-        // Alta manual o corrección: conservar vínculo al gasto TDC si ya existía
+        // Alta manual o corrección: conservar vínculos
         g.setGastoOrigenId(gastoOrigenConservar);
+        if (g.getServicioFijoCompartidoId() == null) {
+            g.setServicioFijoCompartidoId(servicioFijoConservar);
+        }
         g.setPropietario(u);
         g.setActivo(true);
         return gastoMensualRepository.save(g);
+    }
+
+    /**
+     * Espeja en Mensuales la cuota del principal cuando en Compartido «otro paga».
+     * Si ya no aplica, desactiva el fijo vinculado.
+     */
+    @Transactional
+    public void sincronizarMensualDesdeCompartido(
+            Long servicioFijoId,
+            String concepto,
+            BigDecimal cuotaPrincipal,
+            Integer diaPago,
+            boolean activo) {
+        String u = Sesion.usuario();
+        if (servicioFijoId == null) return;
+
+        GastoMensual g = gastoMensualRepository
+                .findByServicioFijoCompartidoIdAndPropietario(servicioFijoId, u)
+                .orElse(null);
+
+        boolean debeExistir = activo
+                && cuotaPrincipal != null
+                && cuotaPrincipal.compareTo(BigDecimal.ZERO) > 0;
+
+        if (!debeExistir) {
+            if (g != null && g.isActivo()) {
+                g.setActivo(false);
+                gastoMensualRepository.save(g);
+            }
+            return;
+        }
+
+        if (g == null) {
+            g = new GastoMensual();
+            g.setPropietario(u);
+            g.setServicioFijoCompartidoId(servicioFijoId);
+        }
+        g.setMotivo("Compartido · " + (concepto == null || concepto.isBlank() ? "servicio" : concepto.trim())
+                + " (mi parte)");
+        if (g.getMotivo().length() > 120) {
+            g.setMotivo(g.getMotivo().substring(0, 120));
+        }
+        g.setMonto(cuotaPrincipal.setScale(0, java.math.RoundingMode.HALF_UP)
+                .setScale(2, java.math.RoundingMode.UNNECESSARY));
+        g.setMesesTotales(null);
+        g.setMesesRestantes(null);
+        g.setMontoTotal(null);
+        g.setGastoOrigenId(null);
+        g.setDiaPago(diaPago);
+        g.setActivo(true);
+        g.setServicioFijoCompartidoId(servicioFijoId);
+        g.setPropietario(u);
+        gastoMensualRepository.save(g);
     }
 
     /** Marca una cuota MSI como pagada (resta 1 mes). Al llegar a 0 desactiva el plan. */

@@ -44,6 +44,8 @@ export interface GastoMensual {
   mesesRestantes?: number | null;
   montoTotal?: number | null;
   gastoOrigenId?: number | null;
+  /** Fijo espejado desde Compartido (otro paga, mi parte). */
+  servicioFijoCompartidoId?: number | null;
   aMeses?: boolean;
   montoRestante?: number;
   /** Día del mes de pago (1–31). Null = repartir en ambas quincenas. */
@@ -65,6 +67,8 @@ export interface Cuenta {
   creditoDisponible?: number | null;
   /** TDC sin compras nuevas (sigue en Deudas). */
   bloqueada?: boolean;
+  /** Cuenta saldada / fuera de lista. */
+  archivada?: boolean;
 }
 
 export interface Movimiento {
@@ -101,4 +105,143 @@ export interface UsuarioAcceso {
   usuario: string;
   rol: 'ADMIN' | 'USER' | string;
   activo: boolean;
+}
+
+/** Persona del módulo Compartido (no es usuario de login). */
+export interface PersonaCompartida {
+  id?: number;
+  nombre: string;
+  activa?: boolean;
+  /** Caja aparte mental; no afecta Saldo/disponible. */
+  efectivoGuardado?: number;
+}
+
+export interface ParteGastoCompartido {
+  id?: number;
+  esPrincipal?: boolean;
+  monto: number;
+  /** Perfiles/cuotas en el reparto (streaming). Default 1. */
+  perfiles?: number;
+  personaId?: number | null;
+  nombre?: string;
+  persona?: PersonaCompartida | null;
+}
+
+export interface GastoCompartido {
+  id?: number;
+  tipo: 'SERVICIO' | 'COMPRA' | string;
+  concepto: string;
+  montoTotal: number;
+  fecha: string;
+  formaPago: string;
+  cuentaId?: number | null;
+  meses?: number | null;
+  gastoId?: number | null;
+  servicioFijoId?: number | null;
+  periodo?: string | null;
+  anulado?: boolean;
+  partes?: ParteGastoCompartido[];
+}
+
+export interface ServicioFijoCompartido {
+  id?: number;
+  concepto: string;
+  monto: number;
+  personaIds?: number[];
+  personaIdsCsv?: string;
+  /** Perfiles por persona (mismo orden que personaIds). */
+  personaPerfiles?: number[];
+  /** Tus perfiles en el reparto. Default 1. */
+  perfilesPrincipal?: number | null;
+  /** Día del mes (1–31). Si el mes no lo tiene, se usa el último día. */
+  diaCobro?: number | null;
+  /** Si false, al cobrar no te toca cuota (solo prestas el pago). */
+  incluyePrincipal?: boolean | null;
+  /** Si false, otro paga y tu parte se espeja en Mensuales. */
+  yoPago?: boolean | null;
+  activo?: boolean;
+}
+
+export interface MovimientoPersonaCompartida {
+  id?: number;
+  persona?: PersonaCompartida;
+  fecha: string;
+  tipo: 'DEUDA' | 'ABONO' | 'GUARDADO_IN' | 'GUARDADO_OUT' | string;
+  monto: number;
+  concepto?: string;
+  gastoCompartidoId?: number | null;
+  ingresoId?: number | null;
+  desdeGuardado?: boolean;
+  anulado?: boolean;
+}
+
+export interface PeriodoPendienteCompartido {
+  periodo: string;
+  concepto: string;
+  fechaCobro?: string | null;
+  gastoCompartidoId?: number | null;
+  cargo: number;
+  pagado: number;
+  pendiente: number;
+}
+
+export interface CuentaPendienteCompartido {
+  concepto: string;
+  pendiente: number;
+  anticipo?: number;
+  detalle?: string | null;
+}
+
+export interface CuentaGlobalCompartido {
+  concepto: string;
+  pendiente: number;
+  anticipo: number;
+  /** Monto original de la(s) deuda(s) abierta(s), incl. tu parte. */
+  total?: number;
+  personas: number;
+  deudores: string[];
+}
+
+export interface TdcCargaCompartido {
+  cuentaId: number;
+  nombre: string;
+  monto: number;
+  gastos: number;
+  conceptos: string[];
+}
+
+export interface PersonaResumenCompartido {
+  id: number;
+  nombre: string;
+  activa: boolean;
+  debe: number;
+  aFavor: number;
+  efectivoGuardado: number;
+  periodos?: PeriodoPendienteCompartido[];
+  porCuenta?: CuentaPendienteCompartido[];
+  detalleDeuda?: string | null;
+}
+
+export interface ResumenCompartido {
+  personas: PersonaResumenCompartido[];
+  totalMeDeben: number;
+  totalAFavor: number;
+  totalGuardado: number;
+  porCuenta?: CuentaGlobalCompartido[];
+  porTdc?: TdcCargaCompartido[];
+  fijosPendientesCobro?: FijoPendienteCobro[];
+}
+
+export interface FijoPendienteCobro {
+  id: number;
+  concepto: string;
+  monto: number;
+  diaCobro?: number | null;
+  periodo: string;
+  fechaCobro: string;
+}
+
+export interface AnularGastoCompartidoResponse {
+  abonosQueQuedanAFavor: number;
+  mensaje: string;
 }
