@@ -942,7 +942,7 @@ public class CompartidoService {
         if (prestamo.compareTo(BigDecimal.ZERO) > 0) {
             msg.append(" Te debe $")
                     .append(prestamo.toPlainString().replace(".00", ""))
-                    .append(" del préstamo (lo paga después con Abono).");
+                    .append(" del préstamo.");
         }
 
         return new EntregarFavorPrestamoResponse(

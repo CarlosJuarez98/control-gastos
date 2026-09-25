@@ -513,6 +513,26 @@
   color: color-mix(in srgb, var(--peligro, #c44) 75%, var(--texto));
 }
 
+.lbl-line {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.campo-aviso {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: color-mix(in srgb, var(--peligro, #c44) 80%, var(--texto));
+}
+
+.campo-hint {
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: var(--texto-suave);
+}
+
 .btn-registrar {
   min-height: 2.6rem;
   font-weight: 700;

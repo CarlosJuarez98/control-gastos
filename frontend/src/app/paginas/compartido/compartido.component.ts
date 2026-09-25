@@ -940,7 +940,7 @@ export class CompartidoComponent implements OnInit, OnDestroy {
     this.adelantoPersonaId = null;
     this.anticipoPersonaId = null;
     this.prestarForm = {
-      montoFavor: p.aFavor > 0 ? String(Math.round(p.aFavor)) : '0',
+      montoFavor: '',
       montoPrestamo: '',
       fecha: fechaHoyLocal(),
       formaPago: 'EFECTIVO',
@@ -989,9 +989,16 @@ export class CompartidoComponent implements OnInit, OnDestroy {
     this.prestarPersonaId = null;
   }
 
+  get montoFavorNum(): number {
+    return Math.max(0, Math.round(parseDinero(this.prestarForm.montoFavor)));
+  }
+
+  aFavorEntero(p: { aFavor?: number } | null | undefined): number {
+    return Math.round(Number(p?.aFavor) || 0);
+  }
+
   get montoPrestarTotal(): number {
-    return Math.max(0, Math.round(parseDinero(this.prestarForm.montoFavor)))
-      + Math.max(0, Math.round(parseDinero(this.prestarForm.montoPrestamo)));
+    return this.montoFavorNum + this.montoPrestamoPreview;
   }
 
   get montoPrestamoPreview(): number {

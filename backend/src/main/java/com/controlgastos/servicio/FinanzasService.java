@@ -23,6 +23,7 @@ public class FinanzasService {
     private final SaldoSnapshotRepository saldoRepository;
     private final DenominacionEfectivoRepository denominacionRepository;
     private final HistorialAnualRepository historialAnualRepository;
+    private final PersonaCompartidaRepository personaCompartidaRepository;
 
     public FinanzasService(
             IngresoRepository ingresoRepository,
@@ -32,7 +33,8 @@ public class FinanzasService {
             MovimientoCuentaRepository movimientoRepository,
             SaldoSnapshotRepository saldoRepository,
             DenominacionEfectivoRepository denominacionRepository,
-            HistorialAnualRepository historialAnualRepository) {
+            HistorialAnualRepository historialAnualRepository,
+            PersonaCompartidaRepository personaCompartidaRepository) {
         this.ingresoRepository = ingresoRepository;
         this.gastoRepository = gastoRepository;
         this.gastoMensualRepository = gastoMensualRepository;
@@ -41,6 +43,7 @@ public class FinanzasService {
         this.saldoRepository = saldoRepository;
         this.denominacionRepository = denominacionRepository;
         this.historialAnualRepository = historialAnualRepository;
+        this.personaCompartidaRepository = personaCompartidaRepository;
     }
 
     @Transactional(readOnly = true)
@@ -139,6 +142,19 @@ public class FinanzasService {
                 })
                 .collect(Collectors.toList());
 
+        List<Map<String, Object>> guardaditoPorPersona = new ArrayList<>();
+        BigDecimal guardaditoTotal = BigDecimal.ZERO.setScale(2);
+        for (PersonaCompartida p : personaCompartidaRepository.findAllByPropietario(u)) {
+            BigDecimal g = nullSafe(p.getEfectivoGuardado());
+            if (g.compareTo(BigDecimal.ZERO) <= 0) continue;
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("id", p.getId());
+            m.put("nombre", p.getNombre());
+            m.put("monto", g);
+            guardaditoPorPersona.add(m);
+            guardaditoTotal = guardaditoTotal.add(g);
+        }
+
         return new ResumenResponse(
                 ingresos,
                 gastos,
@@ -151,7 +167,9 @@ public class FinanzasService {
                 porCat,
                 topCuentas,
                 prestamistas,
-                historialAnual
+                historialAnual,
+                guardaditoTotal,
+                guardaditoPorPersona
         );
     }
 

@@ -12,6 +12,9 @@ export interface Resumen {
   prestamistas: { id: number; nombre: string; tipo: string; saldoActual: number }[];
   /** Totales archivados el 1 de enero al cerrar años anteriores. */
   historialAnual?: { anio: number; totalIngresos: number; totalGastos: number; balance: number }[];
+  /** Efectivo guardadito (Compartido); solo si hay. */
+  guardaditoTotal?: number;
+  guardaditoPorPersona?: { id?: number; nombre: string; monto: number }[];
 }
 
 export interface Ingreso {

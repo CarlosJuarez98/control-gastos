@@ -87,10 +87,20 @@
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(8.5rem, 1fr));
   gap: 0.55rem;
-  margin-bottom: 0.85rem;
+  margin-bottom: 0.55rem;
+  align-items: start;
 }
 
-.metricas article {
+.metricas-caja {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.55rem;
+  margin-bottom: 0.85rem;
+  align-items: start;
+}
+
+.metricas article,
+.metricas-caja article {
   padding: 0.7rem 0.8rem;
   background:
     linear-gradient(160deg, color-mix(in srgb, #fff 3.5%, transparent), transparent 45%),
@@ -102,7 +112,8 @@
   transition: transform 0.2s var(--ease-out), border-color 0.2s ease;
 }
 
-.metricas article:hover {
+.metricas article:hover,
+.metricas-caja article:hover {
   transform: translateY(-2px);
   border-color: color-mix(in srgb, var(--acento) 35%, var(--linea));
 }
@@ -111,7 +122,8 @@
   border-color: color-mix(in srgb, var(--aviso, #e0a85c) 45%, var(--linea));
 }
 
-.metricas span {
+.metricas span,
+.metricas-caja span {
   display: block;
   color: var(--texto-suave);
   font-size: 0.72rem;
@@ -120,9 +132,95 @@
   margin-bottom: 0.25rem;
 }
 
-.metricas strong {
+.metricas strong,
+.metricas-caja strong {
   font-family: var(--fuente-display);
   font-size: 1rem;
+}
+
+.metricas-caja .disp-sep,
+.metricas .disp-sep {
+  margin: 0.45rem 0 0;
+  padding: 0;
+  border-top: 1px dashed var(--linea);
+  height: 0;
+  font-size: 0;
+  line-height: 0;
+}
+
+.metricas-caja .leyenda-disp,
+.metricas .leyenda-disp {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  margin: 0.4rem 0 0;
+  font-size: 0.7rem;
+  line-height: 1.3;
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.metricas-caja .leyenda-disp .leyenda-txt,
+.metricas .leyenda-disp .leyenda-txt {
+  display: block;
+  margin: 0 0 0.1rem;
+  color: var(--texto-suave);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.metricas-caja .leyenda-disp strong,
+.metricas .leyenda-disp strong {
+  font-size: 0.88rem;
+}
+
+.metricas-caja article.card-guardadito {
+  border-color: color-mix(in srgb, var(--acento) 40%, var(--linea));
+}
+
+.guardadito-lista {
+  list-style: none;
+  margin: 0.45rem 0 0;
+  padding: 0.4rem 0 0;
+  border-top: 1px dashed var(--linea);
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.35rem 0.55rem;
+}
+
+.guardadito-lista li {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.1rem;
+  min-width: 0;
+  font-size: 0.78rem;
+}
+
+.guardadito-lista li span {
+  display: block;
+  margin: 0;
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 0.72rem;
+  color: var(--texto-suave);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+.guardadito-lista li strong {
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+@media (max-width: 640px) {
+  .guardadito-lista {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 .charts {
@@ -358,6 +456,7 @@
 
 @media (max-width: 640px) and (orientation: portrait) {
   .metricas { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .metricas-caja { grid-template-columns: 1fr 1fr; }
   .donut-wrap { grid-template-columns: 1fr; justify-items: center; }
   .leyenda {
     width: 100%;

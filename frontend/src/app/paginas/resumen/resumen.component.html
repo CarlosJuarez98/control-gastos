@@ -65,15 +65,45 @@
       <span>Prestamista</span>
       <strong class="mono pos">{{ data.meDebenTotal | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
     </article>
-    <article>
-      <span>Disponible</span>
-      <strong class="mono pos">{{ data.saldoDisponible | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
-    </article>
+    @if (!((data.guardaditoTotal || 0) > 0)) {
+      <article>
+        <span>Disponible</span>
+        <strong class="mono pos">{{ data.saldoDisponible | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
+      </article>
+    }
     <article class="destacada-quincena">
       <span>Pagar esta quincena</span>
       <strong class="mono aviso">{{ pagoEstaQuincena | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
     </article>
   </div>
+
+  @if ((data.guardaditoTotal || 0) > 0) {
+    <div class="metricas-caja" [class.opaco]="cargando">
+      <article>
+        <span>Disponible</span>
+        <strong class="mono pos">{{ data.saldoDisponible | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
+        <div class="disp-sep" aria-hidden="true"></div>
+        <small class="leyenda-disp">
+          <span class="leyenda-txt">Disponible + guardadito</span>
+          <strong class="mono pos">{{ (data.saldoDisponible + data.guardaditoTotal!) | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
+        </small>
+      </article>
+      <article class="card-guardadito">
+        <span>Guardadito</span>
+        <strong class="mono pos">{{ data.guardaditoTotal | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
+        @if (data.guardaditoPorPersona?.length) {
+          <ul class="guardadito-lista">
+            @for (g of data.guardaditoPorPersona!; track g.id ?? g.nombre) {
+              <li>
+                <span>{{ g.nombre }}</span>
+                <strong class="mono">{{ g.monto | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
+              </li>
+            }
+          </ul>
+        }
+      </article>
+    </div>
+  }
 
   <div class="charts" [class.opaco]="cargando">
     <section class="panel">

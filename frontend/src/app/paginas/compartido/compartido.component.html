@@ -180,90 +180,19 @@
                 }
               </div>
               <div class="acciones">
-                <button
-                  type="button"
-                  class="icono"
-                  title="Abono"
-                  aria-label="Abono"
-                  (click)="abrirAbono(p)"
-                >
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="1.8"/>
-                    <path d="M12 8v5.5M9.5 11.5 12 14l2.5-2.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-                  </svg>
-                </button>
+                <button type="button" class="btn-mini" (click)="abrirAbono(p)">Abono</button>
                 @if (p.aFavor > 0) {
-                  <button
-                    type="button"
-                    class="icono"
-                    title="Dar / prestar"
-                    aria-label="Dar / prestar"
-                    (click)="abrirPrestar(p)"
-                  >
-                    <svg viewBox="0 0 24 24" aria-hidden="true">
-                      <path d="M4 12h11" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
-                      <path d="M12 8l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-                      <path d="M19 7v10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
-                    </svg>
-                  </button>
+                  <button type="button" class="btn-mini" (click)="abrirPrestar(p)">Dar</button>
                   @if (cuentasDestinoDe(p).length) {
-                    <button
-                      type="button"
-                      class="icono"
-                      title="A favor → cuenta"
-                      aria-label="Mandar a favor a una cuenta"
-                      (click)="abrirAplicarAnticipo(p)"
-                    >
-                      <svg viewBox="0 0 24 24" aria-hidden="true">
-                        <path d="M5 12h9" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
-                        <path d="M11 8l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-                        <path d="M17 7h2a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1h-2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-                      </svg>
-                    </button>
+                    <button type="button" class="btn-mini secundario" (click)="abrirAplicarAnticipo(p)">A cuenta</button>
                   }
                 } @else {
-                  <button
-                    type="button"
-                    class="icono"
-                    title="Prestar"
-                    aria-label="Prestar"
-                    (click)="abrirPrestar(p)"
-                  >
-                    <svg viewBox="0 0 24 24" aria-hidden="true">
-                      <path d="M4 12h11" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
-                      <path d="M12 8l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-                      <path d="M19 7v10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
-                    </svg>
-                  </button>
+                  <button type="button" class="btn-mini" (click)="abrirPrestar(p)">Prestar</button>
                 }
                 @if (fijosDePersona(p.id).length) {
-                  <button
-                    type="button"
-                    class="icono"
-                    title="Adelanto"
-                    aria-label="Adelanto"
-                    (click)="abrirAdelanto(p)"
-                  >
-                    <svg viewBox="0 0 24 24" aria-hidden="true">
-                      <rect x="4" y="5" width="16" height="15" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/>
-                      <path d="M8 3v4M16 3v4M4 10h16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
-                      <path d="M10 15h5M13 12.5v5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
-                    </svg>
-                  </button>
+                  <button type="button" class="btn-mini secundario" (click)="abrirAdelanto(p)">Adelanto</button>
                 }
-                <button
-                  type="button"
-                  class="icono"
-                  title="A guardar"
-                  aria-label="A guardar"
-                  (click)="abrirGuardado(p)"
-                >
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M4 8h16v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
-                    <path d="M4 8l2.2-3.5h11.6L20 8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
-                    <path d="M9 13h6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
-                  </svg>
-                </button>
+                <button type="button" class="btn-mini secundario" (click)="abrirGuardado(p)">Guardadito</button>
               </div>
             </div>
 
@@ -312,7 +241,6 @@
                   @if (abono.conceptoDestino) {
                     Solo cubre <strong>{{ abono.conceptoDestino }}</strong>; si sobra, queda a favor de esa cuenta.
                   } @else {
-                    Abono general: se reparte a las deudas más viejas, en este orden:
                     @if (previewAbonoGeneral(p); as preview) {
                       @if (preview.length) {
                         <ul class="preview-abono">
@@ -320,8 +248,6 @@
                             <li>{{ line }}</li>
                           }
                         </ul>
-                      } @else {
-                        (sin deudas pendientes; el monto quedará a favor)
                       }
                     }
                   }
@@ -374,25 +300,37 @@
 
             @if (prestarPersonaId === p.id) {
               <form class="panel-inline" enterAvance (ngSubmit)="enviarPrestar(p)">
-                <p class="hint-pago span-all">
-                  «Dame lo de mi favor y préstame tanto». El a favor siempre sale de efectivo.
-                  El préstamo puede ser de efectivo o de TDC (queda en el corte de esa tarjeta).
-                </p>
-                <label>De su a favor
+                <label>
+                  <span class="lbl-line">
+                    De su a favor
+                    @if (montoFavorNum > aFavorEntero(p)) {
+                      <small class="campo-aviso">máx. {{ p.aFavor | currency:'MXN':'symbol-narrow':'1.0-0' }}</small>
+                    } @else if (montoFavorNum > 0 && superaDisponibleEfectivo('' + montoFavorNum)) {
+                      <small class="campo-aviso">no alcanza disponible</small>
+                    } @else if (p.aFavor > 0) {
+                      <small class="campo-hint">tiene {{ p.aFavor | currency:'MXN':'symbol-narrow':'1.0-0' }}</small>
+                    }
+                  </span>
                   <input
                     [(ngModel)]="prestarForm.montoFavor"
                     name="prestFavor"
                     inputmode="decimal"
                     [attr.max]="p.aFavor"
-                    placeholder="0"
                   />
                 </label>
-                <label>Préstamo extra
+                <label>
+                  <span class="lbl-line">
+                    Préstamo extra
+                    @if (montoPrestamoPreview > 0 && prestarForm.formaPago === 'EFECTIVO' && superaDisponibleEfectivo('' + montoPrestarTotal)) {
+                      <small class="campo-aviso">no alcanza disponible</small>
+                    } @else if (montoPrestamoPreview > 0 && prestarForm.formaPago === 'TARJETA' && superaCreditoTdc('' + montoPrestamoPreview, prestarForm.cuentaId)) {
+                      <small class="campo-aviso">sin crédito libre</small>
+                    }
+                  </span>
                   <input
                     [(ngModel)]="prestarForm.montoPrestamo"
                     name="prestExtra"
                     inputmode="decimal"
-                    placeholder="0"
                   />
                 </label>
                 <label>Fecha
@@ -424,30 +362,14 @@
                     </label>
                   }
                 }
-                <p
-                  class="hint-pago span-all"
-                  [class.aviso]="avisoPrestar"
-                >
+                <p class="hint-pago span-all" [class.aviso]="avisoPrestar">
                   Total a entregar:
-                  <strong>{{ montoPrestarTotal | currency:'MXN':'symbol-narrow':'1.0-0' }}</strong>.
-                  @if (montoPrestamoPreview > 0 && prestarForm.formaPago === 'EFECTIVO') {
-                    @if (saldoDisponible != null) {
-                      Disponible: {{ saldoDisponible | currency:'MXN':'symbol-narrow':'1.0-0' }}.
-                    }
-                  }
-                  @if (montoPrestamoPreview > 0 && prestarForm.formaPago === 'TARJETA') {
-                    @if (creditoLibre(prestarForm.cuentaId); as libre) {
-                      Crédito libre: {{ libre | currency:'MXN':'symbol-narrow':'1.0-0' }}.
-                    }
-                  }
-                  @if (montoPrestamoPreview > 0) {
-                    Te deberá {{ montoPrestamoPreview | currency:'MXN':'symbol-narrow':'1.0-0' }} (Abono después).
-                  }
+                  <strong>{{ montoPrestarTotal | currency:'MXN':'symbol-narrow':'1.0-0' }}</strong>
                 </p>
                 <div class="acciones span-all">
                   <button
                     type="submit"
-                    [disabled]="montoPrestarTotal <= 0 || (montoPrestamoPreview > 0 && prestarForm.formaPago === 'TARJETA' && !prestarForm.cuentaId)"
+                    [disabled]="montoPrestarTotal <= 0 || (montoPrestamoPreview > 0 && prestarForm.formaPago === 'TARJETA' && !prestarForm.cuentaId) || montoFavorNum > aFavorEntero(p)"
                   >Entregar</button>
                   <button type="button" class="secundario" (click)="cerrarPanelesPersona()">Cancelar</button>
                 </div>
@@ -634,13 +556,6 @@
         @if (gastoForm.tipo === 'COMPRA') { partes }
         @else { perfiles }
       </legend>
-      <p class="hint-pago span-all">
-        @if (gastoForm.tipo === 'COMPRA') {
-          Si alguien se lleva 3 (o paga 3), súbele el número: el monto se reparte proporcional.
-        } @else {
-          Streaming u otros: si alguien usa 3 perfiles, súbele a 3.
-        }
-      </p>
       <div class="chip-row span-all">
         <div class="persona-slot" [class.on]="gastoForm.incluyePrincipal">
           <button

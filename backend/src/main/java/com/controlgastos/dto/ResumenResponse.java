@@ -16,5 +16,8 @@ public record ResumenResponse(
         List<Map<String, Object>> gastosPorCategoria,
         List<Map<String, Object>> topCuentas,
         List<Map<String, Object>> prestamistas,
-        List<Map<String, Object>> historialAnual
+        List<Map<String, Object>> historialAnual,
+        /** Efectivo guardadito de Compartido (caja aparte; no es el disponible). */
+        BigDecimal guardaditoTotal,
+        List<Map<String, Object>> guardaditoPorPersona
 ) {}
