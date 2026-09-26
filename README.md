@@ -22,26 +22,28 @@ Uso “todo en Docker”: `iniciar.bat` → app en http://127.0.0.1:8081/
 
 ## Login
 
-- Usuario por defecto: `admin`
-- Contraseña: `APP_AUTH_PASSWORD` (local en `application.properties`; nube en `.env.cloud`)
+Usuarios reales viven en la tabla **Usuarios** (`CG_USUARIO`), tipicamente `Carlos` y `Mon` (la semilla antigua `admin` se remapea a Carlos).
+
+Contraseña: la que configures en Usuarios / bootstrap (`APP_AUTH_PASSWORD` solo aplica al sembrar el primer ADMIN).
 
 Seguridad: el navegador envía **SHA-256** (no la clave en claro); en Oracle solo se guarda **BCrypt**.
 
 ## Multi-usuario
 
-- Cada usuario tiene **sus propios datos** (ingresos, gastos, cuentas, saldos).
+- Cada usuario tiene **sus propios datos** (ingresos, gastos, cuentas, saldos, Compartido).
 - Solo **ADMIN** crea/activa usuarios y cambia roles o contraseñas (pantalla Usuarios / `/api/usuarios`).
 
 ## Nube
 
 Guía completa: [`DEPLOY-NUBE.md`](DEPLOY-NUBE.md).  
-Sync de datos (solo lo nuevo): [`SYNC-DATOS.md`](SYNC-DATOS.md).
+Sync de datos (solo lo nuevo): [`SYNC-DATOS.md`](SYNC-DATOS.md).  
+Schema / checklist: [`database/SCHEMA.md`](database/SCHEMA.md).
 
 **Flujo:** local primero → “sube a la nube” = **solo código**. Datos con “sube datos” / “baja datos” (`SYNC-DATOS.md`).
 
 - En **Ampere ARM** no uses Oracle XE en Docker → **ATP Always Free** + `docker-compose.cloud-atp.yml`
 - Opcional en VMs **amd64**: `docker-compose.cloud.yml` (XE en contenedor)
-- URL típica: `http://TU_IP:8081/`
+- URL pública: `https://gastos.TU_IP.sslip.io/`
 
 Copia `.env.cloud.example` → `.env.cloud` (no subir secretos ni `wallet/`).
 
@@ -55,7 +57,7 @@ Copia `.env.cloud.example` → `.env.cloud` (no subir secretos ni `wallet/`).
 | Servicio | `XEPDB1` |
 | Usuario | `controlgastos` |
 
-Tablas: `CG_INGRESO`, `CG_GASTO`, `CG_GASTO_MENSUAL`, `CG_CUENTA`, `CG_MOVIMIENTO`, `CG_SALDO`, `CG_DENOMINACION`, `CG_USUARIO`.
+Tablas: ver [`database/SCHEMA.md`](database/SCHEMA.md).
 
 ## Estructura
 
@@ -76,6 +78,7 @@ Tablas: `CG_INGRESO`, `CG_GASTO`, `CG_GASTO_MENSUAL`, `CG_CUENTA`, `CG_MOVIMIENT
 | GET/POST | `/api/gastos-mensuales` | Fijos mensuales |
 | GET/POST | `/api/cuentas` | Deudas / cuentas |
 | GET/PUT | `/api/saldo` | Cortes de liquidez |
+| GET/POST | `/api/compartido/**` | Gastos y personas compartidas |
 | POST | `/api/auth/login` | Iniciar sesión |
 | GET | `/api/auth/me` | Estado de sesión |
 | POST | `/api/auth/logout` | Cerrar sesión |

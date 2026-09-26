@@ -30,7 +30,12 @@ public class PropietarioDataMigrator implements ApplicationRunner {
             "CG_CUENTA",
             "CG_MOVIMIENTO",
             "CG_SALDO",
-            "CG_DENOMINACION"
+            "CG_DENOMINACION",
+            "CG_HISTORIAL_ANUAL",
+            "CG_PERSONA_COMPARTIDA",
+            "CG_SERVICIO_FIJO_COMPARTIDO",
+            "CG_GASTO_COMPARTIDO",
+            "CG_MOV_PERSONA_COMPARTIDA"
     };
 
     private final UsuarioAccesoRepository usuarioAccesoRepository;

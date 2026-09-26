@@ -236,7 +236,7 @@
           <div class="item-info">
             <strong>{{ g.motivo }}</strong>
             <div class="montos">
-              <span class="mono mes">{{ g.monto | currency:'MXN':'symbol-narrow':'1.2-2' }} <small>/ mes</small></span>
+              <span class="mono mes">{{ cuotaDe(g) | currency:'MXN':'symbol-narrow':'1.2-2' }} <small>/ mes</small></span>
               <span class="badge">{{ etiquetaMeses(g) }}</span>
               <span class="mono restante">
                 Falta {{ restanteDe(g) | currency:'MXN':'symbol-narrow':'1.2-2' }}

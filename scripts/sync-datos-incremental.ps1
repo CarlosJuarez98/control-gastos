@@ -2,11 +2,9 @@
 # Solo exporta filas con ID mayor al último sync (rápido).
 #
 # Uso (desde la raíz del proyecto):
+#   $env:CG_WALLET_PASSWORD = '…'   # passphrase del zip Wallet ATP (no SSH)
 #   powershell -ExecutionPolicy Bypass -File .\scripts\sync-datos-incremental.ps1
-#   powershell -ExecutionPolicy Bypass -File .\scripts\sync-datos-incremental.ps1 -WalletPassword 'la-del-wallet-atp'
-#
-# La passphrase que a veces pide NO es de la llave SSH.
-# Es la contraseña del wallet ATP (la que pusiste al descargar Wallet_*.zip en OCI).
+#   powershell -ExecutionPolicy Bypass -File .\scripts\sync-datos-incremental.ps1 -WalletPassword '…'
 #
 # Requiere: Docker (oracle-control-gastos), SSH a la VM, wallet en la VM.
 # No incluye CG_USUARIO (cuentas de login se gestionan en la app).
@@ -15,7 +13,7 @@ param(
   [string]$SshKey = "A:\Descargas\ssh-key-2026-09-07.key",
   [string]$SshHost = "opc@163.192.146.143",
   [string]$Propietario = "Carlos",
-  [string]$WalletPassword = "",
+  [string]$WalletPassword = $env:CG_WALLET_PASSWORD,
   [switch]$Full
 )
 
@@ -34,7 +32,12 @@ $Tables = @(
   @{ Name = "CG_GASTO";         File = "05_CG_GASTO.sql";         Order = 5 },
   @{ Name = "CG_SALDO";         File = "06_CG_SALDO.sql";         Order = 6 },
   @{ Name = "CG_DENOMINACION";  File = "07_CG_DENOMINACION.sql";  Order = 7 },
-  @{ Name = "CG_HISTORIAL_ANUAL"; File = "08_CG_HISTORIAL_ANUAL.sql"; Order = 8 }
+  @{ Name = "CG_HISTORIAL_ANUAL"; File = "08_CG_HISTORIAL_ANUAL.sql"; Order = 8 },
+  @{ Name = "CG_PERSONA_COMPARTIDA"; File = "09_CG_PERSONA_COMPARTIDA.sql"; Order = 9 },
+  @{ Name = "CG_SERVICIO_FIJO_COMPARTIDO"; File = "10_CG_SERVICIO_FIJO_COMPARTIDO.sql"; Order = 10 },
+  @{ Name = "CG_GASTO_COMPARTIDO"; File = "11_CG_GASTO_COMPARTIDO.sql"; Order = 11 },
+  @{ Name = "CG_PARTE_GASTO_COMPARTIDO"; File = "12_CG_PARTE_GASTO_COMPARTIDO.sql"; Order = 12 },
+  @{ Name = "CG_MOV_PERSONA_COMPARTIDA"; File = "13_CG_MOV_PERSONA_COMPARTIDA.sql"; Order = 13 }
 )
 
 New-Item -ItemType Directory -Force -Path $MigrateDir | Out-Null
@@ -88,12 +91,23 @@ if wp:
     kwargs["wallet_password"] = wp
 conn = oracledb.connect(**kwargs)
 cur = conn.cursor()
-tables = ["CG_CUENTA","CG_INGRESO","CG_GASTO_MENSUAL","CG_MOVIMIENTO","CG_GASTO","CG_SALDO","CG_DENOMINACION"]
+tables = ["CG_CUENTA","CG_INGRESO","CG_GASTO_MENSUAL","CG_MOVIMIENTO","CG_GASTO","CG_SALDO","CG_DENOMINACION","CG_HISTORIAL_ANUAL","CG_PERSONA_COMPARTIDA","CG_SERVICIO_FIJO_COMPARTIDO","CG_GASTO_COMPARTIDO","CG_PARTE_GASTO_COMPARTIDO","CG_MOV_PERSONA_COMPARTIDA"]
 out = {}
-prop = os.environ.get("PROP", "admin")
+prop = os.environ.get("PROP", "Carlos")
 for t in tables:
-    cur.execute(f"select nvl(max(id),0) from {t} where propietario = :p", p=prop)
-    out[t] = int(cur.fetchone()[0])
+    try:
+        if t == "CG_PARTE_GASTO_COMPARTIDO":
+            cur.execute(
+                "select nvl(max(p.id),0) from CG_PARTE_GASTO_COMPARTIDO p "
+                "join CG_GASTO_COMPARTIDO g on g.id = p.gasto_compartido_id "
+                "where nvl(g.propietario, :p) = :p",
+                p=prop,
+            )
+        else:
+            cur.execute(f"select nvl(max(id),0) from {t} where nvl(propietario, :p) = :p", p=prop)
+        out[t] = int(cur.fetchone()[0])
+    except Exception:
+        out[t] = 0
 print(json.dumps(out))
 conn.close()
 "@
@@ -101,8 +115,8 @@ $pyMaxPath = Join-Path $MigrateDir "cloud_max_ids.py"
 Set-Content -Path $pyMaxPath -Value $pyMax -Encoding UTF8
 scp @SshOpts $pyMaxPath "${SshHost}:/tmp/cloud_max_ids.py" | Out-Null
 if (-not $WalletPassword) {
-  Write-Host "Falta -WalletPassword: es la contraseña del wallet ATP (al descargar el zip en OCI), NO la de la llave SSH." -ForegroundColor Yellow
-  throw "Pasa -WalletPassword 'tu-password-del-wallet'"
+  Write-Host "Falta wallet: define `$env:CG_WALLET_PASSWORD o pasa -WalletPassword (zip ATP en OCI, no SSH)." -ForegroundColor Yellow
+  throw "Falta CG_WALLET_PASSWORD / -WalletPassword"
 }
 $cloudJson = ssh @SshOpts $SshHost "PROP='$Propietario' WALLET_PASSWORD='$WalletPassword' python3 /tmp/cloud_max_ids.py"
 if (-not $cloudJson) { throw "No se pudieron leer max IDs de la nube (¿wallet password incorrecta o pip install oracledb?)" }
@@ -150,7 +164,7 @@ FROM CG_INGRESO WHERE ID > $minId AND NVL(PROPIETARIO,'$Propietario') = '$Propie
     }
     "CG_GASTO_MENSUAL" {
       @"
-SELECT 'INSERT INTO CG_GASTO_MENSUAL (ID,MOTIVO,MONTO,ACTIVO,PROPIETARIO) VALUES ('||ID||','''||REPLACE(MOTIVO,'''','''''')||''','||MONTO||','||CASE WHEN ACTIVO=1 THEN '1' ELSE '0' END||','''||REPLACE(NVL(PROPIETARIO,'$Propietario'),'''','''''')||''');'
+SELECT 'INSERT INTO CG_GASTO_MENSUAL (ID,MOTIVO,MONTO,ACTIVO,MESES_TOTALES,MESES_RESTANTES,MONTO_TOTAL,GASTO_ORIGEN_ID,SERVICIO_FIJO_COMPARTIDO_ID,DIA_PAGO,PROPIETARIO) VALUES ('||ID||','''||REPLACE(MOTIVO,'''','''''')||''','||MONTO||','||CASE WHEN ACTIVO=1 THEN '1' ELSE '0' END||','||CASE WHEN MESES_TOTALES IS NULL THEN 'NULL' ELSE TO_CHAR(MESES_TOTALES) END||','||CASE WHEN MESES_RESTANTES IS NULL THEN 'NULL' ELSE TO_CHAR(MESES_RESTANTES) END||','||CASE WHEN MONTO_TOTAL IS NULL THEN 'NULL' ELSE TO_CHAR(MONTO_TOTAL) END||','||CASE WHEN GASTO_ORIGEN_ID IS NULL THEN 'NULL' ELSE TO_CHAR(GASTO_ORIGEN_ID) END||','||CASE WHEN SERVICIO_FIJO_COMPARTIDO_ID IS NULL THEN 'NULL' ELSE TO_CHAR(SERVICIO_FIJO_COMPARTIDO_ID) END||','||CASE WHEN DIA_PAGO IS NULL THEN 'NULL' ELSE TO_CHAR(DIA_PAGO) END||','''||REPLACE(NVL(PROPIETARIO,'$Propietario'),'''','''''')||''');'
 FROM CG_GASTO_MENSUAL WHERE ID > $minId AND NVL(PROPIETARIO,'$Propietario') = '$Propietario';
 "@
     }
@@ -162,7 +176,7 @@ FROM CG_MOVIMIENTO WHERE ID > $minId AND NVL(PROPIETARIO,'$Propietario') = '$Pro
     }
     "CG_GASTO" {
       @"
-SELECT 'INSERT INTO CG_GASTO (ID,FECHA,CATEGORIA,MONTO,MOTIVO,FORMA_PAGO,CUENTA_ID,MOVIMIENTO_ID,PROPIETARIO) VALUES ('||ID||', DATE '''||TO_CHAR(FECHA,'YYYY-MM-DD')||''','''||REPLACE(CATEGORIA,'''','''''')||''','||MONTO||','||CASE WHEN MOTIVO IS NULL THEN 'NULL' ELSE ''''||REPLACE(MOTIVO,'''','''''')||'''' END||','||CASE WHEN FORMA_PAGO IS NULL THEN 'NULL' ELSE ''''||FORMA_PAGO||'''' END||','||CASE WHEN CUENTA_ID IS NULL THEN 'NULL' ELSE TO_CHAR(CUENTA_ID) END||','||CASE WHEN MOVIMIENTO_ID IS NULL THEN 'NULL' ELSE TO_CHAR(MOVIMIENTO_ID) END||','''||REPLACE(NVL(PROPIETARIO,'$Propietario'),'''','''''')||''');'
+SELECT 'INSERT INTO CG_GASTO (ID,FECHA,CATEGORIA,MONTO,MOTIVO,FORMA_PAGO,CUENTA_ID,MOVIMIENTO_ID,MESES,CUOTA_MENSUAL,PROPIETARIO) VALUES ('||ID||', DATE '''||TO_CHAR(FECHA,'YYYY-MM-DD')||''','''||REPLACE(CATEGORIA,'''','''''')||''','||MONTO||','||CASE WHEN MOTIVO IS NULL THEN 'NULL' ELSE ''''||REPLACE(MOTIVO,'''','''''')||'''' END||','||CASE WHEN FORMA_PAGO IS NULL THEN 'NULL' ELSE ''''||FORMA_PAGO||'''' END||','||CASE WHEN CUENTA_ID IS NULL THEN 'NULL' ELSE TO_CHAR(CUENTA_ID) END||','||CASE WHEN MOVIMIENTO_ID IS NULL THEN 'NULL' ELSE TO_CHAR(MOVIMIENTO_ID) END||','||CASE WHEN MESES IS NULL THEN 'NULL' ELSE TO_CHAR(MESES) END||','||CASE WHEN CUOTA_MENSUAL IS NULL THEN 'NULL' ELSE TO_CHAR(CUOTA_MENSUAL) END||','''||REPLACE(NVL(PROPIETARIO,'$Propietario'),'''','''''')||''');'
 FROM CG_GASTO WHERE ID > $minId AND NVL(PROPIETARIO,'$Propietario') = '$Propietario';
 "@
     }
@@ -182,6 +196,38 @@ FROM CG_DENOMINACION WHERE ID > $minId AND NVL(PROPIETARIO,'$Propietario') = '$P
       @"
 SELECT 'INSERT INTO CG_HISTORIAL_ANUAL (ID,PROPIETARIO,ANIO,TOTAL_INGRESOS,TOTAL_GASTOS) VALUES ('||ID||','''||REPLACE(NVL(PROPIETARIO,'$Propietario'),'''','''''')||''','||ANIO||','||NVL(TOTAL_INGRESOS,0)||','||NVL(TOTAL_GASTOS,0)||');'
 FROM CG_HISTORIAL_ANUAL WHERE ID > $minId AND NVL(PROPIETARIO,'$Propietario') = '$Propietario';
+"@
+    }
+    "CG_PERSONA_COMPARTIDA" {
+      @"
+SELECT 'INSERT INTO CG_PERSONA_COMPARTIDA (ID,NOMBRE,PROPIETARIO,ACTIVA,EFECTIVO_GUARDADO) VALUES ('||ID||','''||REPLACE(NOMBRE,'''','''''')||''','''||REPLACE(NVL(PROPIETARIO,'$Propietario'),'''','''''')||''','||CASE WHEN ACTIVA=1 THEN '1' ELSE '0' END||','||NVL(EFECTIVO_GUARDADO,0)||');'
+FROM CG_PERSONA_COMPARTIDA WHERE ID > $minId AND NVL(PROPIETARIO,'$Propietario') = '$Propietario';
+"@
+    }
+    "CG_SERVICIO_FIJO_COMPARTIDO" {
+      @"
+SELECT 'INSERT INTO CG_SERVICIO_FIJO_COMPARTIDO (ID,CONCEPTO,MONTO,PROPIETARIO,PERSONA_IDS,DIA_COBRO,INCLUYE_PRINCIPAL,YO_PAGO,PERFILES_PRINCIPAL,PERSONA_PESOS,ACTIVO) VALUES ('||ID||','''||REPLACE(CONCEPTO,'''','''''')||''','||MONTO||','''||REPLACE(NVL(PROPIETARIO,'$Propietario'),'''','''''')||''','''||REPLACE(NVL(PERSONA_IDS,'-'),'''','''''')||''','||NVL(DIA_COBRO,1)||','||CASE WHEN NVL(INCLUYE_PRINCIPAL,1)=1 THEN '1' ELSE '0' END||','||CASE WHEN NVL(YO_PAGO,1)=1 THEN '1' ELSE '0' END||','||NVL(PERFILES_PRINCIPAL,1)||','''||REPLACE(NVL(PERSONA_PESOS,'-'),'''','''''')||''','||CASE WHEN ACTIVO=1 THEN '1' ELSE '0' END||');'
+FROM CG_SERVICIO_FIJO_COMPARTIDO WHERE ID > $minId AND NVL(PROPIETARIO,'$Propietario') = '$Propietario';
+"@
+    }
+    "CG_GASTO_COMPARTIDO" {
+      @"
+SELECT 'INSERT INTO CG_GASTO_COMPARTIDO (ID,TIPO,CONCEPTO,MONTO_TOTAL,FECHA,PROPIETARIO,FORMA_PAGO,CUENTA_ID,MESES,GASTO_ID,SERVICIO_FIJO_ID,PERIODO,ANULADO) VALUES ('||ID||','''||TIPO||''','''||REPLACE(CONCEPTO,'''','''''')||''','||MONTO_TOTAL||', DATE '''||TO_CHAR(FECHA,'YYYY-MM-DD')||''','''||REPLACE(NVL(PROPIETARIO,'$Propietario'),'''','''''')||''','''||FORMA_PAGO||''','||CASE WHEN CUENTA_ID IS NULL THEN 'NULL' ELSE TO_CHAR(CUENTA_ID) END||','||CASE WHEN MESES IS NULL THEN 'NULL' ELSE TO_CHAR(MESES) END||','||CASE WHEN GASTO_ID IS NULL THEN 'NULL' ELSE TO_CHAR(GASTO_ID) END||','||CASE WHEN SERVICIO_FIJO_ID IS NULL THEN 'NULL' ELSE TO_CHAR(SERVICIO_FIJO_ID) END||','||CASE WHEN PERIODO IS NULL THEN 'NULL' ELSE ''''||PERIODO||'''' END||','||CASE WHEN ANULADO=1 THEN '1' ELSE '0' END||');'
+FROM CG_GASTO_COMPARTIDO WHERE ID > $minId AND NVL(PROPIETARIO,'$Propietario') = '$Propietario';
+"@
+    }
+    "CG_PARTE_GASTO_COMPARTIDO" {
+      @"
+SELECT 'INSERT INTO CG_PARTE_GASTO_COMPARTIDO (ID,GASTO_COMPARTIDO_ID,PERSONA_ID,ES_PRINCIPAL,MONTO,PERFILES) VALUES ('||p.ID||','||p.GASTO_COMPARTIDO_ID||','||CASE WHEN p.PERSONA_ID IS NULL THEN 'NULL' ELSE TO_CHAR(p.PERSONA_ID) END||','||CASE WHEN p.ES_PRINCIPAL=1 THEN '1' ELSE '0' END||','||p.MONTO||','||NVL(p.PERFILES,1)||');'
+FROM CG_PARTE_GASTO_COMPARTIDO p
+JOIN CG_GASTO_COMPARTIDO g ON g.ID = p.GASTO_COMPARTIDO_ID
+WHERE p.ID > $minId AND NVL(g.PROPIETARIO,'$Propietario') = '$Propietario';
+"@
+    }
+    "CG_MOV_PERSONA_COMPARTIDA" {
+      @"
+SELECT 'INSERT INTO CG_MOV_PERSONA_COMPARTIDA (ID,PERSONA_ID,PROPIETARIO,FECHA,TIPO,MONTO,CONCEPTO,GASTO_COMPARTIDO_ID,INGRESO_ID,DESDE_GUARDADO,CONCEPTO_DESTINO,DESDE_ANTICIPO,ANULADO) VALUES ('||ID||','||PERSONA_ID||','''||REPLACE(NVL(PROPIETARIO,'$Propietario'),'''','''''')||''', DATE '''||TO_CHAR(FECHA,'YYYY-MM-DD')||''','''||TIPO||''','||MONTO||','||CASE WHEN CONCEPTO IS NULL THEN 'NULL' ELSE ''''||REPLACE(CONCEPTO,'''','''''')||'''' END||','||CASE WHEN GASTO_COMPARTIDO_ID IS NULL THEN 'NULL' ELSE TO_CHAR(GASTO_COMPARTIDO_ID) END||','||CASE WHEN INGRESO_ID IS NULL THEN 'NULL' ELSE TO_CHAR(INGRESO_ID) END||','||CASE WHEN NVL(DESDE_GUARDADO,0)=1 THEN '1' ELSE '0' END||','||CASE WHEN CONCEPTO_DESTINO IS NULL THEN 'NULL' ELSE ''''||REPLACE(CONCEPTO_DESTINO,'''','''''')||'''' END||','||CASE WHEN NVL(DESDE_ANTICIPO,0)=1 THEN '1' ELSE '0' END||','||CASE WHEN ANULADO=1 THEN '1' ELSE '0' END||');'
+FROM CG_MOV_PERSONA_COMPARTIDA WHERE ID > $minId AND NVL(PROPIETARIO,'$Propietario') = '$Propietario';
 "@
     }
   }
@@ -215,7 +261,7 @@ if wp:
     kwargs["wallet_password"] = wp
 conn = oracledb.connect(**kwargs)
 cur = conn.cursor()
-for t in ["CG_CUENTA","CG_INGRESO","CG_GASTO_MENSUAL","CG_MOVIMIENTO","CG_GASTO","CG_SALDO","CG_DENOMINACION","CG_HISTORIAL_ANUAL"]:
+for t in ["CG_CUENTA","CG_INGRESO","CG_GASTO_MENSUAL","CG_MOVIMIENTO","CG_GASTO","CG_SALDO","CG_DENOMINACION","CG_HISTORIAL_ANUAL","CG_PERSONA_COMPARTIDA","CG_SERVICIO_FIJO_COMPARTIDO","CG_GASTO_COMPARTIDO","CG_PARTE_GASTO_COMPARTIDO","CG_MOV_PERSONA_COMPARTIDA"]:
     try:
         cur.execute(f"ALTER TABLE {t} MODIFY ID GENERATED BY DEFAULT AS IDENTITY")
     except Exception:
@@ -240,7 +286,7 @@ for f in files:
     conn.commit()
     print(f"{os.path.basename(f)}: {ok}/{len(stmts)}")
     total += ok
-for t in ["CG_CUENTA","CG_INGRESO","CG_GASTO_MENSUAL","CG_MOVIMIENTO","CG_GASTO","CG_SALDO","CG_DENOMINACION","CG_HISTORIAL_ANUAL"]:
+for t in ["CG_CUENTA","CG_INGRESO","CG_GASTO_MENSUAL","CG_MOVIMIENTO","CG_GASTO","CG_SALDO","CG_DENOMINACION","CG_HISTORIAL_ANUAL","CG_PERSONA_COMPARTIDA","CG_SERVICIO_FIJO_COMPARTIDO","CG_GASTO_COMPARTIDO","CG_PARTE_GASTO_COMPARTIDO","CG_MOV_PERSONA_COMPARTIDA"]:
     try:
         cur.execute(f"ALTER TABLE {t} MODIFY ID GENERATED BY DEFAULT AS IDENTITY (START WITH LIMIT VALUE)")
     except Exception:

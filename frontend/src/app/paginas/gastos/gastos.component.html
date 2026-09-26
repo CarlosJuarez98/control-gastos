@@ -149,7 +149,7 @@
       <div
         class="fila-plazo"
         [class.con-meses]="form.aMeses"
-        [class.con-total]="esDisposicion && form.aMeses"
+        [class.con-total]="esDisposicion"
       >
         <label class="campo-toggle">
           <span>Plazo</span>
@@ -175,31 +175,44 @@
               placeholder="3"
             />
           </label>
-          @if (esDisposicion) {
-            <label class="campo-cuota">Total banco
-              <div class="monto-wrap">
-                <span class="simbolo">$</span>
-                <input
-                  type="text"
-                  inputmode="decimal"
-                  autocomplete="off"
-                  [(ngModel)]="form.totalDeuda"
-                  name="totalDeuda"
-                  required
-                  placeholder="2287.47"
-                  (ngModelChange)="alEscribirTotalDeuda($event)"
-                  (keydown)="soloMonto($event)"
-                />
-              </div>
-            </label>
-            @if (previewDisposicion; as prev) {
-              <p class="hint-plazo-inline">
-                {{ prev.meses }}×{{ prev.cuota | currency:'MXN':'symbol-narrow':'1.2-2' }}
+        }
+        @if (esDisposicion) {
+          <label class="campo-cuota">Total banco
+            <div class="monto-wrap">
+              <span class="simbolo">$</span>
+              <input
+                type="text"
+                inputmode="decimal"
+                autocomplete="off"
+                [(ngModel)]="form.totalDeuda"
+                name="totalDeuda"
+                required
+                placeholder="2287.47"
+                (ngModelChange)="alEscribirTotalDeuda($event)"
+                (keydown)="soloMonto($event)"
+              />
+            </div>
+          </label>
+          @if (previewDisposicion; as prev) {
+            <p class="hint-plazo-inline">
+              @if (prev.aMeses) {
+                @if (prev.ultima !== prev.cuota) {
+                  {{ prev.meses - 1 }}×{{ prev.cuota | currency:'MXN':'symbol-narrow':'1.2-2' }}
+                  + última {{ prev.ultima | currency:'MXN':'symbol-narrow':'1.2-2' }}
+                } @else {
+                  {{ prev.meses }}×{{ prev.cuota | currency:'MXN':'symbol-narrow':'1.2-2' }}
+                }
                 · interés {{ prev.interes | currency:'MXN':'symbol-narrow':'1.2-2' }}
-              </p>
-            }
+              } @else {
+                Cargo {{ prev.total | currency:'MXN':'symbol-narrow':'1.2-2' }}
+                · interés {{ prev.interes | currency:'MXN':'symbol-narrow':'1.2-2' }}
+                @if (calendarioPagoUnico; as pagoUnico) {
+                  · vence {{ pagoUnico.etiquetaPagoCorta }}
+                }
+              }
+            </p>
           }
-        } @else {
+        } @else if (!form.aMeses) {
           @if (calendarioPagoUnico; as pagoUnico) {
             <p class="hint-plazo-inline">
               Pago único · vence {{ pagoUnico.etiquetaPagoCorta }}

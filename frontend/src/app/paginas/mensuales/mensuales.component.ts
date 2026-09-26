@@ -261,7 +261,7 @@ export class MensualesComponent implements OnInit, OnDestroy {
    * Con día: monto completo en la quincena de ese día.
    */
   montoEnQuincena(g: GastoMensual, cual: 'esta' | 'siguiente'): number {
-    const monto = Number(g.monto) || 0;
+    const monto = this.esAMeses(g) ? this.cuotaDe(g) : Number(g.monto) || 0;
     if (monto <= 0) return 0;
     const dia = g.diaPago != null ? Number(g.diaPago) : null;
     if (dia == null || !Number.isFinite(dia) || dia < 1 || dia > 31) {
@@ -318,6 +318,12 @@ export class MensualesComponent implements OnInit, OnDestroy {
     if (g.montoRestante != null) return Number(g.montoRestante);
     const rest = Number(g.mesesRestantes) || 0;
     return Math.round(Number(g.monto) * rest * 100) / 100;
+  }
+
+  /** Cuota del mes actual (última puede diferir por centavos). */
+  cuotaDe(g: GastoMensual): number {
+    if (g.montoCuotaActual != null) return Number(g.montoCuotaActual);
+    return Number(g.monto) || 0;
   }
 
   mesesPagados(g: GastoMensual): number {

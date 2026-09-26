@@ -6,6 +6,8 @@ No usa ni modifica el Oracle de Mesa Lista (`oracle-mesa-lista` / puerto 1521).
 
 La **fuente de verdad** es esta base: la app ya no importa Excel ni `seed-data.json` al arrancar.
 
+Schema detallado y checklist post-deploy: [`SCHEMA.md`](SCHEMA.md).
+
 ## Conexión (SQL Developer / JDBC)
 
 | Campo | Valor |
@@ -14,7 +16,7 @@ La **fuente de verdad** es esta base: la app ya no importa Excel ni `seed-data.j
 | Puerto | `1522` |
 | Servicio | `XEPDB1` |
 | Usuario | `controlgastos` |
-| Contraseña | `ControlGastos2026` |
+| Contraseña | `ControlGastos2026` (solo local Docker) |
 
 ## Arrancar solo la base
 
@@ -29,7 +31,11 @@ El volumen Docker `oracle-control-gastos-data` guarda todo. Usa `docker compose 
 
 ## Tablas
 
-`CG_INGRESO`, `CG_GASTO`, `CG_GASTO_MENSUAL`, `CG_CUENTA`, `CG_MOVIMIENTO`, `CG_SALDO`, `CG_DENOMINACION`.
+Core: `CG_USUARIO`, `CG_INGRESO`, `CG_GASTO`, `CG_GASTO_MENSUAL`, `CG_CUENTA`, `CG_MOVIMIENTO`, `CG_SALDO`, `CG_DENOMINACION`, `CG_HISTORIAL_ANUAL`.
+
+Compartido: `CG_PERSONA_COMPARTIDA`, `CG_SERVICIO_FIJO_COMPARTIDO`, `CG_GASTO_COMPARTIDO`, `CG_PARTE_GASTO_COMPARTIDO`, `CG_MOV_PERSONA_COMPARTIDA`.
+
+Verificación: `database/verify-schema.sql`.
 
 ## Limpieza de columnas/datos muertos
 

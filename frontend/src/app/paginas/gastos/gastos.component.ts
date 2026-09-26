@@ -210,28 +210,38 @@ export class GastosComponent implements OnInit, OnDestroy {
     this.form.aMeses = !this.form.aMeses;
     if (!this.form.aMeses) {
       this.form.meses = '';
-      this.form.totalDeuda = '';
     }
   }
 
-  /** Interés y cuota: total banco ÷ meses. */
+  /** Interés / cuotas según total banco (contado o a meses). */
   get previewDisposicion(): {
     total: number;
     interes: number;
     cuota: number;
+    ultima: number;
     meses: number;
     recibido: number;
+    aMeses: boolean;
   } | null {
-    if (!this.esDisposicion || !this.form.aMeses) return null;
-    const meses = Number(String(this.form.meses).replace(/\D/g, ''));
+    if (!this.esDisposicion) return null;
     const total = parseDineroSuma(this.form.totalDeuda).total;
     const recibido = parseDineroSuma(this.form.monto).total;
-    if (!meses || meses < 2 || !Number.isFinite(total) || total <= 0 || !Number.isFinite(recibido) || recibido <= 0) {
+    if (!Number.isFinite(total) || total <= 0 || !Number.isFinite(recibido) || recibido <= 0) {
       return null;
     }
-    const cuota = Math.round((total / meses) * 100) / 100;
     const interes = Math.round((total - recibido) * 100) / 100;
-    return { total, interes, cuota, meses, recibido };
+    if (!this.form.aMeses) {
+      return { total, interes, cuota: total, ultima: total, meses: 1, recibido, aMeses: false };
+    }
+    const meses = Number(String(this.form.meses).replace(/\D/g, ''));
+    if (!meses || meses < 2) return null;
+    let cuota = Math.round((total / meses) * 100) / 100;
+    let ultima = Math.round((total - cuota * (meses - 1)) * 100) / 100;
+    if (ultima <= 0) {
+      cuota = Math.floor((total / meses) * 100) / 100;
+      ultima = Math.round((total - cuota * (meses - 1)) * 100) / 100;
+    }
+    return { total, interes, cuota, ultima, meses, recibido, aMeses: true };
   }
 
   /** Al cambiar monto o fecha, reordena y elige automáticamente la mejor. */
@@ -511,10 +521,21 @@ export class GastosComponent implements OnInit, OnDestroy {
       const base = g.cuenta?.nombre ? `${tipo} · ${g.cuenta.nombre}` : tipo;
       if (g.meses && g.meses > 1) {
         if (forma === 'DISPOSICION' && g.totalDeuda && g.totalDeuda > 0) {
-          const cuota = Math.round((g.totalDeuda / g.meses) * 100) / 100;
+          let cuota = Math.round((g.totalDeuda / g.meses) * 100) / 100;
+          let ultima = Math.round((g.totalDeuda - cuota * (g.meses - 1)) * 100) / 100;
+          if (ultima <= 0) {
+            cuota = Math.floor((g.totalDeuda / g.meses) * 100) / 100;
+            ultima = Math.round((g.totalDeuda - cuota * (g.meses - 1)) * 100) / 100;
+          }
+          if (ultima !== cuota) {
+            return `${base} · ${g.meses - 1}×$${formatDineroNumero(cuota)}+$${formatDineroNumero(ultima)}`;
+          }
           return `${base} · ${g.meses}×$${formatDineroNumero(cuota)}`;
         }
         return `${base} · ${g.meses} meses`;
+      }
+      if (forma === 'DISPOSICION' && g.totalDeuda && g.totalDeuda > 0) {
+        return `${base} · total $${formatDineroNumero(Number(g.totalDeuda))}`;
       }
       return base;
     }
@@ -536,12 +557,12 @@ export class GastosComponent implements OnInit, OnDestroy {
       if (this.form.aMeses) {
         const m = Number(String(this.form.meses).replace(/\D/g, ''));
         if (!m || m < 2 || m > 48) return false;
-        if (this.esDisposicion) {
-          const total = parseDineroSuma(this.form.totalDeuda).total;
-          const recibido = parseDineroSuma(this.form.monto).total;
-          if (!Number.isFinite(total) || total <= 0) return false;
-          if (total < recibido) return false;
-        }
+      }
+      if (this.esDisposicion) {
+        const total = parseDineroSuma(this.form.totalDeuda).total;
+        const recibido = parseDineroSuma(this.form.monto).total;
+        if (!Number.isFinite(total) || total <= 0) return false;
+        if (total < recibido) return false;
       }
     }
     return true;
@@ -645,18 +666,18 @@ export class GastosComponent implements OnInit, OnDestroy {
           return;
         }
         this.form.meses = String(m);
-        if (this.esDisposicion) {
-          const total = parseDineroSuma(this.form.totalDeuda).total;
-          if (!Number.isFinite(total) || total <= 0) {
-            this.error = 'Indica el total que cobra el banco (incluye interés)';
-            this.cdr.markForCheck();
-            return;
-          }
-          if (total < monto) {
-            this.error = 'El total del banco debe ser al menos el monto recibido';
-            this.cdr.markForCheck();
-            return;
-          }
+      }
+      if (this.esDisposicion) {
+        const total = parseDineroSuma(this.form.totalDeuda).total;
+        if (!Number.isFinite(total) || total <= 0) {
+          this.error = 'Indica el total que cobra el banco (incluye interés)';
+          this.cdr.markForCheck();
+          return;
+        }
+        if (total < monto) {
+          this.error = 'El total del banco debe ser al menos el monto recibido';
+          this.cdr.markForCheck();
+          return;
         }
       }
     }
@@ -667,7 +688,7 @@ export class GastosComponent implements OnInit, OnDestroy {
         : null;
 
     const totalDeuda =
-      this.esDisposicion && this.form.aMeses
+      this.esDisposicion
         ? parseDineroSuma(this.form.totalDeuda).total
         : null;
 

@@ -2,9 +2,9 @@ package com.controlgastos.modelo;
 
 import jakarta.persistence.*;
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.controlgastos.servicio.CuotasPlan;
 
 @Entity
 @Table(name = "CG_GASTO_MENSUAL")
@@ -83,16 +83,27 @@ public class GastoMensual {
         return mesesTotales != null && mesesTotales > 1;
     }
 
-    /** Lo que falta por pagar del plan MSI. */
+    /** Lo que falta por pagar del plan MSI (ajusta la última cuota). */
     @Transient
     @JsonProperty("montoRestante")
     public BigDecimal getMontoRestante() {
-        if (!isAMeses() || mesesRestantes == null || mesesRestantes <= 0 || monto == null) {
-            return BigDecimal.ZERO;
+        return CuotasPlan.montoRestante(monto, montoTotal, mesesTotales, mesesRestantes);
+    }
+
+    /** Cuota de este mes: última distinta si solo resta 1 pago. */
+    @Transient
+    @JsonProperty("montoCuotaActual")
+    public BigDecimal getMontoCuotaActual() {
+        return CuotasPlan.cuotaActual(monto, montoTotal, mesesTotales, mesesRestantes);
+    }
+
+    /** Última cuota del plan (puede diferir por centavos). */
+    @Transient
+    @JsonProperty("montoUltimaCuota")
+    public BigDecimal getMontoUltimaCuota() {
+        if (!isAMeses() || montoTotal == null || mesesTotales == null) {
+            return monto;
         }
-        if (montoTotal != null && montoTotal.compareTo(BigDecimal.ZERO) > 0) {
-            return montoTotal.setScale(2, RoundingMode.HALF_UP);
-        }
-        return monto.multiply(BigDecimal.valueOf(mesesRestantes)).setScale(2, RoundingMode.HALF_UP);
+        return CuotasPlan.deTotal(montoTotal, mesesTotales).cuotaUltima();
     }
 }

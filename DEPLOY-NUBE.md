@@ -144,3 +144,10 @@ Ese compose usa variables `ORACLE_*` (ver historial / `.env` local). En Ampere A
 - No subas `.env.cloud`, `wallet/` ni `Wallet*.zip` a git
 - No abras puertos de base de datos a internet
 - Cambia todas las contraseñas antes de producción
+- La passphrase del wallet ATP va en `$env:CG_WALLET_PASSWORD` o `-WalletPassword` (nunca en docs)
+
+## Schema post-deploy
+
+Tras el primer arranque con entidades nuevas, verifica columnas MSI/Compartido:
+
+`database/SCHEMA.md` y `database/verify-schema.sql`.

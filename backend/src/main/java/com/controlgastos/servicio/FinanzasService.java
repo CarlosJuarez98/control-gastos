@@ -372,49 +372,31 @@ public class FinanzasService {
     }
 
     /**
-     * Disposición a meses: total que cobra el banco (con interés).
+     * Disposición: total que cobra el banco (con interés), a meses o de contado.
      * El monto del gasto sigue siendo lo recibido (disponible).
      */
     private void normalizarTotalDeudaDisposicion(Gasto gasto) {
-        if (!esFormaDisposicion(gasto.getFormaPago())
-                || gasto.getMeses() == null
-                || gasto.getMeses() <= 1) {
+        if (!esFormaDisposicion(gasto.getFormaPago())) {
             gasto.setTotalDeuda(null);
             return;
         }
-        BigDecimal total = gasto.getTotalDeuda();
-        if (total == null || total.compareTo(BigDecimal.ZERO) <= 0) {
-            throw new IllegalArgumentException(
-                    "En disposición a meses indica el total que cobra el banco (incluye interés)");
-        }
-        if (total.compareTo(gasto.getMonto()) < 0) {
-            throw new IllegalArgumentException(
-                    "El total del banco debe ser al menos el monto recibido (el resto es interés)");
-        }
-        gasto.setTotalDeuda(total.setScale(2, java.math.RoundingMode.HALF_UP));
+        gasto.setTotalDeuda(DisposicionTdc.normalizarTotalBanco(gasto.getTotalDeuda(), gasto.getMonto()));
     }
 
     /**
      * Disponible usa {@code gasto.monto} (efectivo recibido).
-     * El cargo TDC en disposición a meses es el total del banco.
+     * El cargo TDC en disposición es el total del banco (con o sin meses).
      */
     private static BigDecimal montoCargoTdc(Gasto gasto) {
-        if (esFormaDisposicion(gasto.getFormaPago())
-                && gasto.getMeses() != null
-                && gasto.getMeses() > 1
-                && gasto.getTotalDeuda() != null
-                && gasto.getTotalDeuda().compareTo(BigDecimal.ZERO) > 0) {
-            return gasto.getTotalDeuda().setScale(2, java.math.RoundingMode.HALF_UP);
-        }
-        return gasto.getMonto();
+        return DisposicionTdc.cargoTdc(
+                esFormaDisposicion(gasto.getFormaPago()), gasto.getTotalDeuda(), gasto.getMonto());
     }
 
     private static String conceptoCargoTdc(Gasto gasto, String concepto, BigDecimal cargo) {
-        if (!esFormaDisposicion(gasto.getFormaPago()) || cargo.compareTo(gasto.getMonto()) <= 0) {
+        if (!esFormaDisposicion(gasto.getFormaPago())) {
             return concepto;
         }
-        BigDecimal interes = cargo.subtract(gasto.getMonto()).setScale(2, java.math.RoundingMode.HALF_UP);
-        return truncar(concepto + " (interés $" + interes.toPlainString() + ")", 200);
+        return DisposicionTdc.conceptoConInteres(concepto, cargo, gasto.getMonto());
     }
 
     /**
@@ -443,7 +425,8 @@ public class FinanzasService {
 
         int meses = guardado.getMeses();
         BigDecimal totalDeuda = montoCargoTdc(guardado);
-        BigDecimal cuota = totalDeuda.divide(BigDecimal.valueOf(meses), 2, java.math.RoundingMode.HALF_UP);
+        CuotasPlan.Resultado cuotas = CuotasPlan.deTotal(totalDeuda, meses);
+        BigDecimal cuota = cuotas.cuotaRegular();
         String tdc = "TDC";
         Long cid = guardado.getCuentaId();
         if (cid != null) {
@@ -657,8 +640,11 @@ public class FinanzasService {
             return gastoMensualRepository.save(g);
         }
         g.setMesesRestantes(rest - 1);
-        if (g.getMontoTotal() != null && g.getMonto() != null) {
-            BigDecimal nuevo = g.getMontoTotal().subtract(g.getMonto());
+        // Resta la cuota que correspondía a este mes (última si restaba 1)
+        BigDecimal cuotaPagada = CuotasPlan.cuotaActual(
+                g.getMonto(), g.getMontoTotal(), g.getMesesTotales(), rest);
+        if (g.getMontoTotal() != null) {
+            BigDecimal nuevo = g.getMontoTotal().subtract(cuotaPagada);
             g.setMontoTotal(nuevo.compareTo(BigDecimal.ZERO) < 0 ? BigDecimal.ZERO : nuevo);
         }
         if (g.getMesesRestantes() <= 0) {

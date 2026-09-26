@@ -52,10 +52,12 @@ export interface GastoMensual {
   mesesRestantes?: number | null;
   montoTotal?: number | null;
   gastoOrigenId?: number | null;
-  /** Fijo espejado desde Compartido (otro paga, mi parte). */
   servicioFijoCompartidoId?: number | null;
   aMeses?: boolean;
   montoRestante?: number;
+  /** Cuota de este mes (última puede diferir por centavos). */
+  montoCuotaActual?: number;
+  montoUltimaCuota?: number;
   /** Día del mes de pago (1–31). Null = repartir en ambas quincenas. */
   diaPago?: number | null;
 }
