@@ -143,6 +143,15 @@
       <label>Usuario
         <input [(ngModel)]="perfilUsuario" name="perfilUsuario" required autocomplete="username" />
       </label>
+      <label>Contraseña actual <span class="opcional">(si cambias la clave)</span>
+        <input
+          type="password"
+          [(ngModel)]="perfilPasswordActual"
+          name="perfilPasswordActual"
+          autocomplete="current-password"
+          placeholder="Solo si vas a poner una nueva"
+        />
+      </label>
       <label>Nueva contraseña <span class="opcional">(opcional)</span>
         <input
           type="password"

@@ -35,3 +35,12 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
       - run: npm ci
       - run: npx ng build --configuration=production
+
+  health-doc:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Health endpoint exists
+        run: |
+          grep -q 'RequestMapping("/api/health")' backend/src/main/java/com/controlgastos/controlador/HealthController.java
+          grep -q '/api/health' backend/src/main/java/com/controlgastos/config/SecurityConfig.java

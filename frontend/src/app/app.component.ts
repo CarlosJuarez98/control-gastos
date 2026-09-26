@@ -54,6 +54,7 @@ export class AppComponent implements AfterViewInit, AfterViewChecked, OnDestroy 
   perfilAbierto = false;
   perfilUsuario = '';
   perfilPassword = '';
+  perfilPasswordActual = '';
   perfilError = '';
   perfilOk = '';
   perfilCargando = false;
@@ -73,6 +74,9 @@ export class AppComponent implements AfterViewInit, AfterViewChecked, OnDestroy 
     if (!usuario) return false;
     const nombreCambio = usuario.toLowerCase() !== (this.auth.usuario || '').toLowerCase();
     const claveCambio = !!this.perfilPassword;
+    if (claveCambio && !(this.perfilPasswordActual || '').trim()) {
+      return false;
+    }
     return nombreCambio || claveCambio;
   }
 
@@ -231,6 +235,7 @@ export class AppComponent implements AfterViewInit, AfterViewChecked, OnDestroy 
     this.perfilAbierto = true;
     this.perfilUsuario = this.auth.usuario || '';
     this.perfilPassword = '';
+    this.perfilPasswordActual = '';
     this.perfilError = '';
     this.perfilOk = '';
   }
@@ -254,6 +259,7 @@ export class AppComponent implements AfterViewInit, AfterViewChecked, OnDestroy 
   cerrarPerfil(): void {
     this.perfilAbierto = false;
     this.perfilPassword = '';
+    this.perfilPasswordActual = '';
     this.perfilError = '';
     this.perfilOk = '';
   }
@@ -270,29 +276,39 @@ export class AppComponent implements AfterViewInit, AfterViewChecked, OnDestroy 
       return;
     }
     const usuario = this.perfilUsuario.trim();
-    const body: { usuario?: string; password?: string } = {};
-    if (usuario.toLowerCase() !== (this.auth.usuario || '').toLowerCase()) {
-      body.usuario = usuario;
-    }
-    if (this.perfilPassword) {
-      try {
-        body.password = await sha256Hex(this.perfilPassword);
-      } catch {
-        this.perfilError = 'No se pudo preparar la contraseña';
-        return;
-      }
+    const nombreCambio = usuario.toLowerCase() !== (this.auth.usuario || '').toLowerCase();
+    const claveCambio = !!this.perfilPassword;
+    if (claveCambio && !(this.perfilPasswordActual || '').trim()) {
+      this.perfilError = 'Indica tu contraseña actual para cambiarla';
+      return;
     }
     this.perfilCargando = true;
-    this.auth.actualizarPerfil(body).subscribe({
-      next: () => {
-        this.perfilCargando = false;
-        this.cerrarPerfil();
-      },
-      error: (e) => {
-        this.perfilCargando = false;
-        this.perfilError = e?.error?.error || 'No se pudo actualizar';
-      },
-    });
+    try {
+      if (claveCambio) {
+        const actualHex = await sha256Hex(this.perfilPasswordActual);
+        const nuevaHex = await sha256Hex(this.perfilPassword);
+        await new Promise<void>((resolve, reject) => {
+          this.auth.cambiarMiPassword(actualHex, nuevaHex).subscribe({
+            next: () => resolve(),
+            error: (e) => reject(e),
+          });
+        });
+      }
+      if (nombreCambio) {
+        await new Promise<void>((resolve, reject) => {
+          this.auth.actualizarPerfil({ usuario }).subscribe({
+            next: () => resolve(),
+            error: (e) => reject(e),
+          });
+        });
+      }
+      this.perfilCargando = false;
+      this.cerrarPerfil();
+    } catch (e: unknown) {
+      this.perfilCargando = false;
+      const err = e as { error?: { error?: string } };
+      this.perfilError = err?.error?.error || 'No se pudo actualizar';
+    }
   }
 
   salir(): void {

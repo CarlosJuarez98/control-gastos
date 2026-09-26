@@ -55,6 +55,10 @@
             </button>
           </div>
         </label>
+        <label class="check recordar">
+          <input type="checkbox" [(ngModel)]="recordar" name="recordar" />
+          Recordarme 7 días
+        </label>
         @if (error) {
           <p class="error" role="alert">{{ error }}</p>
         }

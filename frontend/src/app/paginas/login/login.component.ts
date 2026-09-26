@@ -23,6 +23,7 @@ export class LoginComponent implements AfterViewInit {
   error = '';
   cargando = false;
   verClave = false;
+  recordar = false;
 
   get puedeEntrar(): boolean {
     return !!(this.usuario || '').trim() && !!(this.password || '');
@@ -38,7 +39,7 @@ export class LoginComponent implements AfterViewInit {
     this.cargando = true;
     try {
       const digest = await sha256Hex(this.password);
-      this.auth.login(this.usuario.trim(), digest).subscribe({
+      this.auth.login(this.usuario.trim(), digest, this.recordar).subscribe({
         next: () => {
           this.cargando = false;
           this.password = '';

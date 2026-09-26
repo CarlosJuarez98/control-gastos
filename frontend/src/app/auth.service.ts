@@ -93,9 +93,9 @@ export class AuthService {
     return this.meInflight;
   }
 
-  login(usuario: string, password: string): Observable<AuthMe> {
+  login(usuario: string, password: string, recordar = false): Observable<AuthMe> {
     return this.http
-      .post<AuthMe>(`${this.base}/login`, { usuario, password }, { withCredentials: true })
+      .post<AuthMe>(`${this.base}/login`, { usuario, password, recordar }, { withCredentials: true })
       .pipe(
         tap((res) => {
           this.yendoALogin = false;
@@ -106,6 +106,14 @@ export class AuthService {
           from(this.offline.guardarSesion(res.usuario ?? usuario, res.rol || 'USER')).pipe(map(() => res)),
         ),
       );
+  }
+
+  cambiarMiPassword(actual: string, nueva: string): Observable<{ ok: boolean }> {
+    return this.http.put<{ ok: boolean }>(
+      `${this.base}/password`,
+      { actual, nueva },
+      { withCredentials: true },
+    );
   }
 
   actualizarPerfil(body: { usuario?: string; password?: string }): Observable<AuthMe> {
