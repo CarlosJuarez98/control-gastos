@@ -34,9 +34,9 @@ import jakarta.validation.constraints.NotBlank;
 @RequestMapping("/api/auth")
 public class AuthController {
 
-    static final String ATTR_TIMEOUT = "cg.sessionTimeoutSec";
-    static final int TIMEOUT_NORMAL_SEC = 20 * 60;
-    static final int TIMEOUT_RECORDAR_SEC = 7 * 24 * 60 * 60;
+    public static final String ATTR_TIMEOUT = "cg.sessionTimeoutSec";
+    public static final int TIMEOUT_NORMAL_SEC = 20 * 60;
+    public static final int TIMEOUT_RECORDAR_SEC = 7 * 24 * 60 * 60;
 
     private final AuthenticationManager authenticationManager;
     private final SecurityContextRepository securityContextRepository;
