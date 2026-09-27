@@ -249,6 +249,10 @@ export interface FijoPendienteCobro {
   diaCobro?: number | null;
   periodo: string;
   fechaCobro: string;
+  /** VENCIDO | PROXIMO */
+  estado?: string;
+  /** Días hasta cobro (negativo = atrasado). */
+  dias?: number;
 }
 
 export interface AnularGastoCompartidoResponse {

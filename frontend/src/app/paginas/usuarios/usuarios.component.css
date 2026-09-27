@@ -30,7 +30,7 @@
   gap: 0.75rem;
   margin: 0 0 0.55rem;
   padding: 0.7rem 0.85rem;
-  border: 1px solid var(--linea);
+  border: 1px solid var(--borde-card);
   border-radius: 0.85rem;
   background: var(--superficie);
   color: var(--texto);
@@ -54,7 +54,7 @@
   gap: 0.55rem;
   align-items: end;
   background: var(--superficie);
-  border: 1px solid var(--linea);
+  border: 1px solid var(--borde-card);
   border-radius: 0.85rem;
   padding: 0.6rem 0.7rem;
   margin-bottom: 0.55rem;
@@ -109,7 +109,7 @@
 
 .tabla-wrap {
   background: var(--superficie);
-  border: 1px solid var(--linea);
+  border: 1px solid var(--borde-card);
   border-radius: 1rem;
   overflow: auto;
 }
@@ -187,7 +187,7 @@ tr.inactivo td { color: var(--texto-suave); }
 
 .usuarios-lista > li {
   background: var(--superficie);
-  border: 1px solid var(--linea);
+  border: 1px solid var(--borde-card);
   border-radius: 0.9rem;
   padding: 0.7rem 0.8rem;
   display: grid;

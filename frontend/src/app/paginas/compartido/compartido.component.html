@@ -61,12 +61,27 @@
       <strong>Fijos por cobrar</strong>
       <ul>
         @for (f of resumen!.fijosPendientesCobro!; track f.id) {
-          <li>
-            <span>{{ f.concepto }} · día {{ f.diaCobro }} · {{ f.monto | currency:'MXN':'symbol-narrow':'1.0-0' }}</span>
+          <li [class.proximo]="f.estado === 'PROXIMO'">
+            <span>
+              {{ f.concepto }} ·
+              @if (f.estado === 'PROXIMO') {
+                en {{ f.dias }} {{ f.dias === 1 ? 'día' : 'días' }}
+              } @else if ((f.dias ?? 0) < 0) {
+                atrasado {{ -(f.dias ?? 0) }} {{ -(f.dias ?? 0) === 1 ? 'día' : 'días' }}
+              } @else {
+                hoy
+              }
+              · {{ f.monto | currency:'MXN':'symbol-narrow':'1.0-0' }}
+            </span>
             <button type="button" class="chip-btn on" (click)="irCobrarFijo(f.id)">Cobrar</button>
           </li>
         }
       </ul>
+      @if (!notifCobroPedida) {
+        <button type="button" class="chip-btn aviso-notif" (click)="activarNotificacionesCobro()">
+          Activar aviso en el teléfono
+        </button>
+      }
     </div>
   }
 
@@ -138,7 +153,7 @@
     @if (!(resumen?.personas?.length)) {
       <p class="vacio">Agrega personas y registra un gasto compartido.</p>
     } @else {
-      <ul class="lista">
+      <ul class="lista lista-personas">
         @for (p of resumen!.personas; track p.id) {
           <li class="fila" [class.abierta]="abonoPersonaId === p.id || guardadoPersonaId === p.id || adelantoPersonaId === p.id || anticipoPersonaId === p.id || prestarPersonaId === p.id">
             <div class="fila-top">
@@ -189,9 +204,13 @@
                 } @else {
                   <button type="button" class="btn-mini" (click)="abrirPrestar(p)">Prestar</button>
                 }
-                @if (fijosDePersona(p.id).length) {
-                  <button type="button" class="btn-mini secundario" (click)="abrirAdelanto(p)">Adelanto</button>
-                }
+                <button
+                  type="button"
+                  class="btn-mini secundario"
+                  [disabled]="!fijosDePersona(p.id).length"
+                  [title]="fijosDePersona(p.id).length ? 'Adelanto de fijo' : 'Sin fijos asignados'"
+                  (click)="abrirAdelanto(p)"
+                >Adelanto</button>
                 <button type="button" class="btn-mini secundario" (click)="abrirGuardado(p)">Guardadito</button>
               </div>
             </div>
@@ -639,6 +658,19 @@
                 <button
                   type="button"
                   class="icono"
+                  title="Corregir pago (efectivo / tarjeta)"
+                  aria-label="Corregir pago"
+                  (click)="abrirEditarPago(g)"
+                >
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <rect x="3" y="6" width="18" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/>
+                    <path d="M3 10h18" fill="none" stroke="currentColor" stroke-width="1.8"/>
+                    <path d="M7 15h4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                  </svg>
+                </button>
+                <button
+                  type="button"
+                  class="icono"
                   title="Reparto"
                   aria-label="Reparto"
                   (click)="empezarRecalculo(g)"
@@ -663,6 +695,40 @@
                 </button>
               </div>
             </div>
+            @if (editandoPagoId === g.id) {
+              <form id="form-editar-pago" class="panel-inline" enterAvance (ngSubmit)="guardarPagoEditado(g)">
+                <p class="hint-pago span-all">Corrige si cobraste con efectivo y era tarjeta (o al revés). Actualiza el gasto real.</p>
+                <label>Fecha
+                  <input type="date" [(ngModel)]="pagoEditForm.fecha" name="epFecha" />
+                </label>
+                <div class="chip-row span-all">
+                  <span class="chip-lbl">Pago</span>
+                  <button type="button" class="chip-btn" [class.on]="pagoEditForm.formaPago === 'EFECTIVO'" (click)="pagoEditForm.formaPago = 'EFECTIVO'">Efectivo</button>
+                  <button type="button" class="chip-btn" [class.on]="pagoEditForm.formaPago === 'TARJETA'" (click)="pagoEditForm.formaPago = 'TARJETA'">Tarjeta</button>
+                  @if (pagoEditForm.formaPago === 'TARJETA') {
+                    <button type="button" class="chip-btn" [class.on]="pagoEditForm.aMeses" (click)="pagoEditForm.aMeses = !pagoEditForm.aMeses">A meses</button>
+                  }
+                </div>
+                @if (pagoEditForm.formaPago === 'TARJETA') {
+                  <label class="span-all">TDC
+                    <select [(ngModel)]="pagoEditForm.cuentaId" name="epTdc">
+                      @for (c of cuentasTdc; track c.id) {
+                        <option [ngValue]="c.id">{{ etiquetaTdc(c) }}</option>
+                      }
+                    </select>
+                  </label>
+                  @if (pagoEditForm.aMeses) {
+                    <label>Meses
+                      <input [(ngModel)]="pagoEditForm.meses" name="epMeses" inputmode="numeric" placeholder="3" />
+                    </label>
+                  }
+                }
+                <div class="acciones span-all">
+                  <button type="submit" class="primario" [disabled]="pagoEditForm.formaPago === 'TARJETA' && !pagoEditForm.cuentaId">Guardar pago</button>
+                  <button type="button" class="secundario" (click)="cancelarEditarPago()">Cancelar</button>
+                </div>
+              </form>
+            }
             @if (recalculandoId === g.id) {
               <form class="panel-inline" enterAvance (ngSubmit)="confirmarRecalculo(g)">
                 <p class="hint-pago span-all">
@@ -754,14 +820,6 @@
 
 @if (tab === 'fijos') {
   <form id="form-fijo" class="alta gasto-form" enterAvance (ngSubmit)="crearServicioFijo()">
-    @if (editFijoId != null) {
-      <p class="hint-pago span-all">
-        Editando fijo — los cobros ya hechos no cambian; solo aplica a cobros nuevos
-        @if (!fijoForm.yoPago) {
-          y a tu parte en Mensuales
-        }.
-      </p>
-    }
     <label class="span2">Concepto
       <input [(ngModel)]="fijoForm.concepto" name="fConcepto" required placeholder="ej. CFE" />
     </label>
@@ -876,7 +934,7 @@
                 }
                 @if (ultimoCobroDe(s.id); as uc) {
                   <span class="meta cobro">
-                    Último: {{ uc.periodo || '—' }} · cobrado {{ formatFechaCorta(uc.fecha) }}
+                    Último: {{ uc.periodo || '—' }} · {{ etiquetaFormaPago(uc) }} · cobrado {{ formatFechaCorta(uc.fecha) }}
                   </span>
                 }
               </div>
@@ -895,6 +953,21 @@
                       <path d="M9 15.5l2 2 4-4.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
                     </svg>
                   </button>
+                  @if (ultimoCobroDe(s.id); as uc) {
+                    <button
+                      type="button"
+                      class="icono"
+                      title="Corregir pago (efectivo / tarjeta)"
+                      aria-label="Corregir pago"
+                      (click)="abrirEditarPago(uc)"
+                    >
+                      <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <rect x="3" y="6" width="18" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/>
+                        <path d="M3 10h18" fill="none" stroke="currentColor" stroke-width="1.8"/>
+                        <path d="M7 15h4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                      </svg>
+                    </button>
+                  }
                 }
                 <button
                   type="button"
@@ -981,6 +1054,45 @@
                   <button type="button" class="secundario" (click)="cancelarCobro()">Cancelar</button>
                 </div>
               </form>
+            }
+            @if (ultimoCobroDe(s.id); as uc) {
+              @if (editandoPagoId === uc.id) {
+                <form id="form-editar-pago" class="panel-inline" enterAvance (ngSubmit)="guardarPagoEditado(uc)">
+                  <p class="hint-pago span-all">
+                    Corregir cómo cobraste <strong>{{ uc.periodo || 'este mes' }}</strong>
+                    (efectivo ↔ tarjeta). Actualiza el gasto real.
+                  </p>
+                  <label>Fecha
+                    <input type="date" [(ngModel)]="pagoEditForm.fecha" name="fpFecha" />
+                  </label>
+                  <div class="chip-row span-all">
+                    <span class="chip-lbl">Pago</span>
+                    <button type="button" class="chip-btn" [class.on]="pagoEditForm.formaPago === 'EFECTIVO'" (click)="pagoEditForm.formaPago = 'EFECTIVO'">Efectivo</button>
+                    <button type="button" class="chip-btn" [class.on]="pagoEditForm.formaPago === 'TARJETA'" (click)="pagoEditForm.formaPago = 'TARJETA'">Tarjeta</button>
+                    @if (pagoEditForm.formaPago === 'TARJETA') {
+                      <button type="button" class="chip-btn" [class.on]="pagoEditForm.aMeses" (click)="pagoEditForm.aMeses = !pagoEditForm.aMeses">A meses</button>
+                    }
+                  </div>
+                  @if (pagoEditForm.formaPago === 'TARJETA') {
+                    <label class="span-all">TDC
+                      <select [(ngModel)]="pagoEditForm.cuentaId" name="fpTdc">
+                        @for (c of cuentasTdc; track c.id) {
+                          <option [ngValue]="c.id">{{ etiquetaTdc(c) }}</option>
+                        }
+                      </select>
+                    </label>
+                    @if (pagoEditForm.aMeses) {
+                      <label>Meses
+                        <input [(ngModel)]="pagoEditForm.meses" name="fpMeses" inputmode="numeric" placeholder="3" />
+                      </label>
+                    }
+                  }
+                  <div class="acciones span-all">
+                    <button type="submit" class="primario" [disabled]="pagoEditForm.formaPago === 'TARJETA' && !pagoEditForm.cuentaId">Guardar pago</button>
+                    <button type="button" class="secundario" (click)="cancelarEditarPago()">Cancelar</button>
+                  </div>
+                </form>
+              }
             }
           </li>
         }

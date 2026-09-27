@@ -434,7 +434,7 @@ public class FinanzasService {
         }
         String motivo = truncar(
                 (esFormaDisposicion(guardado.getFormaPago()) ? "Disposición" : concepto)
-                        + " · " + meses + " meses (" + tdc + ")",
+                        + " - " + meses + " meses (" + tdc + ")",
                 120);
 
         if (plan == null) {
@@ -603,7 +603,7 @@ public class FinanzasService {
             g.setPropietario(u);
             g.setServicioFijoCompartidoId(servicioFijoId);
         }
-        g.setMotivo("Compartido · " + (concepto == null || concepto.isBlank() ? "servicio" : concepto.trim())
+        g.setMotivo("Compartido - " + (concepto == null || concepto.isBlank() ? "servicio" : concepto.trim())
                 + " (mi parte)");
         if (g.getMotivo().length() > 120) {
             g.setMotivo(g.getMotivo().substring(0, 120));

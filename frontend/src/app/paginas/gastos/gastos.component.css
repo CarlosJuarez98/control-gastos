@@ -114,7 +114,7 @@ button.total-btn.activo {
   background:
     linear-gradient(165deg, color-mix(in srgb, #fff 3.5%, transparent), transparent 45%),
     color-mix(in srgb, var(--superficie) 92%, transparent);
-  border: 1px solid color-mix(in srgb, var(--linea) 90%, transparent);
+  border: 1px solid var(--borde-card);
   border-radius: 1rem;
   padding: 0.75rem 0.85rem;
   justify-content: flex-start;
@@ -747,11 +747,12 @@ button:disabled { opacity: 0.65; cursor: not-allowed; transform: none; filter: n
   .items-lista {
     display: grid;
     gap: 0.45rem;
-    border: none;
+    border: none !important;
     border-radius: 0;
     background: transparent;
     overflow: visible;
     padding: 0.35rem 0 0;
+    box-shadow: none;
   }
 
   .cab { align-items: stretch; }
@@ -913,12 +914,12 @@ button:disabled { opacity: 0.65; cursor: not-allowed; transform: none; filter: n
     animation: rec-in 0.35s var(--ease-out) both;
     border-radius: 0.95rem;
     margin: 0;
-    border: 1px solid var(--linea);
-    border-bottom: 1px solid var(--linea);
+    border: 1px solid var(--borde-card);
+    border-bottom: 1px solid var(--borde-card);
     background:
-      linear-gradient(160deg, color-mix(in srgb, #fff 3%, transparent), transparent 45%),
-      color-mix(in srgb, var(--superficie) 92%, transparent);
-    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.14);
+      linear-gradient(160deg, color-mix(in srgb, #fff 4%, transparent), transparent 45%),
+      var(--superficie);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.22);
     padding: 0.75rem 0.85rem;
   }
   .items-lista > li:nth-child(2) { animation-delay: 0.04s; }

@@ -3,6 +3,7 @@ package com.controlgastos.servicio;
 import com.controlgastos.dto.CompartidoDtos.*;
 import com.controlgastos.modelo.*;
 import com.controlgastos.repositorio.GastoCompartidoRepository;
+import com.controlgastos.repositorio.GastoRepository;
 import com.controlgastos.repositorio.MovimientoPersonaCompartidaRepository;
 import com.controlgastos.repositorio.PersonaCompartidaRepository;
 import com.controlgastos.repositorio.ServicioFijoCompartidoRepository;
@@ -30,18 +31,24 @@ public class CompartidoService {
     private final GastoCompartidoRepository gastoCompartidoRepository;
     private final MovimientoPersonaCompartidaRepository movimientoRepository;
     private final ServicioFijoCompartidoRepository servicioFijoRepository;
+    private final GastoRepository gastoRepository;
     private final FinanzasService finanzasService;
+
+    /** Avisar fijos próximos hasta N días antes del día de cobro. */
+    private static final int DIAS_AVISO_PREVIO = 3;
 
     public CompartidoService(
             PersonaCompartidaRepository personaRepository,
             GastoCompartidoRepository gastoCompartidoRepository,
             MovimientoPersonaCompartidaRepository movimientoRepository,
             ServicioFijoCompartidoRepository servicioFijoRepository,
+            GastoRepository gastoRepository,
             FinanzasService finanzasService) {
         this.personaRepository = personaRepository;
         this.gastoCompartidoRepository = gastoCompartidoRepository;
         this.movimientoRepository = movimientoRepository;
         this.servicioFijoRepository = servicioFijoRepository;
+        this.gastoRepository = gastoRepository;
         this.finanzasService = finanzasService;
     }
 
@@ -184,7 +191,7 @@ public class CompartidoService {
         gastoReal.setFecha(fecha);
         gastoReal.setCategoria("Compartido");
         gastoReal.setMonto(montoRedondeado);
-        gastoReal.setMotivo(tipo.substring(0, 1) + tipo.substring(1).toLowerCase(Locale.ROOT) + ": " + concepto);
+        gastoReal.setMotivo("Compartido: " + concepto);
         gastoReal.setFormaPago(forma);
         if ("TARJETA".equals(forma)) {
             if (req.cuentaId() == null) {
@@ -431,7 +438,7 @@ public class CompartidoService {
                 deuda.setTipo(MovimientoPersonaCompartida.DEUDA);
                 deuda.setMonto(montoParte);
                 String marcaSalida = salientes.stream().anyMatch(s -> s.getId().equals(persona.getId()))
-                        ? " · salió"
+                        ? " - salió"
                         : "";
                 deuda.setConcepto(conceptoConPeriodo(gc.getConcepto(), gc.getPeriodo())
                         + sufijoConcepto + marcaSalida);
@@ -657,6 +664,64 @@ public class CompartidoService {
     }
 
     /**
+     * Corrige método de pago / TDC / fecha de un cobro ya hecho
+     * (sincroniza el gasto real ligado).
+     */
+    @Transactional
+    public GastoCompartido editarPagoGasto(Long id, EditarPagoGastoRequest req) {
+        if (req == null) {
+            throw new IllegalArgumentException("Indica la forma de pago");
+        }
+        GastoCompartido gc = obtenerGasto(id);
+        if (gc.isAnulado()) {
+            throw new IllegalArgumentException("Ese cobro ya está anulado");
+        }
+        if (gc.getGastoId() == null) {
+            throw new IllegalArgumentException("Este registro no tiene gasto ligado para editar el pago");
+        }
+
+        String forma = req.formaPago() == null ? "EFECTIVO" : req.formaPago().trim().toUpperCase(Locale.ROOT);
+        if (!forma.equals("EFECTIVO") && !forma.equals("TARJETA")) {
+            throw new IllegalArgumentException("Forma de pago inválida (EFECTIVO o TARJETA)");
+        }
+
+        LocalDate fecha = req.fecha() != null ? req.fecha() : gc.getFecha();
+        if (fecha == null) {
+            fecha = LocalDate.now();
+        }
+        if (fecha.isAfter(LocalDate.now())) {
+            throw new IllegalArgumentException("La fecha no puede ser mayor a hoy");
+        }
+
+        Gasto gasto = gastoRepository.findById(gc.getGastoId())
+                .orElseThrow(() -> new IllegalArgumentException("Gasto ligado no encontrado"));
+        gasto.setFecha(fecha);
+        gasto.setFormaPago(forma);
+        if ("TARJETA".equals(forma)) {
+            if (req.cuentaId() == null) {
+                throw new IllegalArgumentException("Elige la TDC con la que pagaste");
+            }
+            gasto.setCuentaId(req.cuentaId());
+            if (req.meses() != null && req.meses() >= 2) {
+                gasto.setMeses(req.meses());
+            } else {
+                gasto.setMeses(null);
+            }
+        } else {
+            gasto.setCuentaId(null);
+            gasto.setMeses(null);
+        }
+        finanzasService.guardarGasto(gasto);
+
+        gc.setFecha(fecha);
+        gc.setFormaPago(forma);
+        gc.setCuentaId("TARJETA".equals(forma) ? req.cuentaId() : null);
+        gc.setMeses("TARJETA".equals(forma) && req.meses() != null && req.meses() >= 2
+                ? req.meses() : null);
+        return gastoCompartidoRepository.save(gc);
+    }
+
+    /**
      * Cuánto de los abonos existentes ya cubría las deudas de este gasto
      * (antes de anularlas). Ese monto pasa a «a favor» al anular.
      */
@@ -743,11 +808,11 @@ public class CompartidoService {
         if (concepto.isEmpty()) {
             if ("PRESTADO".equals(medio)) {
                 concepto = destino != null
-                        ? "Abono prestado a " + destino + " · " + persona.getNombre()
-                        : "Abono prestado · " + persona.getNombre();
+                        ? "Abono prestado a " + destino + " - " + persona.getNombre()
+                        : "Abono prestado - " + persona.getNombre();
             } else {
                 concepto = destino != null
-                        ? "Abono a " + destino + " · " + persona.getNombre()
+                        ? "Abono a " + destino + " - " + persona.getNombre()
                         : "Abono de " + persona.getNombre();
             }
         }
@@ -779,7 +844,7 @@ public class CompartidoService {
             gPrest.setFecha(fecha);
             gPrest.setCategoria("Compartido");
             gPrest.setMonto(monto);
-            gPrest.setMotivo("Compartido · " + persona.getNombre() + ": abono prestado");
+            gPrest.setMotivo("Compartido - " + persona.getNombre() + ": abono prestado");
             gPrest.setFormaPago(formaPrestamo);
             if ("TARJETA".equals(formaPrestamo)) {
                 gPrest.setCuentaId(req.cuentaId());
@@ -804,7 +869,7 @@ public class CompartidoService {
             Ingreso ingreso = new Ingreso();
             ingreso.setFecha(fecha);
             ingreso.setMonto(monto);
-            ingreso.setConcepto("Compartido · " + persona.getNombre() + ": " + concepto);
+            ingreso.setConcepto("Compartido - " + persona.getNombre() + ": " + concepto);
             Ingreso saved = finanzasService.guardarIngreso(ingreso);
             mov.setIngresoId(saved.getId());
         }
@@ -869,7 +934,7 @@ public class CompartidoService {
             gFavor.setFecha(fecha);
             gFavor.setCategoria("Compartido");
             gFavor.setMonto(favor);
-            gFavor.setMotivo("Compartido · " + persona.getNombre() + ": entrega a favor");
+            gFavor.setMotivo("Compartido - " + persona.getNombre() + ": entrega a favor");
             gFavor.setFormaPago("EFECTIVO");
             finanzasService.guardarGasto(gFavor);
 
@@ -892,7 +957,7 @@ public class CompartidoService {
             gPrest.setFecha(fecha);
             gPrest.setCategoria("Compartido");
             gPrest.setMonto(prestamo);
-            gPrest.setMotivo("Compartido · " + persona.getNombre() + ": préstamo");
+            gPrest.setMotivo("Compartido - " + persona.getNombre() + ": préstamo");
             gPrest.setFormaPago(formaPrestamo);
             if ("TARJETA".equals(formaPrestamo)) {
                 gPrest.setCuentaId(req.cuentaId());
@@ -1172,7 +1237,13 @@ public class CompartidoService {
                 filas, totalDebe, totalFavor, totalGuardado, porCuenta, porTdc, fijosPendientes);
     }
 
-    /** Fijos «Yo pago» con día de cobro ya vencido este mes y aún sin cobro. */
+    /** Fijos «Yo pago» vencidos o próximos (≤ {@link #DIAS_AVISO_PREVIO} días). */
+    public List<FijoPendienteCobro> listarAvisosCobro() {
+        String u = Sesion.usuario();
+        return listarFijosPendientesCobro(u, gastoCompartidoRepository.findActivosByPropietario(u));
+    }
+
+    /** Fijos «Yo pago» con día de cobro vencido o próximo este mes y aún sin cobro. */
     List<FijoPendienteCobro> listarFijosPendientesCobro(String u, List<GastoCompartido> gastos) {
         LocalDate hoy = LocalDate.now();
         String periodo = hoy.format(DateTimeFormatter.ofPattern("yyyy-MM"));
@@ -1180,21 +1251,26 @@ public class CompartidoService {
         for (ServicioFijoCompartido s : servicioFijoRepository.findActivosByPropietario(u)) {
             if (!s.isYoPago()) continue;
             LocalDate fechaCobro = DiaCobroMes.fechaEnPeriodo(periodo, s.getDiaCobro());
-            if (fechaCobro.isAfter(hoy)) continue;
+            long dias = java.time.temporal.ChronoUnit.DAYS.between(hoy, fechaCobro);
+            if (dias > DIAS_AVISO_PREVIO) continue;
             boolean yaCobrado = gastos != null && gastos.stream().anyMatch(g ->
                     !g.isAnulado()
                             && s.getId().equals(g.getServicioFijoId())
                             && periodo.equals(g.getPeriodo()));
             if (yaCobrado) continue;
+            String estado = dias <= 0 ? "VENCIDO" : "PROXIMO";
             out.add(new FijoPendienteCobro(
                     s.getId(),
                     s.getConcepto(),
                     s.getMonto(),
                     s.getDiaCobro(),
                     periodo,
-                    fechaCobro));
+                    fechaCobro,
+                    estado,
+                    dias));
         }
-        out.sort(Comparator.comparing(FijoPendienteCobro::fechaCobro)
+        out.sort(Comparator
+                .comparing(FijoPendienteCobro::dias)
                 .thenComparing(FijoPendienteCobro::concepto, String.CASE_INSENSITIVE_ORDER));
         return out;
     }
@@ -1442,7 +1518,7 @@ public class CompartidoService {
         if (periodo == null || periodo.isBlank()) {
             return concepto;
         }
-        return concepto + " · " + periodo;
+        return concepto + " - " + periodo;
     }
 
     private static String normalizarTipo(String raw) {

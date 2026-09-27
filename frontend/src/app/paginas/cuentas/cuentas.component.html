@@ -556,6 +556,9 @@
                   <span>{{ m.fecha | fechaCorta }}</span>
                   <span class="mov-tipo">{{ etiquetaMov(m.tipo) }}</span>
                 </div>
+                @if (m.concepto) {
+                  <p class="mov-concepto">{{ m.concepto }}</p>
+                }
                 <div class="mov-fila">
                   <strong class="mono">{{ m.monto | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
                   <div class="acciones-mov">
@@ -625,6 +628,7 @@
             <tr>
               <th class="col-fecha">Fecha</th>
               <th class="col-tipo">Tipo</th>
+              <th class="col-concepto">Concepto</th>
               <th class="col-monto">Monto</th>
               <th class="col-acciones"></th>
             </tr>
@@ -634,6 +638,7 @@
               <tr [class.editando]="editMovId === m.id">
                 <td class="col-fecha">{{ m.fecha | fechaCorta }}</td>
                 <td class="col-tipo">{{ etiquetaMov(m.tipo) }}</td>
+                <td class="col-concepto" [title]="m.concepto || ''">{{ m.concepto || '—' }}</td>
                 <td class="col-monto mono">{{ m.monto | currency:'MXN':'symbol-narrow':'1.2-2' }}</td>
                 <td class="col-acciones">
                   <div class="acciones-mov">

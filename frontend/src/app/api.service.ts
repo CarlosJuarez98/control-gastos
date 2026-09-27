@@ -3,7 +3,7 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import {
   AnularGastoCompartidoResponse,
-  Cuenta, Denominacion, Gasto, GastoCompartido, GastoMensual, Ingreso, Movimiento,
+  Cuenta, Denominacion, FijoPendienteCobro, Gasto, GastoCompartido, GastoMensual, Ingreso, Movimiento,
   MovimientoPersonaCompartida, PersonaCompartida, Resumen, ResumenCompartido,
   SaldoSnapshot, ServicioFijoCompartido, UsuarioAcceso
 } from './modelos';
@@ -238,6 +238,22 @@ export class ApiService {
 
   anularGastoCompartido(id: number): Observable<AnularGastoCompartidoResponse> {
     return this.http.delete<AnularGastoCompartidoResponse>(`${this.base}/compartido/gastos/${id}`);
+  }
+
+  editarPagoGastoCompartido(
+    id: number,
+    body: {
+      fecha?: string | null;
+      formaPago: string;
+      cuentaId?: number | null;
+      meses?: number | null;
+    }
+  ): Observable<GastoCompartido> {
+    return this.http.put<GastoCompartido>(`${this.base}/compartido/gastos/${id}/pago`, body);
+  }
+
+  avisosCobroCompartido(): Observable<FijoPendienteCobro[]> {
+    return this.http.get<FijoPendienteCobro[]>(`${this.base}/compartido/avisos-cobro`);
   }
 
   serviciosFijosCompartidos(): Observable<ServicioFijoCompartido[]> {

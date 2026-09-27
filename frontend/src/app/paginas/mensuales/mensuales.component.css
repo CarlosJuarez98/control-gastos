@@ -30,7 +30,7 @@
 .totales article {
   min-width: 7rem;
   padding: 0.35rem 0.65rem;
-  border: 1px solid var(--linea);
+  border: 1px solid var(--borde-card);
   border-radius: 0.6rem;
   background: var(--superficie);
 }
@@ -59,7 +59,7 @@
   background:
     linear-gradient(165deg, color-mix(in srgb, #fff 3.5%, transparent), transparent 45%),
     color-mix(in srgb, var(--superficie) 92%, transparent);
-  border: 1px solid color-mix(in srgb, var(--linea) 90%, transparent);
+  border: 1px solid var(--borde-card);
   border-radius: 1rem;
   padding: 0.75rem 0.85rem;
   margin-bottom: 0.55rem;
@@ -191,7 +191,7 @@ label.campo-toggle {
   list-style: none;
   margin: 0 0 0.75rem;
   padding: 0;
-  border: 1px solid color-mix(in srgb, var(--linea) 90%, transparent);
+  border: 1px solid var(--borde-card);
   border-radius: 1.05rem;
   background:
     linear-gradient(165deg, color-mix(in srgb, #fff 3%, transparent), transparent 40%),
@@ -219,7 +219,7 @@ label.campo-toggle {
     linear-gradient(160deg, color-mix(in srgb, var(--acento-2) 10%, transparent), transparent 45%),
     linear-gradient(165deg, color-mix(in srgb, #fff 3%, transparent), transparent 40%),
     var(--superficie);
-  border: 1px solid color-mix(in srgb, var(--linea) 90%, transparent);
+  border: 1px solid var(--borde-card);
   border-radius: 1.1rem;
   box-shadow: 0 14px 34px rgba(0, 0, 0, 0.16);
 }

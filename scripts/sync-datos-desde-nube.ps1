@@ -316,14 +316,16 @@ Invoke-LocalSql $alterDefault | Out-Null
 
 $totalOk = 0
 foreach ($f in $sqlFiles) {
-  $stmts = @(Get-Content $f.FullName | Where-Object { $_ -match '^INSERT ' })
+  $stmts = @(Get-Content $f.FullName -Encoding UTF8 | Where-Object { $_ -match '^INSERT ' })
   Write-Host ("  archivo " + $f.Name + " " + $f.Length + " bytes, " + $stmts.Count + " inserts")
   if (-not $stmts.Count) { continue }
   $batch = "SET FEEDBACK OFF DEFINE OFF`n" + ($stmts -join "`n") + "`nCOMMIT;`nEXIT;`n"
   $tmpIn = Join-Path $PullDir "_run.sql"
-  Set-Content -Path $tmpIn -Value $batch -Encoding ASCII
+  # UTF-8: conceptos con «·» y tildes; ASCII los convertía en ?????
+  $utf8 = New-Object System.Text.UTF8Encoding $false
+  [System.IO.File]::WriteAllText($tmpIn, $batch, $utf8)
   docker cp $tmpIn "${Oracle}:/tmp/_pull_run.sql" | Out-Null
-  $out = docker exec $Oracle sqlplus -S $SqlPlus "@/tmp/_pull_run.sql" 2>&1 | Out-String
+  $out = docker exec -e NLS_LANG=.AL32UTF8 $Oracle sqlplus -S $SqlPlus "@/tmp/_pull_run.sql" 2>&1 | Out-String
   if ($out -match "ORA-00001") {
     Write-Host "$($f.Name): algunos duplicados omitidos" -ForegroundColor Yellow
   } elseif ($out -match "ORA-") {

@@ -105,7 +105,7 @@
   background:
     linear-gradient(160deg, color-mix(in srgb, #fff 3.5%, transparent), transparent 45%),
     linear-gradient(160deg, var(--superficie) 0%, var(--superficie-2) 100%);
-  border: 1px solid color-mix(in srgb, var(--linea) 90%, transparent);
+  border: 1px solid var(--borde-card);
   border-radius: 1rem;
   animation: subir 0.5s ease both;
   box-shadow: 0 12px 28px rgba(0, 0, 0, 0.14);
@@ -115,7 +115,7 @@
 .metricas article:hover,
 .metricas-caja article:hover {
   transform: translateY(-2px);
-  border-color: color-mix(in srgb, var(--acento) 35%, var(--linea));
+  border-color: color-mix(in srgb, var(--acento) 65%, var(--borde-card));
 }
 
 .metricas article.destacada-quincena {
@@ -234,7 +234,7 @@
   background:
     linear-gradient(165deg, color-mix(in srgb, #fff 3.5%, transparent), transparent 42%),
     var(--superficie);
-  border: 1px solid color-mix(in srgb, var(--linea) 90%, transparent);
+  border: 1px solid var(--borde-card);
   border-radius: 1.1rem;
   padding: 0.95rem 1.05rem 1.05rem;
   animation: subir 0.6s ease both;

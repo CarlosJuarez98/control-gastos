@@ -306,6 +306,7 @@ nav.nav-top::-webkit-scrollbar-thumb {
 }
 
 nav.nav-top a {
+  position: relative;
   flex: 0 0 auto;
   display: inline-flex;
   align-items: center;
@@ -322,6 +323,23 @@ nav.nav-top a {
     color var(--dur-rapida) ease,
     transform var(--dur-rapida) var(--ease-out),
     box-shadow var(--dur-rapida) ease;
+}
+
+.nav-badge,
+.dock-badge {
+  position: absolute;
+  top: 0.15rem;
+  right: 0.15rem;
+  min-width: 1.05rem;
+  height: 1.05rem;
+  padding: 0 0.28rem;
+  border-radius: 999px;
+  background: #c45c26;
+  color: #fff;
+  font-size: 0.65rem;
+  font-weight: 700;
+  line-height: 1.05rem;
+  text-align: center;
 }
 
 nav.nav-top .nav-ico {
@@ -717,6 +735,7 @@ main > *:not(router-outlet) {
 
   .nav-dock a,
   .nav-dock .dock-menu {
+    position: relative;
     display: grid;
     justify-items: center;
     gap: 0.08rem;

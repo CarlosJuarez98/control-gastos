@@ -80,6 +80,8 @@
   --acento-2: #f0a45d;
   --peligro: #e57373;
   --linea: rgba(232, 238, 244, 0.12);
+  /* Borde de cards: verde acento (no depende de --linea para evitar ciclo) */
+  --borde-card: color-mix(in srgb, var(--acento) 42%, rgba(232, 238, 244, 0.12));
   --ok: #5dce9a;
   /* Campos editables: un poco más claros que la superficie, aún en tema oscuro */
   --campo-fondo: #283643;
@@ -98,6 +100,62 @@
 }
 
 * { box-sizing: border-box; }
+
+/*
+ * Cards en todas las pantallas: borde verde (acento).
+ * Remapea --linea en el contenedor para que border: … var(--linea) herede el verde.
+ */
+.fila,
+.lista-personas .fila,
+.card-cuenta,
+.totales > div,
+.total-btn,
+.items-lista > li,
+.alta,
+.gasto-form,
+.toggle-alta,
+.aviso-cobro,
+.aviso-vacio,
+.rec-card,
+.movil-card,
+.fila-cuenta,
+.movs-lista > li,
+.cuenta-resumen,
+.bloque-cuenta,
+.panel-cuenta,
+.tdc-datos,
+.reset,
+.tarjeta,
+.panel,
+.denoms,
+.historial,
+.lista-fijos > li,
+.pago-card,
+.plan-card,
+.comparacion,
+.lista,
+.metricas article,
+.metricas-caja article,
+.quincena-cab,
+.cuentas,
+.detalle,
+.detalle-inline .detalle,
+.movs-wrap,
+.espacio-deuda,
+.rp-item,
+.charts > section,
+.donut-wrap,
+.barras,
+.flujo {
+  --linea: var(--borde-card);
+  border-color: var(--borde-card);
+}
+
+/* Contenedores con hijos-card: sin borde propio (evita doble contorno) */
+.quincena,
+.items-lista {
+  border-color: transparent;
+}
 
 /* Sin flechas de spinner en inputs numéricos (Chrome/Safari/Edge/Firefox) */
 input[type='number']::-webkit-outer-spin-button,

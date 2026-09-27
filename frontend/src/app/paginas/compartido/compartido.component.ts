@@ -1,8 +1,9 @@
-import { ChangeDetectorRef, Component, HostListener, OnDestroy, OnInit, inject } from '@angular/core';
+import { ChangeDetectorRef, Component, ElementRef, HostListener, OnDestroy, OnInit, inject } from '@angular/core';
 import { CurrencyPipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { firstValueFrom } from 'rxjs';
 import { ApiService } from '../../api.service';
+import { AvisosCobroService } from '../../avisos-cobro.service';
 import { ConfirmDialogService } from '../../confirm-dialog.service';
 import { LoadingDialogService } from '../../loading-dialog.service';
 import {
@@ -39,9 +40,11 @@ const TABS: { id: Tab; label: string }[] = [
 })
 export class CompartidoComponent implements OnInit, OnDestroy {
   private readonly api = inject(ApiService);
+  private readonly avisosCobro = inject(AvisosCobroService);
   private readonly confirmDlg = inject(ConfirmDialogService);
   private readonly loading = inject(LoadingDialogService);
   private readonly cdr = inject(ChangeDetectorRef);
+  private readonly host = inject(ElementRef<HTMLElement>);
 
   tab: Tab = 'resumen';
   readonly tabs = TABS;
@@ -74,7 +77,8 @@ export class CompartidoComponent implements OnInit, OnDestroy {
     cuentaId: null as number | null,
     aMeses: false,
     meses: '',
-    incluyePrincipal: true,
+    /** Por defecto no: en Compartido suele ser para otros; lo tuyo va en Gastos. */
+    incluyePrincipal: false,
   };
   personasSeleccionadas = new Set<number>();
   /** Cuotas/perfiles por personaId (streaming o compra). Default 1. */
@@ -101,6 +105,16 @@ export class CompartidoComponent implements OnInit, OnDestroy {
     aMeses: false,
     meses: '',
   };
+  editandoPagoId: number | null = null;
+  pagoEditForm = {
+    fecha: fechaHoyLocal(),
+    formaPago: 'EFECTIVO' as 'EFECTIVO' | 'TARJETA',
+    cuentaId: null as number | null,
+    aMeses: false,
+    meses: '',
+  };
+  notifCobroPedida =
+    typeof Notification !== 'undefined' && Notification.permission === 'granted';
 
   recalculandoId: number | null = null;
   recalculoPersonas = new Set<number>();
@@ -295,6 +309,7 @@ export class CompartidoComponent implements OnInit, OnDestroy {
       this.anticipoPersonaId != null ||
       this.prestarPersonaId != null ||
       this.cobrandoId != null ||
+      this.editandoPagoId != null ||
       this.recalculandoId != null ||
       this.editFijoId != null ||
       (this.esMovil && this.altaAbierta)
@@ -318,6 +333,10 @@ export class CompartidoComponent implements OnInit, OnDestroy {
     }
     if (this.cobrandoId != null) {
       this.cancelarCobro();
+      return;
+    }
+    if (this.editandoPagoId != null) {
+      this.cancelarEditarPago();
       return;
     }
     if (this.recalculandoId != null) {
@@ -362,6 +381,8 @@ export class CompartidoComponent implements OnInit, OnDestroy {
         if (!this.cobroForm.cuentaId && this.cuentasTdc.length) {
           this.cobroForm.cuentaId = this.cuentasTdc[0].id ?? null;
         }
+        this.avisarCobrosSiHay();
+        this.avisosCobro.avisos.set(this.resumen?.fijosPendientesCobro || []);
       }, 'Cargando compartido…');
     } catch (e: unknown) {
       this.error = this.msg(e, 'No se pudo cargar Compartido');
@@ -580,7 +601,7 @@ export class CompartidoComponent implements OnInit, OnDestroy {
         this.gastoForm.monto = '';
         this.gastoForm.aMeses = false;
         this.gastoForm.meses = '';
-        this.gastoForm.incluyePrincipal = true;
+        this.gastoForm.incluyePrincipal = false;
         this.personasSeleccionadas.clear();
         this.gastoPerfiles.clear();
         this.gastoPerfilesPrincipal = 1;
@@ -753,9 +774,8 @@ export class CompartidoComponent implements OnInit, OnDestroy {
     this.fijoPerfilesPrincipal = Math.max(1, Number(s.perfilesPrincipal) || 1);
     this.error = '';
     this.ok = '';
-    queueMicrotask(() => {
-      document.getElementById('form-fijo')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    });
+    this.cdr.markForCheck();
+    this.scrollA('#form-fijo');
   }
 
   cancelarEditFijo(): void {
@@ -849,6 +869,109 @@ export class CompartidoComponent implements OnInit, OnDestroy {
 
   cancelarCobro(): void {
     this.cobrandoId = null;
+  }
+
+  abrirEditarPago(g: GastoCompartido): void {
+    this.editandoPagoId = g.id ?? null;
+    this.recalculandoId = null;
+    this.cobrandoId = null;
+    const forma = ((g.formaPago || 'EFECTIVO').toUpperCase() === 'TARJETA' ? 'TARJETA' : 'EFECTIVO') as
+      | 'EFECTIVO'
+      | 'TARJETA';
+    this.pagoEditForm = {
+      fecha: g.fecha || fechaHoyLocal(),
+      formaPago: forma,
+      cuentaId: g.cuentaId ?? this.cuentasTdc[0]?.id ?? null,
+      aMeses: !!(g.meses && g.meses > 1),
+      meses: g.meses && g.meses > 1 ? String(g.meses) : '',
+    };
+    this.error = '';
+    this.ok = '';
+    this.cdr.markForCheck();
+    this.scrollA('#form-editar-pago');
+  }
+
+  etiquetaFormaPago(g: GastoCompartido): string {
+    const forma = (g.formaPago || 'EFECTIVO').toUpperCase();
+    if (forma === 'TARJETA') {
+      const tdc = this.cuentasTdc.find((c) => c.id === g.cuentaId);
+      const base = tdc?.nombre ? `Tarjeta · ${tdc.nombre}` : 'Tarjeta';
+      return g.meses && g.meses > 1 ? `${base} · ${g.meses} meses` : base;
+    }
+    return 'Efectivo';
+  }
+
+  cancelarEditarPago(): void {
+    this.editandoPagoId = null;
+  }
+
+  async guardarPagoEditado(g: GastoCompartido): Promise<void> {
+    if (!g.id) return;
+    if (this.pagoEditForm.formaPago === 'TARJETA' && !this.pagoEditForm.cuentaId) return;
+    const meses =
+      this.pagoEditForm.formaPago === 'TARJETA' && this.pagoEditForm.aMeses
+        ? Math.max(2, Math.round(Number(this.pagoEditForm.meses) || 0))
+        : null;
+    this.error = '';
+    this.ok = '';
+    try {
+      await this.loading.run(async () => {
+        await firstValueFrom(
+          this.api.editarPagoGastoCompartido(g.id!, {
+            fecha: this.pagoEditForm.fecha || fechaHoyLocal(),
+            formaPago: this.pagoEditForm.formaPago,
+            cuentaId: this.pagoEditForm.formaPago === 'TARJETA' ? this.pagoEditForm.cuentaId : null,
+            meses,
+          })
+        );
+        this.cancelarEditarPago();
+        await this.refreshListas();
+      }, 'Corrigiendo pago…');
+      this.ok =
+        this.pagoEditForm.formaPago === 'TARJETA'
+          ? 'Pago actualizado a tarjeta'
+          : 'Pago actualizado a efectivo';
+    } catch (e: unknown) {
+      this.error = this.msg(e, 'No se pudo corregir el pago');
+    }
+  }
+
+  async activarNotificacionesCobro(): Promise<void> {
+    if (typeof Notification === 'undefined') {
+      this.error = 'Este navegador no soporta notificaciones';
+      return;
+    }
+    const perm = await Notification.requestPermission();
+    this.notifCobroPedida = perm === 'granted';
+    if (this.notifCobroPedida) {
+      this.avisarCobrosSiHay(true);
+      this.ok = 'Avisos activados: te avisará cuando haya fijos por cobrar';
+    } else {
+      this.error = 'No se activaron las notificaciones';
+    }
+  }
+
+  private avisarCobrosSiHay(forzar = false): void {
+    const lista = this.resumen?.fijosPendientesCobro || [];
+    if (!lista.length || typeof Notification === 'undefined' || Notification.permission !== 'granted') {
+      return;
+    }
+    const key = `cg-aviso-cobro-${fechaHoyLocal()}`;
+    if (!forzar && sessionStorage.getItem(key)) return;
+    sessionStorage.setItem(key, '1');
+    const vencidos = lista.filter((f) => f.estado !== 'PROXIMO').length;
+    const proximos = lista.filter((f) => f.estado === 'PROXIMO').length;
+    const parts: string[] = [];
+    if (vencidos) parts.push(`${vencidos} por cobrar`);
+    if (proximos) parts.push(`${proximos} próximos`);
+    try {
+      new Notification('Control de gastos', {
+        body: `Fijos compartidos: ${parts.join(' · ')}`,
+        tag: 'cg-fijos-cobro',
+      });
+    } catch {
+      /* ignore */
+    }
   }
 
   ultimoCobroDe(servicioId: number | undefined): GastoCompartido | null {
@@ -953,6 +1076,7 @@ export class CompartidoComponent implements OnInit, OnDestroy {
 
   abrirAdelanto(p: PersonaResumenCompartido | PersonaCompartida): void {
     const fijos = this.fijosDePersona(p.id);
+    if (!fijos.length) return;
     this.adelantoPersonaId = p.id ?? null;
     this.abonoPersonaId = null;
     this.guardadoPersonaId = null;
@@ -1356,6 +1480,34 @@ export class CompartidoComponent implements OnInit, OnDestroy {
     );
     this.saldoDisponible =
       saldo?.esperado == null || saldo.esperado === undefined ? null : Number(saldo.esperado);
+    this.avisosCobro.avisos.set(resumen?.fijosPendientesCobro || []);
+  }
+
+
+  /** Scroll al formulario de edicion (PC: lista-scroll; movil: host). */
+  private scrollA(selector: string): void {
+    const aplicar = () => {
+      const hostEl = this.host.nativeElement;
+      const el = hostEl.querySelector(selector) as HTMLElement | null;
+      if (!el) return;
+      let padre: HTMLElement | null = el.parentElement;
+      let scrollEl: HTMLElement | null = null;
+      while (padre) {
+        const oy = getComputedStyle(padre).overflowY;
+        if ((oy === 'auto' || oy === 'scroll' || oy === 'overlay') && padre.scrollHeight > padre.clientHeight + 1) {
+          scrollEl = padre;
+          break;
+        }
+        padre = padre.parentElement;
+      }
+      if (!scrollEl) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'start', inline: 'nearest' });
+        return;
+      }
+      const delta = el.getBoundingClientRect().top - scrollEl.getBoundingClientRect().top - 8;
+      scrollEl.scrollTo({ top: Math.max(0, scrollEl.scrollTop + delta), behavior: 'smooth' });
+    };
+    requestAnimationFrame(() => requestAnimationFrame(aplicar));
   }
 
   private msg(e: unknown, fallback: string): string {

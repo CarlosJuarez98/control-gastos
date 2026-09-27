@@ -15,6 +15,7 @@ import { ConfirmDialogComponent } from './confirm-dialog.component';
 import { LoadingDialogComponent } from './loading-dialog.component';
 import { AuthService } from './auth.service';
 import { OfflineService } from './offline/offline.service';
+import { AvisosCobroService } from './avisos-cobro.service';
 import { sha256Hex } from './password-digest';
 import { EnterAvanceDirective } from './enter-avance.directive';
 import { filter, Subscription } from 'rxjs';
@@ -45,6 +46,7 @@ type NavLink = {
 export class AppComponent implements AfterViewInit, AfterViewChecked, OnDestroy {
   readonly auth = inject(AuthService);
   readonly offline = inject(OfflineService);
+  readonly avisosCobro = inject(AvisosCobroService);
   private readonly router = inject(Router);
   private readonly zone = inject(NgZone);
 
@@ -123,11 +125,21 @@ export class AppComponent implements AfterViewInit, AfterViewChecked, OnDestroy 
   ngAfterViewInit(): void {
     this.routeSub = this.router.events
       .pipe(filter((e): e is NavigationEnd => e instanceof NavigationEnd))
-      .subscribe(() => this.programarRecalcDock());
+      .subscribe(() => {
+        this.programarRecalcDock();
+        if (this.mostrarNav) {
+          void this.avisosCobro.refrescar();
+        } else {
+          this.avisosCobro.limpiar();
+        }
+      });
 
     void Promise.resolve().then(() => {
       this.recalcularDock();
       this.conectarDockObserver();
+      if (this.mostrarNav) {
+        void this.avisosCobro.refrescar();
+      }
     });
   }
 

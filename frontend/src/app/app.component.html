@@ -15,6 +15,9 @@
           <a [routerLink]="l.path" routerLinkActive="activo" [routerLinkActiveOptions]="{ exact: l.exact }">
             <span class="nav-ico" aria-hidden="true">{{ l.icon }}</span>
             <span class="nav-lbl">{{ l.label }}</span>
+            @if (l.path === '/compartido' && avisosCobro.cantidad > 0) {
+              <span class="nav-badge" [attr.aria-label]="avisosCobro.cantidad + ' fijos por cobrar'">{{ avisosCobro.cantidad }}</span>
+            }
           </a>
         }
       </nav>
@@ -107,6 +110,9 @@
         >
           <span class="dock-ico" aria-hidden="true">{{ l.icon }}</span>
           <span class="dock-lbl">{{ l.label }}</span>
+          @if (l.path === '/compartido' && avisosCobro.cantidad > 0) {
+            <span class="dock-badge">{{ avisosCobro.cantidad }}</span>
+          }
         </a>
       }
       @if (overflowLinks.length > 0) {

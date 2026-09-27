@@ -114,6 +114,17 @@ public class CompartidoController {
         return service.anularGasto(id);
     }
 
+    @PutMapping("/gastos/{id}/pago")
+    public GastoCompartido editarPagoGasto(
+            @PathVariable Long id, @RequestBody EditarPagoGastoRequest body) {
+        return service.editarPagoGasto(id, body);
+    }
+
+    @GetMapping("/avisos-cobro")
+    public List<FijoPendienteCobro> avisosCobro() {
+        return service.listarAvisosCobro();
+    }
+
     @GetMapping("/servicios-fijos")
     public List<ServicioFijoCompartido> listarServiciosFijos() {
         return service.listarServiciosFijos();

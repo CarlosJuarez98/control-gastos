@@ -72,6 +72,14 @@ public final class CompartidoDtos {
             String periodo
     ) {}
 
+    /** Corrige forma de pago / TDC / fecha de un cobro ya registrado. */
+    public record EditarPagoGastoRequest(
+            LocalDate fecha,
+            String formaPago,
+            Long cuentaId,
+            Integer meses
+    ) {}
+
     public record PeriodoPendiente(
             String periodo,
             String concepto,
@@ -186,7 +194,7 @@ public final class CompartidoDtos {
             BigDecimal totalGuardado,
             List<CuentaGlobalResumen> porCuenta,
             List<TdcCargaResumen> porTdc,
-            /** Fijos «Yo pago» cuyo día de cobro ya pasó este mes y aún no se cobraron. */
+            /** Fijos «Yo pago» por cobrar: vencidos o próximos (≤3 días). */
             List<FijoPendienteCobro> fijosPendientesCobro
     ) {}
 
@@ -196,7 +204,11 @@ public final class CompartidoDtos {
             BigDecimal monto,
             Integer diaCobro,
             String periodo,
-            LocalDate fechaCobro
+            LocalDate fechaCobro,
+            /** VENCIDO = día de cobro ≤ hoy; PROXIMO = dentro de 3 días. */
+            String estado,
+            /** Días hasta la fecha de cobro (negativo = atrasado). */
+            long dias
     ) {}
 
     public record AnularGastoResponse(

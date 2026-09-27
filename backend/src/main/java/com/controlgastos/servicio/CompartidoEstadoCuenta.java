@@ -257,7 +257,7 @@ public final class CompartidoEstadoCuenta {
             if (det.length() == 0 && ant.compareTo(BigDecimal.ZERO) > 0) {
                 det.append("anticipo $").append(entero(ant));
             } else if (ant.compareTo(BigDecimal.ZERO) > 0) {
-                det.append(" · anticipo $").append(entero(ant));
+                det.append(" - anticipo $").append(entero(ant));
             }
             if (suma.compareTo(BigDecimal.ZERO) <= 0 && ant.compareTo(BigDecimal.ZERO) <= 0) {
                 continue;
@@ -295,7 +295,7 @@ public final class CompartidoEstadoCuenta {
                 }
             }
             if (!ants.isEmpty()) {
-                sb.append("; anticipo ").append(String.join(" · ", ants));
+                sb.append("; anticipo ").append(String.join(" - ", ants));
             }
             return sb.toString();
         }
@@ -303,7 +303,7 @@ public final class CompartidoEstadoCuenta {
         StringBuilder sb = new StringBuilder();
         for (int i = 0; i < conDeuda.size(); i++) {
             CuentaPendiente c = conDeuda.get(i);
-            if (i > 0) sb.append(" · ");
+            if (i > 0) sb.append(" - ");
             sb.append(c.concepto()).append(" $").append(entero(c.pendiente()));
         }
         if (conDeuda.size() > 1) {
@@ -313,12 +313,12 @@ public final class CompartidoEstadoCuenta {
             sb.append(" = $").append(entero(total));
         }
         if (hayAnticipoGen) {
-            sb.append(" · a favor $").append(entero(anticipoGeneral));
+            sb.append(" - a favor $").append(entero(anticipoGeneral));
         }
         if (poolDestino != null) {
             for (Map.Entry<String, BigDecimal> e : poolDestino.entrySet()) {
                 if (e.getValue().compareTo(BigDecimal.ZERO) > 0) {
-                    sb.append(" · anticipo ").append(e.getKey()).append(" $").append(entero(e.getValue()));
+                    sb.append(" - anticipo ").append(e.getKey()).append(" $").append(entero(e.getValue()));
                 }
             }
         }
@@ -333,10 +333,12 @@ public final class CompartidoEstadoCuenta {
     static String conceptoCorto(String raw) {
         if (raw == null || raw.isBlank()) return "Otro";
         String t = raw.trim().replaceAll("\\s+", " ");
-        t = t.replaceAll("\\s*·\\s*\\d{4}-\\d{2}\\s*$", "");
+        t = t.replace("??", "-");
+        t = t.replace('\u00B7', '-');
+        t = t.replaceAll("\\s*-\\s*\\d{4}-\\d{2}\\s*$", "");
         t = t.replaceAll("\\s*\\(reparto[^)]*\\)\\s*$", "");
-        if (t.matches("(?iu)pr[eé]stamo(\\s*\\([^)]*\\))?(\\s*[·\\-].*)?")) {
-            return "Préstamo";
+        if (t.matches("(?iu)pr[e\u00E9]stamo(\\s*\\([^)]*\\))?(\\s*-.*)?")) {
+            return "Pr\u00E9stamo";
         }
         return t.isBlank() ? "Otro" : t;
     }
