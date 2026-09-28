@@ -7,13 +7,14 @@ alwaysApply: true
 
 - **Rama por defecto de trabajo:** `local` (dev diario: Oracle Docker local, proxy Angular, `iniciar.bat` / `dev.bat`).
 - **Rama de despliegue OCI:** `nube` (compose cloud-atp, `/api` relativo, SpaForward, docs DEPLOY-NUBE).
-- Cuando el usuario diga **"sube a la nube"**:
-  1. Integrar: merge `local` → `nube` (solo lo que falte en `nube`).
-  2. Desplegar código desde el estado de la rama `nube`.
-  3. **No** sincronizar datos (local es sandbox; la nube manda en datos reales).
+- Cuando el usuario diga **"sube a la nube"** / **"lleva a la nube"**:
+  1. Integrar: merge `local` → `nube` (solo lo que falte en `nube`). Commit en `local` si hace falta para poder mergear.
+  2. **NO** ejecutar `deploy-nube.ps1` ni el bat de deploy. El usuario despliega con doble clic (`deploy-nube.bat` o `A:\Programas-java\SUBIR-A-LA-NUBE.bat`).
+  3. Al terminar, recordar brevemente que ya puede correr el bat.
+  4. **No** sincronizar datos.
 - Datos solo si lo pide explícito:
   - **"sube datos"** → local → ATP (`scripts/sync-datos-incremental.ps1`) — **excepcional**
-  - **"baja datos"** / **"baja de la nube"** → ATP → local (`scripts/sync-datos-desde-nube.ps1`) — **preferido** para contexto real
-- Preferencia (igual en los 3 repos): bajar de la nube para trabajar/probar; subir datos solo si el cambio debe vivir en prod a propósito. Nunca contaminar prod con pruebas locales.
+  - **"baja datos"** / **"baja de la nube"** → ATP → local (`scripts/sync-datos-desde-nube.ps1`) — **preferido**
+- Preferencia: bajar de la nube para trabajar/probar; subir datos solo si debe vivir en prod. Nunca contaminar prod con pruebas locales.
 - No hacer cambios solo-nube en `local` salvo configs compartidas (proxy + `/api` relativo).
-- Convenio de los 3 proyectos: `A:\Programas-java\SYNC-BIDIRECCIONAL.md`. Ver `BRANCHES.md`, `SYNC-DATOS.md`.
+- Convenio: `A:\Programas-java\SYNC-BIDIRECCIONAL.md`. Ver `BRANCHES.md`, `SYNC-DATOS.md`.

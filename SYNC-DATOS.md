@@ -24,7 +24,7 @@ El **nombre de usuario** (ej. `Carlos`, `Mon`) es el `PROPIETARIO` de gastos/ing
 |-------|--------|-----------|
 | **Sube datos** | `scripts\sync-datos-incremental.ps1` | Local → ATP |
 | **Baja datos** / **baja de la nube** | `scripts\sync-datos-desde-nube.ps1` | ATP → Local (+ tabla Usuarios) |
-| **Sube a la nube** | (código) | merge + deploy; **sin** sync de datos |
+| **Sube / lleva a la nube** | (código) | merge a `nube`; deploy = tu bat; **sin** sync de datos |
 
 Convenio: `A:\Programas-java\SYNC-BIDIRECCIONAL.md`.
 
