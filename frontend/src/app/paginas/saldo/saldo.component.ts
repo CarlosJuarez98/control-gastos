@@ -13,6 +13,16 @@ import { EstadoPaginacion } from '../../compartido/paginar.util';
 type DigitalKey = 'dineroBbva' | 'dineroMercadoLibre' | 'dineroNu' | 'dineroDidi';
 type SeccionMovil = 'digital' | 'efectivo' | null;
 
+/** Borrador del conteo en curso (sobrevive al cambiar de pantalla). */
+type BorradorSaldo = {
+  textosDigital: Record<DigitalKey, string>;
+  dens: { valor: number; cantidad: number | string }[];
+  conteoEfectivoActivo: boolean;
+  seccionMovil: SeccionMovil;
+};
+
+const BORRADOR_SALDO_KEY = 'control-gastos.saldo.borrador';
+
 @Component({
   selector: 'app-saldo',
   standalone: true,
@@ -114,6 +124,7 @@ export class SaldoComponent implements OnInit, OnDestroy {
           this.ultimoTotalEfectivo = 0;
         }
         this.iniciarFormularioVacio();
+        this.restaurarBorrador();
         if (r.esperado != null && Number.isFinite(Number(r.esperado))) {
           this.esperado = this.redondear(this.n(r.esperado));
           this.cargandoEsperado = false;
@@ -126,6 +137,7 @@ export class SaldoComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.persistirBorrador();
     if (this.media && this.onMedia) {
       this.media.removeEventListener('change', this.onMedia);
     }
@@ -138,6 +150,7 @@ export class SaldoComponent implements OnInit, OnDestroy {
   /** Abre el apartado; si ya está abierto, lo contrae. */
   irSeccion(s: Exclude<SeccionMovil, null>): void {
     this.seccionMovil = this.seccionMovil === s ? null : s;
+    this.persistirBorrador();
   }
 
   /** Rellena apps/bancos con los montos del último corte. */
@@ -149,6 +162,7 @@ export class SaldoComponent implements OnInit, OnDestroy {
       this.textosDigital[campo.key] = v > 0 ? formatDineroNumero(v) : '';
       this.alEscribirDinero(campo.key);
     }
+    this.persistirBorrador();
   }
 
   /** Efectivo + digital de un corte guardado. */
@@ -334,15 +348,18 @@ export class SaldoComponent implements OnInit, OnDestroy {
     const limpio = el.value.replace(/\D/g, '');
     el.value = limpio;
     d.cantidad = limpio === '' ? ('' as unknown as number) : Number(limpio);
+    this.persistirBorrador();
   }
 
   normalizarCantidad(d: Denominacion): void {
     const raw = String(d.cantidad ?? '').trim();
     if (raw === '') {
       d.cantidad = '' as unknown as number;
+      this.persistirBorrador();
       return;
     }
     d.cantidad = Math.max(0, Math.trunc(this.n(d.cantidad)));
+    this.persistirBorrador();
   }
 
   soloMonto(ev: KeyboardEvent): void {
@@ -361,10 +378,12 @@ export class SaldoComponent implements OnInit, OnDestroy {
     this.textosDigital[key] = t;
     if (t === '' || t === '.') {
       this.saldo[key] = null;
+      this.persistirBorrador();
       return;
     }
     const num = parseDinero(t);
     this.saldo[key] = Number.isFinite(num) ? num : null;
+    this.persistirBorrador();
   }
 
   alSalirDinero(key: DigitalKey): void {
@@ -372,10 +391,12 @@ export class SaldoComponent implements OnInit, OnDestroy {
     if (v == null || !Number.isFinite(Number(v))) {
       this.textosDigital[key] = '';
       this.saldo[key] = null;
+      this.persistirBorrador();
       return;
     }
     this.saldo[key] = this.redondear(Number(v));
     this.textosDigital[key] = formatDineroNumero(this.saldo[key]!);
+    this.persistirBorrador();
   }
 
   alEscribirEdit(campo: 'esperado' | 'efectivo' | DigitalKey, v: string): void {
@@ -523,6 +544,7 @@ export class SaldoComponent implements OnInit, OnDestroy {
         this.sincronizarBaselineDesdeHistorial();
         if (this.historial[0]?.id === act.id) {
           this.recordarUltimosTotales(act);
+          this.limpiarBorrador();
           this.iniciarFormularioVacio();
         }
         this.editando = null;
@@ -589,6 +611,7 @@ export class SaldoComponent implements OnInit, OnDestroy {
         this.n(keep.digital.dineroDidi)
     );
     this.ultimoTotalEfectivo = this.redondear(keep.efectivo);
+    this.limpiarBorrador();
     this.iniciarFormularioVacio();
     this.guardando = false;
     this.exitoVisible = true;
@@ -640,6 +663,82 @@ export class SaldoComponent implements OnInit, OnDestroy {
       { valor: 0.5, cantidad: '' as unknown as number },
     ];
     this.conteoEfectivoActivo = false;
+  }
+
+  /** Guarda apps/efectivo en curso para no perderlos al salir de la pantalla. */
+  private persistirBorrador(): void {
+    try {
+      if (!this.hayCaptura) {
+        this.limpiarBorrador();
+        return;
+      }
+      const borrador: BorradorSaldo = {
+        textosDigital: { ...this.textosDigital },
+        dens: this.denominaciones.map((d) => ({
+          valor: this.n(d.valor),
+          cantidad: d.cantidad === ('' as unknown as number) || d.cantidad == null ? '' : d.cantidad,
+        })),
+        conteoEfectivoActivo: this.conteoEfectivoActivo,
+        seccionMovil: this.seccionMovil,
+      };
+      sessionStorage.setItem(BORRADOR_SALDO_KEY, JSON.stringify(borrador));
+    } catch {
+      /* sessionStorage lleno o bloqueado */
+    }
+  }
+
+  private restaurarBorrador(): void {
+    try {
+      const raw = sessionStorage.getItem(BORRADOR_SALDO_KEY);
+      if (!raw) return;
+      const b = JSON.parse(raw) as BorradorSaldo;
+      if (!b?.textosDigital || !Array.isArray(b.dens)) {
+        this.limpiarBorrador();
+        return;
+      }
+
+      for (const campo of this.camposDigital) {
+        const t = formatDineroInput(b.textosDigital[campo.key] || '');
+        this.textosDigital[campo.key] = t === '.' ? '' : t;
+        if (!this.textosDigital[campo.key]) {
+          this.saldo[campo.key] = null;
+        } else {
+          const num = parseDinero(this.textosDigital[campo.key]);
+          this.saldo[campo.key] = Number.isFinite(num) ? num : null;
+        }
+      }
+
+      const porValor = new Map(b.dens.map((d) => [this.n(d.valor), d.cantidad]));
+      for (const d of this.denominaciones) {
+        const cant = porValor.get(this.n(d.valor));
+        if (cant === undefined || cant === '' || cant == null) {
+          d.cantidad = '' as unknown as number;
+        } else {
+          d.cantidad = Math.max(0, Math.trunc(this.n(cant)));
+        }
+      }
+      this.conteoEfectivoActivo = !!b.conteoEfectivoActivo
+        || this.denominaciones.some((d) => String(d.cantidad ?? '').trim() !== '');
+      if (b.seccionMovil === 'digital' || b.seccionMovil === 'efectivo' || b.seccionMovil === null) {
+        this.seccionMovil = b.seccionMovil;
+      }
+
+      if (this.hayCaptura) {
+        this.persistirBorrador();
+      } else {
+        this.limpiarBorrador();
+      }
+    } catch {
+      this.limpiarBorrador();
+    }
+  }
+
+  private limpiarBorrador(): void {
+    try {
+      sessionStorage.removeItem(BORRADOR_SALDO_KEY);
+    } catch {
+      /* ignore */
+    }
   }
 
   private sumaDenominaciones(): number {

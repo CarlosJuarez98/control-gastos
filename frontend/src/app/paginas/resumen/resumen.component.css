@@ -176,15 +176,23 @@
   font-size: 0.88rem;
 }
 
+.metricas-caja .leyenda-disp.leyenda-suma strong,
+.metricas .leyenda-disp.leyenda-suma strong {
+  font-size: 1rem;
+}
+
+.metricas-caja article.card-disponible-total {
+  border-color: color-mix(in srgb, var(--pos, #3d9a6a) 35%, var(--linea));
+}
+
 .metricas-caja article.card-guardadito {
   border-color: color-mix(in srgb, var(--acento) 40%, var(--linea));
 }
 
 .guardadito-lista {
   list-style: none;
-  margin: 0.45rem 0 0;
-  padding: 0.4rem 0 0;
-  border-top: 1px dashed var(--linea);
+  margin: 0.2rem 0 0;
+  padding: 0;
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 0.35rem 0.55rem;

@@ -79,18 +79,22 @@
 
   @if ((data.guardaditoTotal || 0) > 0) {
     <div class="metricas-caja" [class.opaco]="cargando">
-      <article>
+      <article class="card-disponible-total">
         <span>Disponible</span>
         <strong class="mono pos">{{ data.saldoDisponible | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
         <div class="disp-sep" aria-hidden="true"></div>
         <small class="leyenda-disp">
+          <span class="leyenda-txt">Guardadito</span>
+          <strong class="mono pos">{{ data.guardaditoTotal | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
+        </small>
+        <div class="disp-sep" aria-hidden="true"></div>
+        <small class="leyenda-disp leyenda-suma">
           <span class="leyenda-txt">Disponible + guardadito</span>
           <strong class="mono pos">{{ (data.saldoDisponible + data.guardaditoTotal!) | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
         </small>
       </article>
       <article class="card-guardadito">
-        <span>Guardadito</span>
-        <strong class="mono pos">{{ data.guardaditoTotal | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
+        <span>Guardadito por persona</span>
         @if (data.guardaditoPorPersona?.length) {
           <ul class="guardadito-lista">
             @for (g of data.guardaditoPorPersona!; track g.id ?? g.nombre) {
@@ -100,6 +104,8 @@
               </li>
             }
           </ul>
+        } @else {
+          <strong class="mono pos">{{ data.guardaditoTotal | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
         }
       </article>
     </div>
