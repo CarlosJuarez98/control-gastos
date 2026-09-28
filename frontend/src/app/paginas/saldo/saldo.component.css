@@ -249,6 +249,19 @@ input[type='number'] {
   display: inline-flex;
   gap: 0.25rem;
   justify-content: flex-end;
+  align-items: center;
+}
+
+/* En <td>, flex rompe la altura/borde de la fila: mantener table-cell. */
+.historial td.acciones {
+  display: table-cell;
+  vertical-align: middle;
+  text-align: right;
+  line-height: 1;
+}
+
+.historial td.acciones button.icono + button.icono {
+  margin-left: 0.25rem;
 }
 
 .overlay {
