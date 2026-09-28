@@ -428,6 +428,10 @@ export class SaldoComponent implements OnInit, OnDestroy {
       this.error = 'No se puede guardar un corte vacío: captura al menos un monto en apps o efectivo.';
       return;
     }
+    if (this.cargandoEsperado) {
+      this.error = 'Espera a que termine de calcular el Debería antes de guardar.';
+      return;
+    }
 
     const corte = this.hoy();
     const densCapturadas = this.denominaciones.map((d) => ({
@@ -437,10 +441,12 @@ export class SaldoComponent implements OnInit, OnDestroy {
     const textosKeep: Record<DigitalKey, string> = { ...this.textosDigital };
     const efectivoKeep = this.totalEfectivo;
     const conteoKeep = this.conteoEfectivoActivo;
+    const deberiaCorte = this.deberia;
     const payload: SaldoSnapshot = {
       fecha: corte,
-      // Base del siguiente “Debería”: lo que acabas de contar (no el flujo previo).
-      saldoTotal: this.real,
+      // Historial “Debería tener”: el teórico al momento del corte.
+      // El siguiente Debería parte del Tuve (efectivo + apps), no de este campo.
+      saldoTotal: deberiaCorte,
       totalFisico: efectivoKeep,
       dineroBbva: this.dineroONull('dineroBbva'),
       dineroMercadoLibre: this.dineroONull('dineroMercadoLibre'),
@@ -451,7 +457,7 @@ export class SaldoComponent implements OnInit, OnDestroy {
     this.guardando = true;
     this.api.guardarSaldo(payload).subscribe({
       next: (guardado) => {
-        this.baselineSaldo = this.real;
+        this.baselineSaldo = deberiaCorte;
         this.baselineFecha = corte;
         if (guardado) {
           this.historial = [guardado, ...this.historial.filter((h) => h.id !== guardado.id)];
