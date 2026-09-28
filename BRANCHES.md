@@ -9,6 +9,7 @@
 1. Trabajas en **`local`**.
 2. Cuando digas **"sube a la nube"** / **"lleva a la nube"**:
    - merge `local` → `nube` (integrar lo que falte)
+   - **push** de `local` y `nube` a `origin` (siempre; no dejar solo el merge en la máquina)
    - **sin** deploy automático — tú corres `deploy-nube.bat` o `SUBIR-A-LA-NUBE.bat`
    - **sin** sync de datos (local = pruebas; nube = datos reales)
 3. Datos solo con **"sube datos"** / **"baja datos"** → ver `SYNC-DATOS.md` y `A:\Programas-java\SYNC-BIDIRECCIONAL.md`.

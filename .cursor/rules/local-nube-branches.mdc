@@ -7,11 +7,13 @@ alwaysApply: true
 
 - **Rama por defecto de trabajo:** `local` (dev diario: Oracle Docker local, proxy Angular, `iniciar.bat` / `dev.bat`).
 - **Rama de despliegue OCI:** `nube` (compose cloud-atp, `/api` relativo, SpaForward, docs DEPLOY-NUBE).
-- Cuando el usuario diga **"sube a la nube"** / **"lleva a la nube"**:
+- Cuando el usuario diga **"sube a la nube"** / **"lleva a la nube"** / **"sube a prod"**:
   1. Integrar: merge `local` → `nube` (solo lo que falte en `nube`). Commit en `local` si hace falta para poder mergear.
-  2. **NO** ejecutar `deploy-nube.ps1` ni el bat de deploy. El usuario despliega con doble clic (`deploy-nube.bat` o `A:\Programas-java\SUBIR-A-LA-NUBE.bat`).
-  3. Al terminar, recordar brevemente que ya puede correr el bat.
-  4. **No** sincronizar datos.
+  2. **Siempre** `git push origin local` y `git push origin nube` (los repos deben quedar publicados; no dejar solo merge local).
+  3. Volver a checkout `local`.
+  4. **NO** ejecutar `deploy-nube.ps1` ni el bat de deploy. El usuario despliega con doble clic (`deploy-nube.bat` o `A:\Programas-java\SUBIR-A-LA-NUBE.bat`).
+  5. Al terminar, recordar brevemente que ya puede correr el bat.
+  6. **No** sincronizar datos.
 - Datos solo si lo pide explícito:
   - **"sube datos"** → local → ATP (`scripts/sync-datos-incremental.ps1`) — **excepcional**
   - **"baja datos"** / **"baja de la nube"** → ATP → local (`scripts/sync-datos-desde-nube.ps1`) — **preferido**

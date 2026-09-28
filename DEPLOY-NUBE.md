@@ -8,7 +8,7 @@ Ver **`BRANCHES.md`**.
 
 - Desarrollo diario en la rama **`local`**.
 - Deploy a OCI desde la rama **`nube`**.
-- Al decir **"sube / lleva a la nube"**: merge `local` → `nube` (**sin** deploy; tú corres `deploy-nube.bat`). Sin sync de datos.
+- Al decir **"sube / lleva a la nube"**: merge `local` → `nube`, **push** de ambas a `origin` (**sin** deploy; tú corres `deploy-nube.bat`). Sin sync de datos.
 
 ## Realidad en Ampere (ARM)
 
@@ -28,7 +28,7 @@ Opcional: `docker-compose.cloud.yml` (Oracle XE en Docker) solo tiene sentido en
 
 1. Trabajas solo en **local**.
 2. Cuando indiques **“sube / lleva a la nube”**:
-   - se hace merge a `nube`; **tú** despliegas con `deploy-nube.bat` / `SUBIR-A-LA-NUBE.bat`
+   - se hace merge a `nube` y **push** de `local` + `nube` a `origin`; **tú** despliegas con `deploy-nube.bat` / `SUBIR-A-LA-NUBE.bat`
    - **no** se sincronizan datos (nube = datos reales; local = pruebas)
 3. Datos solo si pides **“sube datos”** o **“baja datos”** → `SYNC-DATOS.md`
 4. La nube no se toca hasta que lo pidas.
