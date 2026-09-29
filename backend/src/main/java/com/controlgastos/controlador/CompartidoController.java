@@ -61,6 +61,17 @@ public class CompartidoController {
         return service.registrarAbono(id, body);
     }
 
+    @PutMapping("/movimientos/{id}")
+    public MovimientoPersonaCompartida actualizarAbono(
+            @PathVariable Long id, @RequestBody AbonoRequest body) {
+        return service.actualizarAbono(id, body);
+    }
+
+    @DeleteMapping("/movimientos/{id}")
+    public void anularAbono(@PathVariable Long id) {
+        service.anularAbono(id);
+    }
+
     @PostMapping("/personas/{id}/aplicar-anticipo")
     public MovimientoPersonaCompartida aplicarAnticipo(
             @PathVariable Long id, @RequestBody AplicarAnticipoRequest body) {

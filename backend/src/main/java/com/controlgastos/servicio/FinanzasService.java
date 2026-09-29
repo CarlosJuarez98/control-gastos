@@ -894,8 +894,8 @@ public class FinanzasService {
         if (mov.getFecha() != null && mov.getFecha().isAfter(LocalDate.now())) {
             throw new IllegalArgumentException("La fecha no puede ser mayor a hoy");
         }
-        if (mov.getMonto() == null || mov.getMonto().compareTo(BigDecimal.ZERO) <= 0) {
-            throw new IllegalArgumentException("El monto debe ser mayor a cero");
+        if (mov.getMonto() == null || mov.getMonto().compareTo(BigDecimal.ZERO) == 0) {
+            throw new IllegalArgumentException("El monto no puede ser cero");
         }
         if (mov.getTipo() == null || mov.getTipo().isBlank()) {
             throw new IllegalArgumentException("El tipo de movimiento es obligatorio");
@@ -903,6 +903,10 @@ public class FinanzasService {
         String tipo = mov.getTipo().trim().toUpperCase(Locale.ROOT);
         if (!Set.of("ABONO", "CARGO", "INTERES", "REEMBOLSO").contains(tipo)) {
             throw new IllegalArgumentException("Tipo de movimiento inválido");
+        }
+        // INTERES puede ser negativo (ajuste/condonación de rédito); el resto debe ser > 0.
+        if (!"INTERES".equals(tipo) && mov.getMonto().compareTo(BigDecimal.ZERO) < 0) {
+            throw new IllegalArgumentException("El monto debe ser mayor a cero");
         }
         mov.setTipo(tipo);
     }

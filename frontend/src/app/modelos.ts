@@ -176,12 +176,16 @@ export interface MovimientoPersonaCompartida {
   id?: number;
   persona?: PersonaCompartida;
   fecha: string;
-  tipo: 'DEUDA' | 'ABONO' | 'GUARDADO_IN' | 'GUARDADO_OUT' | string;
+  tipo: 'DEUDA' | 'ABONO' | 'GUARDADO_IN' | 'GUARDADO_OUT' | 'ANTICIPO_OUT' | string;
   monto: number;
   concepto?: string;
   gastoCompartidoId?: number | null;
   ingresoId?: number | null;
+  gastoId?: number | null;
+  movRelacionadoId?: number | null;
   desdeGuardado?: boolean;
+  desdeAnticipo?: boolean;
+  conceptoDestino?: string | null;
   anulado?: boolean;
 }
 

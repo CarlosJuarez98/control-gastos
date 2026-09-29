@@ -363,6 +363,45 @@ button.bloqueo-activo {
 }
 .hint-interes .pos { color: var(--acento-2); }
 
+.card-prestamo {
+  display: grid;
+  gap: 0.55rem;
+  margin: 0.55rem 0 0.75rem;
+  padding: 0.7rem 0.75rem 0.8rem;
+  border-radius: 1rem;
+  border: 1px solid var(--borde-card);
+  background:
+    linear-gradient(160deg, color-mix(in srgb, #fff 3%, transparent), transparent 45%),
+    linear-gradient(160deg, var(--superficie) 0%, var(--superficie-2) 100%);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.12);
+  transition: border-color 0.2s ease;
+}
+.card-prestamo.activa {
+  border-color: color-mix(in srgb, var(--acento) 50%, var(--borde-card));
+}
+.card-prestamo .resumen-prestamo {
+  margin: 0;
+}
+.card-prestamo .btns-redito {
+  margin: 0;
+}
+.card-prestamo .alta-mov.en-card {
+  margin: 0;
+  padding-top: 0.55rem;
+  border-top: 1px dashed var(--linea);
+  background: transparent;
+  box-shadow: none;
+  border-left: none;
+  border-right: none;
+  border-bottom: none;
+  border-radius: 0;
+  scroll-margin-top: 1rem;
+}
+.card-prestamo .hint-en-card {
+  margin: 0;
+  font-size: 0.8rem;
+}
+
 .resumen-prestamo {
   display: flex;
   flex-wrap: wrap;
@@ -409,9 +448,20 @@ button.btn-redito {
   font-weight: 700;
   cursor: pointer;
 }
+.resumen-prestamo .btn-redito.btn-ajustar,
+button.btn-redito.btn-ajustar {
+  border-color: color-mix(in srgb, var(--texto-suave) 45%, var(--linea));
+  background: color-mix(in srgb, var(--texto-suave) 10%, var(--superficie));
+  color: var(--texto);
+}
 .resumen-prestamo .btn-redito:hover,
 button.btn-redito:hover {
   filter: brightness(1.05);
+}
+.btns-redito {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
 }
 .detalle .alta { margin-bottom: 0.75rem; }
 
@@ -925,6 +975,17 @@ tr.editando td {
     min-height: 2.75rem;
     border-radius: 0.85rem;
     box-shadow: 0 8px 22px rgba(0, 0, 0, 0.18);
+  }
+  .card-prestamo-movil {
+    margin: 0 0 0.55rem;
+  }
+  .btns-redito {
+    margin-bottom: 0;
+  }
+  .btns-redito button.btn-redito {
+    flex: 1 1 6.5rem;
+    width: auto;
+    margin-bottom: 0;
   }
   button.btn-redito:active { transform: scale(0.98); }
 

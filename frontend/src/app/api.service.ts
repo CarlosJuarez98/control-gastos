@@ -327,6 +327,28 @@ export class ApiService {
     );
   }
 
+  actualizarAbonoCompartido(
+    movimientoId: number,
+    body: {
+      monto: number;
+      fecha: string;
+      medio: string;
+      concepto?: string;
+      conceptoDestino?: string | null;
+      formaPagoPrestamo?: string;
+      cuentaId?: number | null;
+    }
+  ): Observable<MovimientoPersonaCompartida> {
+    return this.http.put<MovimientoPersonaCompartida>(
+      `${this.base}/compartido/movimientos/${movimientoId}`,
+      body
+    );
+  }
+
+  anularAbonoCompartido(movimientoId: number): Observable<void> {
+    return this.http.delete<void>(`${this.base}/compartido/movimientos/${movimientoId}`);
+  }
+
   aplicarAnticipoCompartido(
     personaId: number,
     body: { conceptoDestino: string; monto: number }

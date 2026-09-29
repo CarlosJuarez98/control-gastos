@@ -1251,17 +1251,106 @@
     } @else {
       <ul class="lista">
         @for (m of movimientos; track m.id) {
-          <li class="fila">
+          <li class="fila" [class.abierta]="editandoAbonoId === m.id">
             <div class="fila-top">
               <div class="info col">
                 <strong>{{ m.persona?.nombre || '?' }} · {{ tipoMovLabel(m.tipo) }}</strong>
                 <span class="meta">
                   {{ fechaTxt(m.fecha) }} · {{ m.monto | currency:'MXN':'symbol-narrow':'1.0-0' }}
                   @if (m.desdeGuardado) { · guardado }
-                  @if (m.concepto) { · {{ m.concepto }} }
+                  @if (m.desdeAnticipo) { · de a favor }
+                  @if (m.conceptoDestino) { · → {{ m.conceptoDestino }} }
+                  @else if (m.concepto) { · {{ m.concepto }} }
                 </span>
               </div>
+              @if (esAbonoEditable(m)) {
+                <div class="acciones">
+                  <button
+                    type="button"
+                    class="icono"
+                    title="Editar abono"
+                    aria-label="Editar abono"
+                    (click)="abrirEditarAbono(m)"
+                  >
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M4 20h4.5L19 9.5 14.5 5 4 15.5V20z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+                      <path d="M12.5 7l4.5 4.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                    </svg>
+                  </button>
+                  <button
+                    type="button"
+                    class="icono peligro"
+                    title="Eliminar abono"
+                    aria-label="Eliminar abono"
+                    (click)="anularAbonoHistorial(m)"
+                  >
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                  </button>
+                </div>
+              }
             </div>
+            @if (editandoAbonoId === m.id) {
+              <form id="form-editar-abono" class="panel-inline" enterAvance (ngSubmit)="guardarAbonoEditado(m)">
+                <p class="hint-pago span-all">
+                  @if (editAbono.desdeAnticipo) {
+                    Corrige el abono tomado del a favor (sin dinero nuevo).
+                  } @else {
+                    Corrige monto, fecha o medio. Se deshace el registro anterior y se vuelve a aplicar.
+                  }
+                </p>
+                <label>Monto
+                  <input [(ngModel)]="editAbono.monto" name="eaMonto" inputmode="decimal" required />
+                </label>
+                <label>Fecha
+                  <input type="date" [(ngModel)]="editAbono.fecha" name="eaFecha" />
+                </label>
+                @if (!editAbono.desdeAnticipo) {
+                  <div class="chips span-all">
+                    <button type="button" class="chip-btn" [class.on]="editAbono.medio === 'EFECTIVO'" (click)="editAbono.medio = 'EFECTIVO'">Efectivo</button>
+                    <button type="button" class="chip-btn" [class.on]="editAbono.medio === 'GUARDADO'" (click)="editAbono.medio = 'GUARDADO'">De guardado</button>
+                    <button type="button" class="chip-btn" [class.on]="editAbono.medio === 'PRESTADO'" (click)="editAbono.medio = 'PRESTADO'">Prestado</button>
+                  </div>
+                  @if (editAbono.medio === 'PRESTADO') {
+                    <div class="chips span-all">
+                      <button type="button" class="chip-btn" [class.on]="editAbono.formaPagoPrestamo === 'EFECTIVO'" (click)="editAbono.formaPagoPrestamo = 'EFECTIVO'">Efectivo</button>
+                      <button type="button" class="chip-btn" [class.on]="editAbono.formaPagoPrestamo === 'TARJETA'" (click)="editAbono.formaPagoPrestamo = 'TARJETA'">Tarjeta</button>
+                    </div>
+                    @if (editAbono.formaPagoPrestamo === 'TARJETA') {
+                      <label class="span-all">Tarjeta
+                        <select [(ngModel)]="editAbono.cuentaId" name="eaTdc">
+                          @for (c of cuentasTdc; track c.id) {
+                            <option [ngValue]="c.id">{{ c.nombre }}</option>
+                          }
+                        </select>
+                      </label>
+                    }
+                  }
+                }
+                @if (cuentasDestinoAbonoEdit(m).length) {
+                  <label class="span-all">Cuenta destino
+                    <select [(ngModel)]="editAbono.conceptoDestino" name="eaDestino">
+                      <option value="">General (FIFO)</option>
+                      @for (d of cuentasDestinoAbonoEdit(m); track d) {
+                        <option [value]="d">{{ d }}</option>
+                      }
+                    </select>
+                  </label>
+                }
+                <label class="span-all">Nota
+                  <input [(ngModel)]="editAbono.concepto" name="eaConcepto" placeholder="Opcional" />
+                </label>
+                <div class="edit-row span-all">
+                  <button
+                    type="submit"
+                    class="primario"
+                    [disabled]="!editAbono.desdeAnticipo && editAbono.medio === 'PRESTADO' && editAbono.formaPagoPrestamo === 'TARJETA' && !editAbono.cuentaId"
+                  >Guardar</button>
+                  <button type="button" class="secundario" (click)="cancelarEditarAbono()">Cancelar</button>
+                </div>
+              </form>
+            }
           </li>
         }
       </ul>

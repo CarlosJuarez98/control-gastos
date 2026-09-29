@@ -238,20 +238,39 @@
             }
           </p>
           @if (resumenPrestamo; as rp) {
-            <div class="resumen-prestamo" role="group" aria-label="Capital y rédito">
-              <div class="rp-item">
-                <span>Sin rédito</span>
-                <strong class="mono">{{ rp.capital | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
+            <div
+              class="card-prestamo"
+              [class.activa]="cobrandoRedito || ajustandoRedito || mov.tipo === 'ABONO' || mov.tipo === 'CARGO'"
+              role="group"
+              aria-label="Capital, rédito y movimientos"
+            >
+              <div class="resumen-prestamo">
+                <div class="rp-item">
+                  <span>Sin rédito</span>
+                  <strong class="mono">{{ rp.capital | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
+                </div>
+                <div class="rp-item">
+                  <span>Rédito</span>
+                  <strong class="mono pos">{{ rp.redito | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
+                </div>
+                <div class="rp-item total">
+                  <span>Te deben</span>
+                  <strong class="mono">{{ rp.total | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
+                </div>
               </div>
-              <div class="rp-item">
-                <span>Rédito</span>
-                <strong class="mono pos">{{ rp.redito | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
+              <div class="btns-redito">
+                <button type="button" class="secundario btn-redito btn-ajustar" (click)="prepararCobro()">Cobrar</button>
+                <button type="button" class="secundario btn-redito" (click)="prepararCobrarRedito()">Cargar rédito</button>
+                <button type="button" class="secundario btn-redito btn-ajustar" (click)="prepararAjustarRedito()">Ajustar rédito</button>
               </div>
-              <div class="rp-item total">
-                <span>Te deben</span>
-                <strong class="mono">{{ rp.total | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
-              </div>
-              <button type="button" class="secundario btn-redito" (click)="prepararCobrarRedito()">Cobrar rédito</button>
+              <ng-container *ngTemplateOutlet="formMovTpl" />
+              @if (ajustandoRedito) {
+                <p class="hint-interes hint-en-card">
+                  Rédito actual:
+                  <strong class="mono pos">{{ rp.redito | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
+                  · Solo cambia el rédito (no toca disponible ni capital). Puedes dejarlo en $0.
+                </p>
+              }
             </div>
           }
         </div>
@@ -330,7 +349,24 @@
       </div>
 
       @if (seleccionPrestamista) {
-        <button type="button" class="btn-redito" (click)="prepararCobrarRedito()">Cobrar rédito</button>
+        <div
+          class="card-prestamo card-prestamo-movil"
+          [class.activa]="cobrandoRedito || ajustandoRedito || mov.tipo === 'ABONO' || mov.tipo === 'CARGO'"
+        >
+          <div class="btns-redito">
+            <button type="button" class="btn-redito btn-ajustar" (click)="prepararCobro()">Cobrar</button>
+            <button type="button" class="btn-redito" (click)="prepararCobrarRedito()">Cargar rédito</button>
+            <button type="button" class="btn-redito btn-ajustar" (click)="prepararAjustarRedito()">Ajustar rédito</button>
+          </div>
+          <ng-container *ngTemplateOutlet="formMovTpl" />
+          @if (ajustandoRedito && resumenPrestamo; as rp) {
+            <p class="hint-interes hint-en-card">
+              Rédito actual:
+              <strong class="mono pos">{{ rp.redito | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
+              · Solo cambia el rédito. Puedes dejarlo en $0.
+            </p>
+          }
+        </div>
       }
 
       @if (esTdc(seleccionada)) {
@@ -346,81 +382,33 @@
       }
     }
 
-    <form class="alta alta-mov" [class.alta-rapida]="esMovil" enterAvance (ngSubmit)="agregarMovimiento()">
-      @if (esMovil) {
-        <label class="campo-saldo">
-          <span class="campo-titulo">
-            {{ usandoDeudaHoy ? 'Deuda que marca hoy' : (cobrandoRedito ? 'Rédito a cobrar' : 'Monto') }}
-            @if (seleccionPrestamista && saldoDisponible != null && mov.tipo === 'CARGO') {
-              <span class="pill-disponible">Para prestar {{ saldoDisponible | currency:'MXN':'symbol-narrow':'1.2-2' }}</span>
-            } @else if (esPagoConDisponible && saldoDisponible != null) {
-              <span class="pill-disponible" [class.pill-aviso]="abonoSuperaDisponible">
-                Tu disponible {{ saldoDisponible | currency:'MXN':'symbol-narrow':'1.2-2' }}
-              </span>
-            }
-          </span>
-          <div class="monto-wrap">
-            <span class="simbolo">$</span>
-            <input
-              type="text"
-              inputmode="decimal"
-              autocomplete="off"
-              [(ngModel)]="montoMov"
-              name="mmonto"
-              required
-              placeholder="0.00"
-              (ngModelChange)="alEscribirMonto($event)"
-              (keydown)="soloMonto($event)"
-            />
-          </div>
-        </label>
-        <div class="fila-rapida fila-tipo-fecha">
-          <label>Tipo
-            <select [(ngModel)]="mov.tipo" name="mtipo" (ngModelChange)="onTipoMovChange($event)">
-              @for (t of tiposMov; track t) { <option [value]="t">{{ etiquetaMov(t) }}</option> }
-            </select>
-          </label>
-          <label>Fecha
-            <input type="date" [(ngModel)]="mov.fecha" name="mfecha" [max]="hoy" required />
-          </label>
-        </div>
-        @if (abonoSuperaDisponible) {
-          <p class="hint-disponible-aviso">
-            Este abono es mayor a tu disponible. Se restará igual; revisa Saldo si el corte no está al día.
-          </p>
-        }
-      } @else {
-        <label>Fecha
-          <input type="date" [(ngModel)]="mov.fecha" name="mfecha" [max]="hoy" required />
-        </label>
-        <label>Tipo
-          <select [(ngModel)]="mov.tipo" name="mtipo" (ngModelChange)="onTipoMovChange($event)">
-            @for (t of tiposMov; track t) { <option [value]="t">{{ etiquetaMov(t) }}</option> }
-          </select>
-        </label>
-        @if (usandoDeudaHoy) {
-          <label>Deuda que marca hoy
-            <div class="monto-wrap">
-              <span class="simbolo">$</span>
-              <input
-                type="text"
-                inputmode="decimal"
-                autocomplete="off"
-                [(ngModel)]="montoMov"
-                name="mmonto"
-                required
-                placeholder="0.00"
-                (ngModelChange)="alEscribirMonto($event)"
-                (keydown)="soloMonto($event)"
-              />
-            </div>
-          </label>
-        } @else {
+    @if (!seleccionPrestamista) {
+      <ng-container *ngTemplateOutlet="formMovTpl" />
+    }
+
+    @if (usandoDeudaHoy && seleccionada) {
+      <p class="hint-interes">
+        Registrado ahora:
+        <strong class="mono">{{ seleccionada.saldoActual | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
+        · Interés a sumar:
+        <strong class="mono" [class.pos]="interesCalculado > 0">
+          {{ interesCalculado | currency:'MXN':'symbol-narrow':'1.2-2' }}
+        </strong>
+      </p>
+    }
+
+    <ng-template #formMovTpl>
+      <form id="form-mov-cuenta" class="alta alta-mov" [class.alta-rapida]="esMovil" [class.en-card]="seleccionPrestamista" enterAvance (ngSubmit)="agregarMovimiento()">
+        @if (esMovil) {
           <label class="campo-saldo">
             <span class="campo-titulo">
-              {{ cobrandoRedito ? 'Rédito a cobrar' : 'Monto' }}
+              {{ usandoDeudaHoy ? 'Deuda que marca hoy' : (ajustandoRedito ? 'Rédito que debe quedar' : (cobrandoRedito ? 'Rédito a cargar' : (seleccionPrestamista && mov.tipo === 'ABONO' ? 'Cobro' : 'Monto'))) }}
               @if (seleccionPrestamista && saldoDisponible != null && mov.tipo === 'CARGO') {
-                <span class="pill-disponible">Disponible para prestar {{ saldoDisponible | currency:'MXN':'symbol-narrow':'1.2-2' }}</span>
+                <span class="pill-disponible">Para prestar {{ saldoDisponible | currency:'MXN':'symbol-narrow':'1.2-2' }}</span>
+              } @else if (esPagoConDisponible && saldoDisponible != null) {
+                <span class="pill-disponible" [class.pill-aviso]="abonoSuperaDisponible">
+                  Tu disponible {{ saldoDisponible | currency:'MXN':'symbol-narrow':'1.2-2' }}
+                </span>
               }
             </span>
             <div class="monto-wrap">
@@ -438,26 +426,80 @@
               />
             </div>
           </label>
+          <div class="fila-rapida fila-tipo-fecha">
+            <label>Tipo
+              <select [(ngModel)]="mov.tipo" name="mtipo" (ngModelChange)="onTipoMovChange($event)">
+                @for (t of tiposMov; track t) { <option [value]="t">{{ etiquetaMov(t) }}</option> }
+              </select>
+            </label>
+            <label>Fecha
+              <input type="date" [(ngModel)]="mov.fecha" name="mfecha" [max]="hoy" required />
+            </label>
+          </div>
+          @if (abonoSuperaDisponible) {
+            <p class="hint-disponible-aviso">
+              Este abono es mayor a tu disponible. Se restará igual; revisa Saldo si el corte no está al día.
+            </p>
+          }
+        } @else {
+          <label>Fecha
+            <input type="date" [(ngModel)]="mov.fecha" name="mfecha" [max]="hoy" required />
+          </label>
+          <label>Tipo
+            <select [(ngModel)]="mov.tipo" name="mtipo" (ngModelChange)="onTipoMovChange($event)">
+              @for (t of tiposMov; track t) { <option [value]="t">{{ etiquetaMov(t) }}</option> }
+            </select>
+          </label>
+          @if (usandoDeudaHoy) {
+            <label>Deuda que marca hoy
+              <div class="monto-wrap">
+                <span class="simbolo">$</span>
+                <input
+                  type="text"
+                  inputmode="decimal"
+                  autocomplete="off"
+                  [(ngModel)]="montoMov"
+                  name="mmonto"
+                  required
+                  placeholder="0.00"
+                  (ngModelChange)="alEscribirMonto($event)"
+                  (keydown)="soloMonto($event)"
+                />
+              </div>
+            </label>
+          } @else {
+            <label class="campo-saldo">
+              <span class="campo-titulo">
+                {{ ajustandoRedito ? 'Rédito que debe quedar' : (cobrandoRedito ? 'Rédito a cargar' : (seleccionPrestamista && mov.tipo === 'ABONO' ? 'Cobro' : 'Monto')) }}
+                @if (seleccionPrestamista && saldoDisponible != null && mov.tipo === 'CARGO') {
+                  <span class="pill-disponible">Disponible para prestar {{ saldoDisponible | currency:'MXN':'symbol-narrow':'1.2-2' }}</span>
+                }
+              </span>
+              <div class="monto-wrap">
+                <span class="simbolo">$</span>
+                <input
+                  type="text"
+                  inputmode="decimal"
+                  autocomplete="off"
+                  [(ngModel)]="montoMov"
+                  name="mmonto"
+                  required
+                  placeholder="0.00"
+                  (ngModelChange)="alEscribirMonto($event)"
+                  (keydown)="soloMonto($event)"
+                />
+              </div>
+            </label>
+          }
         }
-      }
-      <button type="submit" [disabled]="!formMovOk">
-        {{ editMovId ? 'Guardar cambios' : (cobrandoRedito ? 'Cobrar rédito' : 'Registrar movimiento') }}
-      </button>
-      @if (editMovId) {
-        <button type="button" class="secundario" (click)="cancelarEdicionMov()">Cancelar</button>
-      }
-    </form>
-
-    @if (usandoDeudaHoy && seleccionada) {
-      <p class="hint-interes">
-        Registrado ahora:
-        <strong class="mono">{{ seleccionada.saldoActual | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
-        · Interés a sumar:
-        <strong class="mono" [class.pos]="interesCalculado > 0">
-          {{ interesCalculado | currency:'MXN':'symbol-narrow':'1.2-2' }}
-        </strong>
-      </p>
-    }
+        <button type="submit" [disabled]="!formMovOk">
+          {{ editMovId ? 'Guardar cambios' : (ajustandoRedito ? 'Guardar rédito' : (cobrandoRedito ? 'Cargar rédito' : (seleccionPrestamista && mov.tipo === 'ABONO' ? 'Registrar cobro' : 'Registrar movimiento'))) }}
+        </button>
+        @if (editMovId || ajustandoRedito || cobrandoRedito) {
+          <button type="button" class="secundario" (click)="cancelarEdicionMov()">Cancelar</button>
+        }
+      </form>
+    </ng-template>
 
     @if (esMovil) {
       <div class="movil-panel">
@@ -554,7 +596,7 @@
               <li [class.editando]="editMovId === m.id">
                 <div class="mov-meta">
                   <span>{{ m.fecha | fechaCorta }}</span>
-                  <span class="mov-tipo">{{ etiquetaMov(m.tipo) }}</span>
+                  <span class="mov-tipo">{{ etiquetaMov(m.tipo, m.monto) }}</span>
                 </div>
                 @if (m.concepto) {
                   <p class="mov-concepto">{{ m.concepto }}</p>
@@ -637,7 +679,7 @@
             @for (m of movimientosPagina; track m.id) {
               <tr [class.editando]="editMovId === m.id">
                 <td class="col-fecha">{{ m.fecha | fechaCorta }}</td>
-                <td class="col-tipo">{{ etiquetaMov(m.tipo) }}</td>
+                <td class="col-tipo">{{ etiquetaMov(m.tipo, m.monto) }}</td>
                 <td class="col-concepto" [title]="m.concepto || ''">{{ m.concepto || '—' }}</td>
                 <td class="col-monto mono">{{ m.monto | currency:'MXN':'symbol-narrow':'1.2-2' }}</td>
                 <td class="col-acciones">

@@ -849,8 +849,8 @@ public class CompartidoService {
             if ("TARJETA".equals(formaPrestamo)) {
                 gPrest.setCuentaId(req.cuentaId());
             }
-            finanzasService.guardarGasto(gPrest);
-            // El gasto queda en finanzas; el ledger registra abono + deuda préstamo.
+            Gasto gastoGuardado = finanzasService.guardarGasto(gPrest);
+            mov.setGastoId(gastoGuardado.getId());
 
             MovimientoPersonaCompartida deuda = new MovimientoPersonaCompartida();
             deuda.setPersona(persona);
@@ -863,7 +863,8 @@ public class CompartidoService {
             deuda.setDesdeGuardado(false);
             deuda.setDesdeAnticipo(false);
             deuda.setAnulado(false);
-            movimientoRepository.save(deuda);
+            deuda = movimientoRepository.save(deuda);
+            mov.setMovRelacionadoId(deuda.getId());
         } else {
             mov.setDesdeGuardado(false);
             Ingreso ingreso = new Ingreso();
@@ -875,6 +876,182 @@ public class CompartidoService {
         }
 
         return movimientoRepository.save(mov);
+    }
+
+    /**
+     * Anula un abono del historial y revierte ingreso / guardado / préstamo asociados.
+     */
+    @Transactional
+    public void anularAbono(Long movimientoId) {
+        String u = Sesion.usuario();
+        MovimientoPersonaCompartida m = movimientoRepository.findByIdAndPropietario(movimientoId, u)
+                .orElseThrow(() -> new IllegalArgumentException("Movimiento no encontrado"));
+        if (m.isAnulado()) {
+            return;
+        }
+        if (!MovimientoPersonaCompartida.ABONO.equals(m.getTipo())) {
+            throw new IllegalArgumentException("Solo se pueden anular abonos desde el historial");
+        }
+        deshacerEfectosAbono(m);
+        m.setAnulado(true);
+        movimientoRepository.save(m);
+    }
+
+    /**
+     * Corrige un abono: revierte el anterior y registra uno nuevo con los datos corregidos.
+     * Los abonos «a favor → cuenta» (desde anticipo) se editan en sitio (sin dinero nuevo).
+     */
+    @Transactional
+    public MovimientoPersonaCompartida actualizarAbono(Long movimientoId, AbonoRequest req) {
+        String u = Sesion.usuario();
+        MovimientoPersonaCompartida m = movimientoRepository.findByIdAndPropietario(movimientoId, u)
+                .orElseThrow(() -> new IllegalArgumentException("Movimiento no encontrado"));
+        if (m.isAnulado()) {
+            throw new IllegalArgumentException("Ese abono ya está anulado");
+        }
+        if (!MovimientoPersonaCompartida.ABONO.equals(m.getTipo())) {
+            throw new IllegalArgumentException("Solo se pueden editar abonos");
+        }
+        Long personaId = m.getPersona().getId();
+
+        if (m.isDesdeAnticipo()) {
+            return actualizarAbonoDesdeAnticipo(m, req);
+        }
+
+        deshacerEfectosAbono(m);
+        m.setAnulado(true);
+        movimientoRepository.save(m);
+        return registrarAbono(personaId, req);
+    }
+
+    private MovimientoPersonaCompartida actualizarAbonoDesdeAnticipo(
+            MovimientoPersonaCompartida m, AbonoRequest req) {
+        if (req == null || req.monto() == null || req.monto().compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException("El monto debe ser mayor a cero");
+        }
+        String destino = CompartidoEstadoCuenta.normalizarDestino(
+                req.conceptoDestino() != null ? req.conceptoDestino() : m.getConceptoDestino());
+        if (destino == null) {
+            throw new IllegalArgumentException("Elige a qué cuenta mandar el a favor");
+        }
+        BigDecimal monto = req.monto().setScale(0, RoundingMode.HALF_UP).setScale(2, RoundingMode.UNNECESSARY);
+        LocalDate fecha = req.fecha() == null ? m.getFecha() : req.fecha();
+        if (fecha.isAfter(LocalDate.now())) {
+            throw new IllegalArgumentException("La fecha no puede ser mayor a hoy");
+        }
+
+        String u = Sesion.usuario();
+        // Temporalmente quitar este abono del ledger para recalcular a favor disponible
+        m.setAnulado(true);
+        movimientoRepository.save(m);
+
+        List<MovimientoPersonaCompartida> movs = movimientoRepository.findActivosByPropietario(u);
+        List<GastoCompartido> gastos = gastoCompartidoRepository.findActivosByPropietario(u);
+        PersonaResumen actual = armarResumenPersona(m.getPersona(), movs, gastos);
+        if (actual.aFavor().compareTo(monto) < 0) {
+            m.setAnulado(false);
+            movimientoRepository.save(m);
+            throw new IllegalArgumentException(
+                    "Solo tiene a favor $" + actual.aFavor().toPlainString().replace(".00", "")
+                            + "; no alcanza para $" + monto.toPlainString().replace(".00", ""));
+        }
+
+        m.setAnulado(false);
+        m.setFecha(fecha);
+        m.setMonto(monto);
+        m.setConceptoDestino(destino);
+        m.setConcepto("A favor → " + destino);
+        return movimientoRepository.save(m);
+    }
+
+    private void deshacerEfectosAbono(MovimientoPersonaCompartida m) {
+        boolean teniaIngreso = m.getIngresoId() != null;
+        boolean eraGuardado = m.isDesdeGuardado();
+        boolean eraAnticipo = m.isDesdeAnticipo();
+        Long gastoId = m.getGastoId();
+        Long deudaId = m.getMovRelacionadoId();
+
+        if (teniaIngreso) {
+            try {
+                finanzasService.eliminarIngreso(m.getIngresoId());
+            } catch (IllegalArgumentException ignored) {
+                // Ya no existe
+            }
+            m.setIngresoId(null);
+        }
+
+        if (eraGuardado) {
+            PersonaCompartida persona = m.getPersona();
+            BigDecimal caja = persona.getEfectivoGuardado() == null
+                    ? BigDecimal.ZERO
+                    : persona.getEfectivoGuardado();
+            persona.setEfectivoGuardado(caja.add(m.getMonto()));
+            personaRepository.save(persona);
+        }
+
+        if (eraAnticipo) {
+            return;
+        }
+
+        boolean eraPrestado = gastoId != null || deudaId != null || (!teniaIngreso && !eraGuardado);
+        if (!eraPrestado) {
+            return;
+        }
+
+        if (gastoId == null) {
+            gastoId = buscarGastoPrestamoLegacy(m).map(Gasto::getId).orElse(null);
+        }
+        if (gastoId != null) {
+            try {
+                finanzasService.eliminarGasto(gastoId);
+            } catch (IllegalArgumentException ignored) {
+                // Ya no existe
+            }
+            m.setGastoId(null);
+        }
+
+        if (deudaId != null) {
+            movimientoRepository.findByIdAndPropietario(deudaId, m.getPropietario()).ifPresent(deuda -> {
+                if (!deuda.isAnulado()) {
+                    deuda.setAnulado(true);
+                    movimientoRepository.save(deuda);
+                }
+            });
+            m.setMovRelacionadoId(null);
+        } else {
+            buscarDeudaPrestamoLegacy(m).ifPresent(deuda -> {
+                deuda.setAnulado(true);
+                movimientoRepository.save(deuda);
+            });
+        }
+    }
+
+    private java.util.Optional<Gasto> buscarGastoPrestamoLegacy(MovimientoPersonaCompartida abono) {
+        String u = abono.getPropietario();
+        String nombre = abono.getPersona() != null ? abono.getPersona().getNombre() : "";
+        String marca = ": abono prestado";
+        return gastoRepository
+                .findByPropietarioAndFechaBetweenOrderByFechaDescIdDesc(u, abono.getFecha(), abono.getFecha())
+                .stream()
+                .filter(g -> g.getMonto() != null && g.getMonto().compareTo(abono.getMonto()) == 0)
+                .filter(g -> {
+                    String mot = g.getMotivo() == null ? "" : g.getMotivo();
+                    return mot.contains(marca) && mot.contains(nombre);
+                })
+                .findFirst();
+    }
+
+    private java.util.Optional<MovimientoPersonaCompartida> buscarDeudaPrestamoLegacy(
+            MovimientoPersonaCompartida abono) {
+        Long personaId = abono.getPersona().getId();
+        return movimientoRepository.findActivosByPersonaAndPropietario(personaId, abono.getPropietario())
+                .stream()
+                .filter(d -> MovimientoPersonaCompartida.DEUDA.equals(d.getTipo()))
+                .filter(d -> DESTINO_PRESTAMO.equals(d.getConceptoDestino()))
+                .filter(d -> d.getFecha() != null && d.getFecha().equals(abono.getFecha()))
+                .filter(d -> d.getMonto() != null && d.getMonto().compareTo(abono.getMonto()) == 0)
+                .filter(d -> abono.getId() == null || d.getId() < abono.getId() || Math.abs(d.getId() - abono.getId()) < 5)
+                .findFirst();
     }
 
     /**

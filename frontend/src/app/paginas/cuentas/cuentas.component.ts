@@ -302,11 +302,14 @@ export class CuentasComponent implements OnInit, OnDestroy {
     return n;
   }
 
-  etiquetaMov(t: string): string {
-    switch ((t || '').toUpperCase()) {
+  etiquetaMov(t: string, monto?: number | null): string {
+    const tipo = (t || '').toUpperCase();
+    switch (tipo) {
       case 'ABONO': return this.seleccionPrestamista ? 'Cobro' : 'Abono';
       case 'CARGO': return this.seleccionPrestamista ? 'Préstamo' : 'Cargo';
-      case 'INTERES': return this.seleccionPrestamista ? 'Rédito' : 'Interés';
+      case 'INTERES':
+        if (this.seleccionPrestamista && monto != null && monto < 0) return 'Ajuste rédito';
+        return this.seleccionPrestamista ? 'Rédito' : 'Interés';
       case 'REEMBOLSO': return 'Reembolso';
       default: return t;
     }
@@ -314,6 +317,7 @@ export class CuentasComponent implements OnInit, OnDestroy {
 
   onTipoMovChange(tipo: string): void {
     this.mov.tipo = tipo;
+    this.ajustandoRedito = false;
     this.error = '';
     if (this.editMovId != null) {
       this.refrescarFormMovOk();
@@ -343,8 +347,11 @@ export class CuentasComponent implements OnInit, OnDestroy {
     return this.mov.tipo === 'INTERES' && this.editMovId == null && !this.seleccionPrestamista;
   }
 
+  /** Ajuste absoluto del rédito pendiente (puede ser 0; no mueve disponible). */
+  ajustandoRedito = false;
+
   get cobrandoRedito(): boolean {
-    return this.seleccionPrestamista && this.mov.tipo === 'INTERES' && this.editMovId == null;
+    return this.seleccionPrestamista && this.mov.tipo === 'INTERES' && this.editMovId == null && !this.ajustandoRedito;
   }
 
   /**
@@ -373,30 +380,104 @@ export class CuentasComponent implements OnInit, OnDestroy {
           break;
       }
     }
-    const aRedito = Math.min(cobros, reditoCargado);
+    const aRedito = Math.min(cobros, Math.max(0, reditoCargado));
     const redito = Math.round((reditoCargado - aRedito) * 100) / 100;
     const aCapital = cobros - aRedito;
     const capital = Math.round(Math.max(0, prestado - aCapital) * 100) / 100;
-    const total = Math.round((capital + redito) * 100) / 100;
-    return { capital, redito, total };
+    const total = Math.round((capital + Math.max(0, redito)) * 100) / 100;
+    return { capital, redito: Math.max(0, redito), total };
   }
 
-  /** Atajo: deja listo el formulario para cobrar rédito. */
+  /** Atajo: deja listo el formulario para cargar más rédito. */
   prepararCobrarRedito(): void {
     if (!this.seleccionPrestamista) return;
     this.editMovId = null;
+    this.ajustandoRedito = false;
     this.hoy = fechaHoyLocal();
     this.mov = { fecha: this.hoy, tipo: 'INTERES' };
     this.montoMov = '';
     this.error = '';
     this.refrescarFormMovOk();
+    this.enfocarMontoMov();
+  }
+
+  /** Atajo: cobro (abono) del prestamista, en la misma card. */
+  prepararCobro(): void {
+    if (!this.seleccionPrestamista) return;
+    this.editMovId = null;
+    this.ajustandoRedito = false;
+    this.hoy = fechaHoyLocal();
+    this.mov = { fecha: this.hoy, tipo: 'ABONO' };
+    this.montoMov = '';
+    this.error = '';
+    this.refrescarFormMovOk();
+    this.enfocarMontoMov();
+  }
+
+  /** Fija el rédito pendiente (incluso a $0) sin tocar disponible ni capital. */
+  prepararAjustarRedito(): void {
+    if (!this.seleccionPrestamista) return;
+    this.editMovId = null;
+    this.ajustandoRedito = true;
+    this.hoy = fechaHoyLocal();
+    this.mov = { fecha: this.hoy, tipo: 'INTERES' };
+    const actual = this.resumenPrestamo?.redito ?? 0;
+    this.montoMov = actual > 0 ? formatDineroNumero(actual) : '0';
+    this.error = '';
+    this.refrescarFormMovOk();
+    this.enfocarMontoMov(true);
+  }
+
+  private enfocarMontoMov(seleccionar = false): void {
     this.cdr.detectChanges();
-    setTimeout(() => {
-      const el = document.querySelector<HTMLInputElement>(
+    const aplicar = () => {
+      const hostEl = this.host.nativeElement;
+      const form = hostEl.querySelector('form.alta-mov') as HTMLElement | null;
+      const input = hostEl.querySelector(
         'form.alta-mov input[name="mmonto"]',
-      );
-      el?.focus();
-    }, 50);
+      ) as HTMLInputElement | null;
+      if (form) {
+        this.scrollAElemento(form);
+      }
+      if (input) {
+        input.focus({ preventScroll: true });
+        if (seleccionar) input.select();
+      }
+    };
+    // Doble rAF: el layout de la card/form ya está estable (sobre todo en PC).
+    requestAnimationFrame(() => requestAnimationFrame(aplicar));
+  }
+
+  /** Lleva el scroll del panel (.detalle en PC, host en móvil) hasta el formulario. */
+  private scrollAElemento(el: HTMLElement): void {
+    let padre: HTMLElement | null = el.parentElement;
+    let scrollEl: HTMLElement | null = null;
+    while (padre && padre !== this.host.nativeElement.parentElement) {
+      const oy = getComputedStyle(padre).overflowY;
+      if (
+        (oy === 'auto' || oy === 'scroll' || oy === 'overlay') &&
+        padre.scrollHeight > padre.clientHeight + 1
+      ) {
+        scrollEl = padre;
+        break;
+      }
+      if (padre === this.host.nativeElement) break;
+      padre = padre.parentElement;
+    }
+    if (!scrollEl) {
+      // En PC el panel lateral (.detalle) suele ser el scroller.
+      scrollEl =
+        (this.host.nativeElement.querySelector('.detalle-lateral') as HTMLElement | null) ||
+        (this.host.nativeElement.querySelector('.detalle') as HTMLElement | null) ||
+        this.host.nativeElement;
+      if (scrollEl.scrollHeight <= scrollEl.clientHeight + 1) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
+        return;
+      }
+    }
+    const margen = this.esMovil ? 8 : 16;
+    const delta = el.getBoundingClientRect().top - scrollEl.getBoundingClientRect().top - margen;
+    scrollEl.scrollTo({ top: Math.max(0, scrollEl.scrollTop + delta), behavior: 'smooth' });
   }
 
   get puedeEliminarCuenta(): boolean {
@@ -644,7 +725,28 @@ export class CuentasComponent implements OnInit, OnDestroy {
       this.formMovOk = !!deudaHoy && deudaHoy > actual;
       return;
     }
+    if (this.ajustandoRedito) {
+      const objetivo = parseDinero(this.montoMov);
+      if (objetivo == null || objetivo < 0 || !Number.isFinite(objetivo)) {
+        this.formMovOk = false;
+        return;
+      }
+      // Permitir "0" explícito
+      if ((this.montoMov || '').trim() === '' && objetivo === 0) {
+        this.formMovOk = false;
+        return;
+      }
+      const actual = this.resumenPrestamo?.redito ?? 0;
+      const delta = Math.round((objetivo - actual) * 100) / 100;
+      this.formMovOk = Math.abs(delta) >= 0.005;
+      return;
+    }
     const monto = parseDinero(this.montoMov);
+    // Al editar un rédito/interés se permite monto negativo (ajuste).
+    if (this.editMovId != null && (this.mov.tipo || '').toUpperCase() === 'INTERES') {
+      this.formMovOk = monto != null && Number.isFinite(monto) && Math.abs(monto) >= 0.005;
+      return;
+    }
     this.formMovOk = !!monto && monto > 0;
   }
 
@@ -804,6 +906,7 @@ export class CuentasComponent implements OnInit, OnDestroy {
     if (!m.id) return;
     this.error = '';
     this.editMovId = m.id;
+    this.ajustandoRedito = false;
     this.mov = {
       fecha: (m.fecha || '').slice(0, 10) || fechaHoyLocal(),
       tipo: (m.tipo || 'ABONO').toUpperCase(),
@@ -813,10 +916,12 @@ export class CuentasComponent implements OnInit, OnDestroy {
       this.movilHistorialAbierto = true;
     }
     this.refrescarFormMovOk();
+    this.enfocarMontoMov(true);
   }
 
   cancelarEdicionMov(): void {
     this.editMovId = null;
+    this.ajustandoRedito = false;
     this.hoy = fechaHoyLocal();
     this.mov = { fecha: this.hoy, tipo: 'ABONO' };
     this.montoMov = '';
@@ -839,7 +944,29 @@ export class CuentasComponent implements OnInit, OnDestroy {
       }
       return monto;
     }
+    if (this.ajustandoRedito) {
+      const raw = (this.montoMov || '').trim();
+      const objetivo = raw === '' ? NaN : parseDinero(this.montoMov);
+      if (!Number.isFinite(objetivo) || objetivo < 0) {
+        this.error = 'Captura el rédito que debe quedar (puede ser 0)';
+        return null;
+      }
+      const actual = this.resumenPrestamo?.redito ?? 0;
+      const delta = Math.round((objetivo - actual) * 100) / 100;
+      if (Math.abs(delta) < 0.005) {
+        this.error = 'El rédito ya está en ese monto';
+        return null;
+      }
+      return delta;
+    }
     const monto = parseDinero(this.montoMov);
+    if (this.editMovId != null && (this.mov.tipo || '').toUpperCase() === 'INTERES') {
+      if (!Number.isFinite(monto) || Math.abs(monto) < 0.005) {
+        this.error = 'El monto del rédito no puede ser cero';
+        return null;
+      }
+      return Math.round(monto * 100) / 100;
+    }
     if (!monto || monto <= 0) {
       this.error = 'El monto debe ser mayor a cero';
       return null;
@@ -888,6 +1015,9 @@ export class CuentasComponent implements OnInit, OnDestroy {
       tipo: this.mov.tipo,
       monto,
     };
+    if (this.ajustandoRedito) {
+      body.concepto = 'Ajuste de rédito';
+    }
 
     const cuentaId = this.seleccionada.id;
     const req = this.editMovId != null
@@ -908,7 +1038,7 @@ export class CuentasComponent implements OnInit, OnDestroy {
   async eliminarMovimiento(m: Movimiento): Promise<void> {
     if (!this.seleccionada?.id || !m.id) return;
     const ok = await this.confirmDlg.ask(
-      `¿Eliminar ${this.etiquetaMov(m.tipo)} de ${formatDineroNumero(Number(m.monto) || 0)}?`,
+      `¿Eliminar ${this.etiquetaMov(m.tipo, m.monto)} de ${formatDineroNumero(Number(m.monto) || 0)}?`,
       { titulo: 'Eliminar movimiento', confirmarTexto: 'Borrar' },
     );
     if (!ok) return;

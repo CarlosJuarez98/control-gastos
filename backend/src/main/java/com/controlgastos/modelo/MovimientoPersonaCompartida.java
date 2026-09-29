@@ -51,6 +51,19 @@ public class MovimientoPersonaCompartida {
     @Column(name = "INGRESO_ID")
     private Long ingresoId;
 
+    /**
+     * Gasto de finanzas creado si el abono fue PRESTADO (tú cubriste con efectivo/TDC).
+     * Permite revertir al anular/editar.
+     */
+    @Column(name = "GASTO_ID")
+    private Long gastoId;
+
+    /**
+     * Deuda de préstamo creada junto con un abono PRESTADO (mismo monto).
+     */
+    @Column(name = "MOV_RELACIONADO_ID")
+    private Long movRelacionadoId;
+
     /** Abono cobrado del efectivo guardado (caja aparte; no mueve disponible). */
     @Column(name = "DESDE_GUARDADO")
     private Boolean desdeGuardado = Boolean.FALSE;
@@ -90,6 +103,10 @@ public class MovimientoPersonaCompartida {
     public void setGastoCompartidoId(Long gastoCompartidoId) { this.gastoCompartidoId = gastoCompartidoId; }
     public Long getIngresoId() { return ingresoId; }
     public void setIngresoId(Long ingresoId) { this.ingresoId = ingresoId; }
+    public Long getGastoId() { return gastoId; }
+    public void setGastoId(Long gastoId) { this.gastoId = gastoId; }
+    public Long getMovRelacionadoId() { return movRelacionadoId; }
+    public void setMovRelacionadoId(Long movRelacionadoId) { this.movRelacionadoId = movRelacionadoId; }
 
     public boolean isDesdeGuardado() {
         return Boolean.TRUE.equals(desdeGuardado);

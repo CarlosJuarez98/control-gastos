@@ -138,6 +138,19 @@ export class CompartidoComponent implements OnInit, OnDestroy {
     cuentaId: null as number | null,
   };
 
+  /** Abono del historial en edición. */
+  editandoAbonoId: number | null = null;
+  editAbono = {
+    monto: '',
+    fecha: fechaHoyLocal(),
+    medio: 'EFECTIVO' as 'EFECTIVO' | 'GUARDADO' | 'PRESTADO',
+    concepto: '',
+    conceptoDestino: '' as string,
+    formaPagoPrestamo: 'EFECTIVO' as 'EFECTIVO' | 'TARJETA',
+    cuentaId: null as number | null,
+    desdeAnticipo: false,
+  };
+
   anticipoPersonaId: number | null = null;
   anticipoForm = {
     conceptoDestino: '',
@@ -310,6 +323,7 @@ export class CompartidoComponent implements OnInit, OnDestroy {
       this.prestarPersonaId != null ||
       this.cobrandoId != null ||
       this.editandoPagoId != null ||
+      this.editandoAbonoId != null ||
       this.recalculandoId != null ||
       this.editFijoId != null ||
       (this.esMovil && this.altaAbierta)
@@ -337,6 +351,10 @@ export class CompartidoComponent implements OnInit, OnDestroy {
     }
     if (this.editandoPagoId != null) {
       this.cancelarEditarPago();
+      return;
+    }
+    if (this.editandoAbonoId != null) {
+      this.cancelarEditarAbono();
       return;
     }
     if (this.recalculandoId != null) {
@@ -1457,6 +1475,109 @@ export class CompartidoComponent implements OnInit, OnDestroy {
         return 'Devolvió';
       default:
         return t;
+    }
+  }
+
+  esAbonoEditable(m: MovimientoPersonaCompartida): boolean {
+    return m.tipo === 'ABONO' && !!m.id && !m.anulado;
+  }
+
+  medioInferidoAbono(m: MovimientoPersonaCompartida): 'EFECTIVO' | 'GUARDADO' | 'PRESTADO' {
+    if (m.desdeGuardado) return 'GUARDADO';
+    if (m.ingresoId != null) return 'EFECTIVO';
+    if (m.desdeAnticipo) return 'EFECTIVO';
+    return 'PRESTADO';
+  }
+
+  abrirEditarAbono(m: MovimientoPersonaCompartida): void {
+    if (!this.esAbonoEditable(m)) return;
+    this.editandoAbonoId = m.id!;
+    this.editAbono = {
+      monto: String(Math.round(Number(m.monto) || 0)),
+      fecha: m.fecha || fechaHoyLocal(),
+      medio: this.medioInferidoAbono(m),
+      concepto: m.concepto || '',
+      conceptoDestino: m.conceptoDestino || '',
+      formaPagoPrestamo: 'EFECTIVO',
+      cuentaId: this.cuentasTdc[0]?.id ?? null,
+      desdeAnticipo: !!m.desdeAnticipo,
+    };
+    this.error = '';
+    this.ok = '';
+    this.scrollA('#form-editar-abono');
+  }
+
+  cancelarEditarAbono(): void {
+    this.editandoAbonoId = null;
+  }
+
+  cuentasDestinoAbonoEdit(m: MovimientoPersonaCompartida): string[] {
+    const personaId = m.persona?.id;
+    const resumen = this.resumen?.personas?.find((p) => p.id === personaId);
+    if (resumen) return this.cuentasDestinoDe(resumen);
+    if (personaId != null) return this.cuentasDestinoDe({ id: personaId, porCuenta: [] });
+    return [];
+  }
+
+  async guardarAbonoEditado(m: MovimientoPersonaCompartida): Promise<void> {
+    if (!m.id || this.editandoAbonoId !== m.id) return;
+    const monto = Math.round(parseDinero(this.editAbono.monto));
+    if (monto <= 0) {
+      this.error = 'El monto debe ser mayor a cero';
+      return;
+    }
+    if (
+      !this.editAbono.desdeAnticipo &&
+      this.editAbono.medio === 'PRESTADO' &&
+      this.editAbono.formaPagoPrestamo === 'TARJETA' &&
+      !this.editAbono.cuentaId
+    ) {
+      this.error = 'Elige la tarjeta con la que prestas';
+      return;
+    }
+    try {
+      await this.loading.run(async () => {
+        await firstValueFrom(
+          this.api.actualizarAbonoCompartido(m.id!, {
+            monto,
+            fecha: this.editAbono.fecha || fechaHoyLocal(),
+            medio: this.editAbono.desdeAnticipo ? 'EFECTIVO' : this.editAbono.medio,
+            concepto: (this.editAbono.concepto || '').trim() || undefined,
+            conceptoDestino: (this.editAbono.conceptoDestino || '').trim() || null,
+            formaPagoPrestamo:
+              this.editAbono.medio === 'PRESTADO' ? this.editAbono.formaPagoPrestamo : undefined,
+            cuentaId:
+              this.editAbono.medio === 'PRESTADO' && this.editAbono.formaPagoPrestamo === 'TARJETA'
+                ? this.editAbono.cuentaId
+                : null,
+          })
+        );
+        this.editandoAbonoId = null;
+        await this.refreshListas();
+      }, 'Corrigiendo abono…');
+      this.ok = 'Abono corregido';
+    } catch (e: unknown) {
+      this.error = this.msg(e, 'No se pudo corregir el abono');
+    }
+  }
+
+  async anularAbonoHistorial(m: MovimientoPersonaCompartida): Promise<void> {
+    if (!this.esAbonoEditable(m)) return;
+    const quien = m.persona?.nombre || 'la persona';
+    const ok = await this.confirmDlg.ask(
+      `¿Eliminar el abono de ${quien} por $${Math.round(Number(m.monto) || 0)}? Se deshace el efecto en disponible / guardado / préstamo.`,
+      { titulo: 'Eliminar abono', confirmarTexto: 'Eliminar', cancelarTexto: 'Cancelar' }
+    );
+    if (!ok) return;
+    try {
+      await this.loading.run(async () => {
+        await firstValueFrom(this.api.anularAbonoCompartido(m.id!));
+        if (this.editandoAbonoId === m.id) this.editandoAbonoId = null;
+        await this.refreshListas();
+      }, 'Eliminando abono…');
+      this.ok = 'Abono eliminado';
+    } catch (e: unknown) {
+      this.error = this.msg(e, 'No se pudo eliminar el abono');
     }
   }
 
