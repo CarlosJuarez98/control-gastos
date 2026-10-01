@@ -690,10 +690,9 @@ public class FinanzasService {
     }
 
     /**
-     * Como el banco: deuda total vs saldo al corte.
-     * Después del corte = CARGO + INTERÉS con fecha &gt; último corte cerrado
-     * (lo cargado después del corte, por fecha de movimiento).
-     * Al corte = max(0, total − después). Misma regla en front (desgloseSaldoTdc).
+     * Desglose por ciclo / MSI para toda cuenta tipo TDC con día de corte.
+     * No depende del banco ni del nombre: BBVA, Nu, MP, o cualquier TDC nueva.
+     * listarCuentas / obtenerCuenta lo calculan igual.
      */
     private void enriquecerSaldoAlCorte(Cuenta c) {
         if (c == null || c.getId() == null || !esCuentaTdc(c) || c.getDiaCorte() == null) {
@@ -701,21 +700,46 @@ public class FinanzasService {
             c.setSaldoDespuesCorte(null);
             return;
         }
-        LocalDate corte = ultimoCorteCerrado(c.getDiaCorte(), LocalDate.now());
-        if (corte == null) {
+        LocalDate ciclo = proximoCorte(c.getDiaCorte(), LocalDate.now());
+        if (ciclo == null) {
             c.setSaldoAlCorte(null);
             c.setSaldoDespuesCorte(null);
             return;
         }
         String u = c.getPropietario() != null ? c.getPropietario() : Sesion.usuario();
-        BigDecimal cargosDespues = nullSafe(
-                movimientoRepository.sumaCargosDespuesDeCuenta(u, c.getId(), corte));
-        if (cargosDespues.compareTo(BigDecimal.ZERO) < 0) {
-            // Ajustes negativos de interés: no empujan "después" bajo cero.
-            cargosDespues = BigDecimal.ZERO;
+        List<MovimientoCuenta> movs =
+                movimientoRepository.findByPropietarioAndCuentaIdOrderByFechaDescIdDesc(u, c.getId());
+        enriquecerMovimientosConGasto(movs);
+
+        BigDecimal futuros = BigDecimal.ZERO;
+        for (MovimientoCuenta m : movs) {
+            if (m.getTipo() == null) continue;
+            String tipo = m.getTipo().trim().toUpperCase(Locale.ROOT);
+            if (!"CARGO".equals(tipo) && !"INTERES".equals(tipo)) continue;
+            BigDecimal monto = nullSafe(m.getMonto());
+            if (monto.compareTo(BigDecimal.ZERO) <= 0) continue;
+
+            Integer meses = m.getMeses();
+            if (meses != null && meses > 1) {
+                List<LocalDate> cortes = cortesPlanMeses(c.getDiaCorte(), m.getFecha(), meses);
+                List<BigDecimal> cuotas = cuotasDeTotal(monto, meses);
+                for (int i = 0; i < cortes.size(); i++) {
+                    if (cortes.get(i).isAfter(ciclo)) {
+                        futuros = futuros.add(cuotas.get(i));
+                    }
+                }
+            } else {
+                LocalDate corteCompra = corteDeCompra(c.getDiaCorte(), m.getFecha());
+                if (corteCompra != null && corteCompra.isAfter(ciclo)) {
+                    futuros = futuros.add(monto);
+                }
+            }
+        }
+        if (futuros.compareTo(BigDecimal.ZERO) < 0) {
+            futuros = BigDecimal.ZERO;
         }
         BigDecimal total = nullSafe(c.getSaldoActual());
-        BigDecimal alCorte = total.subtract(cargosDespues);
+        BigDecimal alCorte = total.subtract(futuros);
         if (alCorte.compareTo(BigDecimal.ZERO) < 0) {
             alCorte = BigDecimal.ZERO;
         }
@@ -730,18 +754,57 @@ public class FinanzasService {
         c.setSaldoDespuesCorte(despues.setScale(2, RoundingMode.HALF_UP));
     }
 
-    /** Último día de corte ya ocurrido (≤ hoy). */
-    private static LocalDate ultimoCorteCerrado(Integer diaCorte, LocalDate hoy) {
+    /** Próximo corte del ciclo abierto (día de corte inclusive). */
+    private static LocalDate proximoCorte(Integer diaCorte, LocalDate hoy) {
         if (diaCorte == null || diaCorte < 1 || diaCorte > 31) {
             return null;
         }
         YearMonth ym = YearMonth.from(hoy);
         LocalDate corte = DiaCobroMes.fechaEnMes(ym, diaCorte);
-        if (corte.isAfter(hoy)) {
-            ym = ym.minusMonths(1);
+        if (hoy.getDayOfMonth() > diaCorte) {
+            ym = ym.plusMonths(1);
             corte = DiaCobroMes.fechaEnMes(ym, diaCorte);
         }
         return corte;
+    }
+
+    /** Corte del ciclo al que cae una compra (día de corte inclusive). */
+    private static LocalDate corteDeCompra(Integer diaCorte, LocalDate fechaCompra) {
+        if (diaCorte == null || fechaCompra == null || diaCorte < 1 || diaCorte > 31) {
+            return null;
+        }
+        YearMonth ym = YearMonth.from(fechaCompra);
+        if (fechaCompra.getDayOfMonth() > diaCorte) {
+            ym = ym.plusMonths(1);
+        }
+        return DiaCobroMes.fechaEnMes(ym, diaCorte);
+    }
+
+    private static List<LocalDate> cortesPlanMeses(Integer diaCorte, LocalDate fechaCompra, int meses) {
+        if (meses <= 1 || fechaCompra == null) {
+            return List.of();
+        }
+        LocalDate primero = corteDeCompra(diaCorte, fechaCompra);
+        if (primero == null) {
+            return List.of();
+        }
+        List<LocalDate> out = new ArrayList<>(meses);
+        YearMonth ym = YearMonth.from(primero);
+        for (int i = 0; i < meses; i++) {
+            out.add(DiaCobroMes.fechaEnMes(ym, diaCorte));
+            ym = ym.plusMonths(1);
+        }
+        return out;
+    }
+
+    private static List<BigDecimal> cuotasDeTotal(BigDecimal total, int meses) {
+        CuotasPlan.Resultado plan = CuotasPlan.deTotal(total, meses);
+        List<BigDecimal> out = new ArrayList<>(meses);
+        for (int i = 0; i < meses - 1; i++) {
+            out.add(plan.cuotaRegular());
+        }
+        out.add(plan.cuotaUltima());
+        return out;
     }
 
     @Transactional
@@ -767,7 +830,7 @@ public class FinanzasService {
             }
         }
         cuenta.setPropietario(u);
-        normalizarDatosTdc(cuenta);
+        normalizarDatosTdc(cuenta, nueva);
         Cuenta saved = cuentaRepository.save(cuenta);
         if (nueva && inicialPrestamo.compareTo(BigDecimal.ZERO) > 0) {
             // Registra el desembolso para que reste del saldo disponible.
@@ -779,14 +842,23 @@ public class FinanzasService {
             mov.setPropietario(u);
             movimientoRepository.save(mov);
         }
+        enriquecerSaldoAlCorte(saved);
         return saved;
     }
 
-    private void normalizarDatosTdc(Cuenta cuenta) {
+    /**
+     * Toda TDC nueva exige corte + límite de pago (desglose por ciclo / MSI).
+     * Las ya existentes sin calendario pueden seguir hasta que se capturen.
+     */
+    private void normalizarDatosTdc(Cuenta cuenta, boolean nueva) {
         boolean tdc = cuenta.getTipo() != null && "TDC".equalsIgnoreCase(cuenta.getTipo().trim());
         if (!tdc) {
             // Otros tipos no usan estos campos; se dejan como estén (pueden quedar null).
             return;
+        }
+        if (nueva && (cuenta.getDiaCorte() == null || cuenta.getDiaLimitePago() == null)) {
+            throw new IllegalArgumentException(
+                    "Toda TDC necesita día de corte y día límite de pago (ej. 13 y 23)");
         }
         cuenta.setDiaCorte(validarDiaMes(cuenta.getDiaCorte(), "Día de corte"));
         cuenta.setDiaLimitePago(validarDiaMes(cuenta.getDiaLimitePago(), "Día límite de pago"));

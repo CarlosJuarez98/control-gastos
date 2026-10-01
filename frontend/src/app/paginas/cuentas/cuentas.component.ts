@@ -253,14 +253,16 @@ export class CuentasComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * TDC como el banco: deuda total vs saldo al corte
-   * (excluye compras hechas después del último corte).
+   * TDC como Mercado Pago: deuda total, monto del ciclo abierto (próximo corte)
+   * y cuotas MSI de cortes posteriores (no el resto completo del plan).
    */
   get resumenTdc(): {
     total: number;
     alCorte: number;
     despuesDelCorte: number;
     etiquetaCorte: string;
+    etiquetaCiclo: string;
+    futuros: { etiqueta: string; monto: number }[];
   } | null {
     if (!this.seleccionada || !this.esTdc(this.seleccionada) || this.seleccionada.diaCorte == null) {
       return null;
@@ -272,15 +274,18 @@ export class CuentasComponent implements OnInit, OnDestroy {
       alCorte: d.alCorte,
       despuesDelCorte: d.despuesDelCorte,
       etiquetaCorte: formatoFechaCortaEs(d.fechaCorte),
+      etiquetaCiclo: d.etiquetaCiclo,
+      futuros: d.futuros.map((f) => ({ etiqueta: f.etiqueta, monto: f.monto })),
     };
   }
 
-  /** En lista: tip corto si el corte difiere del total. */
+  /** En lista: tip del ciclo abierto si hay MSI / cargos en cortes siguientes. */
   tipCorteTdc(c: Cuenta): string | null {
     if (!this.esTdc(c) || c.diaCorte == null) return null;
     const d = desgloseSaldoTdc(c);
     if (!d.fechaCorte || d.despuesDelCorte < 0.005) return null;
-    return `Corte ${formatoFechaCortaEs(d.fechaCorte)}: ${formatDineroNumero(d.alCorte)}`;
+    const mes = d.etiquetaCiclo || formatoFechaCortaEs(d.fechaCorte);
+    return `${mes}: ${formatDineroNumero(d.alCorte)}`;
   }
 
   /** Texto corto en lista: "Corte 9 · Pago 22" (solo el día, sin fecha repetida). */
@@ -828,7 +833,19 @@ export class CuentasComponent implements OnInit, OnDestroy {
   }
 
   refrescarFormNuevaOk(): void {
-    this.formNuevaOk = !!(this.nueva.nombre || '').trim();
+    const nombreOk = !!(this.nueva.nombre || '').trim();
+    if (!nombreOk) {
+      this.formNuevaOk = false;
+      return;
+    }
+    // Toda TDC nueva: corte + límite de pago (desglose por ciclo / MSI).
+    if ((this.nueva.tipo || '').toUpperCase() === 'TDC') {
+      this.formNuevaOk =
+        this.parseDiaMes(this.nuevaDiaCorte) != null &&
+        this.parseDiaMes(this.nuevaDiaLimite) != null;
+      return;
+    }
+    this.formNuevaOk = true;
   }
 
   refrescarFormMovOk(): void {
@@ -867,6 +884,12 @@ export class CuentasComponent implements OnInit, OnDestroy {
     this.refrescarFormNuevaOk();
     if (!this.formNuevaOk) return;
     this.error = '';
+    if ((this.nueva.tipo || '').toUpperCase() === 'TDC') {
+      if (this.parseDiaMes(this.nuevaDiaCorte) == null || this.parseDiaMes(this.nuevaDiaLimite) == null) {
+        this.error = 'Toda TDC necesita día de corte y día límite de pago';
+        return;
+      }
+    }
     const saldo = parseDinero(this.saldoNueva);
     if ((this.nueva.tipo || '').toUpperCase() === 'PRESTAMO_OTORGADO' && saldo > 0) {
       if (!this.tieneSaldoDisponible(saldo)) {
@@ -911,12 +934,18 @@ export class CuentasComponent implements OnInit, OnDestroy {
   guardarDatosCalendario(): void {
     if (!this.seleccionada?.id || !this.esConCalendario(this.seleccionada) || this.guardandoTdc) return;
     this.error = '';
+    const diaCorte = this.parseDiaMes(this.tdcEdit.diaCorte);
+    const diaLimite = this.parseDiaMes(this.tdcEdit.diaLimitePago);
+    if (this.esTdc(this.seleccionada) && (diaCorte == null || diaLimite == null)) {
+      this.error = 'Toda TDC necesita día de corte y día límite de pago';
+      return;
+    }
     this.guardandoTdc = true;
     const limiteTxt = this.tdcEdit.limiteCredito.trim();
     const body: Cuenta = {
       ...this.seleccionada,
-      diaCorte: this.parseDiaMes(this.tdcEdit.diaCorte),
-      diaLimitePago: this.parseDiaMes(this.tdcEdit.diaLimitePago),
+      diaCorte,
+      diaLimitePago: diaLimite,
       limiteCredito: limiteTxt ? parseDinero(limiteTxt) : null,
     };
     this.api.actualizarCuenta(this.seleccionada.id, body).subscribe({

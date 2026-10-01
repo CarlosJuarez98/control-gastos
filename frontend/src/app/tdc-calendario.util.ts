@@ -385,55 +385,168 @@ function yyyymmddDeFechaMov(fecha: string | Date): number | null {
 }
 
 /**
- * Como el banco: deuda total vs saldo al corte.
- * Después del corte = suma de CARGO/INTERÉS con fecha &gt; último corte cerrado
- * (lo gastado / cargado después del corte, validado por fecha).
- * Al corte = total − eso (mín. 0). Misma regla que el API.
+ * Próximo corte del ciclo abierto.
+ * Compras del día de corte (p. ej. 13) aún entran en ese corte;
+ * desde el día siguiente (14) ya es el siguiente ciclo.
+ */
+export function proximoCorte(cuenta: Pick<Cuenta, 'diaCorte'>, hoy = new Date()): Date | null {
+  const corte = Number(cuenta.diaCorte);
+  if (!Number.isFinite(corte) || corte < 1 || corte > 31) return null;
+  const h = aMedianoche(hoy);
+  let anio = h.getFullYear();
+  let mes = h.getMonth();
+  let fecha = fechaConDia(anio, mes, corte);
+  if (h.getDate() > corte) {
+    mes += 1;
+    if (mes > 11) {
+      mes = 0;
+      anio += 1;
+    }
+    fecha = fechaConDia(anio, mes, corte);
+  }
+  return fecha;
+}
+
+/** Nombre de mes en español (octubre, noviembre, …). */
+export function mesLargoEs(d: Date): string {
+  return d
+    .toLocaleDateString('es-MX', { month: 'long' })
+    .replace(/\./g, '')
+    .trim()
+    .toLowerCase();
+}
+
+/** Reparte total en N cuotas (misma regla que CuotasPlan del backend). */
+export function cuotasDeTotal(total: number, meses: number): number[] {
+  const t = Math.round((Number(total) || 0) * 100) / 100;
+  const n = Math.floor(Number(meses) || 0);
+  if (n <= 1) return [t];
+  if (t <= 0) return Array.from({ length: n }, () => 0);
+  let regular = Math.round((t / n) * 100) / 100;
+  let ultima = Math.round((t - regular * (n - 1)) * 100) / 100;
+  if (ultima <= 0) {
+    regular = Math.floor((t / n) * 100) / 100;
+    ultima = Math.round((t - regular * (n - 1)) * 100) / 100;
+  }
+  return [...Array.from({ length: n - 1 }, () => regular), ultima];
+}
+
+export interface MesCicloTdc {
+  etiqueta: string;
+  etiquetaCorte: string;
+  fechaCorte: Date;
+  monto: number;
+}
+
+/**
+ * Como Mercado Pago / el banco a meses:
+ * - Ciclo abierto (p. ej. octubre, corte 13): deuda total − cuotas de cortes posteriores.
+ * - MSI: cada corte solo lleva su cuota (~total/N), no el resto del plan.
+ * - Día de corte inclusive; el día siguiente ya es otro ciclo.
  */
 export function desgloseSaldoTdc(
   cuenta: Cuenta,
-  movimientos?: Pick<Movimiento, 'fecha' | 'tipo' | 'monto'>[] | null,
+  movimientos?: Pick<Movimiento, 'fecha' | 'tipo' | 'monto' | 'meses'>[] | null,
   hoy = new Date(),
-): { total: number; alCorte: number; despuesDelCorte: number; fechaCorte: Date | null } {
+): {
+  total: number;
+  alCorte: number;
+  despuesDelCorte: number;
+  fechaCorte: Date | null;
+  etiquetaCiclo: string;
+  futuros: MesCicloTdc[];
+} {
   const total = Math.round((Number(cuenta.saldoActual) || 0) * 100) / 100;
-  const fechaCorte = ultimoCorteCerrado(cuenta, hoy);
-  if (!fechaCorte) {
-    return { total, alCorte: total, despuesDelCorte: 0, fechaCorte: null };
-  }
-
-  const desdeMovs = Array.isArray(movimientos) && movimientos.length > 0;
-  if (desdeMovs) {
-    const corteN = yyyymmdd(fechaCorte);
-    let cargosDespues = 0;
-    for (const m of movimientos) {
-      const tipo = (m.tipo || '').toUpperCase();
-      if (tipo !== 'CARGO' && tipo !== 'INTERES') continue;
-      const fn = yyyymmddDeFechaMov(m.fecha);
-      if (fn == null || fn <= corteN) continue;
-      cargosDespues += Number(m.monto) || 0;
-    }
-    cargosDespues = Math.round(cargosDespues * 100) / 100;
-    if (cargosDespues < 0) cargosDespues = 0;
-    const alCorte = Math.max(0, Math.min(total, Math.round((total - cargosDespues) * 100) / 100));
+  const ciclo = proximoCorte(cuenta, hoy);
+  if (!ciclo) {
     return {
       total,
-      alCorte,
-      despuesDelCorte: Math.round((total - alCorte) * 100) / 100,
-      fechaCorte,
+      alCorte: total,
+      despuesDelCorte: 0,
+      fechaCorte: null,
+      etiquetaCiclo: '',
+      futuros: [],
     };
   }
 
-  // Lista / sin historial: valores del API (misma fórmula en backend).
-  if (cuenta.saldoAlCorte != null && Number.isFinite(Number(cuenta.saldoAlCorte))) {
+  const cicloN = yyyymmdd(ciclo);
+  const porFuturo = new Map<number, MesCicloTdc>();
+
+  const acumFuturo = (fecha: Date, monto: number) => {
+    if (!(monto > 0)) return;
+    const key = yyyymmdd(fecha);
+    if (key <= cicloN) return;
+    const prev = porFuturo.get(key);
+    if (prev) {
+      prev.monto = Math.round((prev.monto + monto) * 100) / 100;
+      return;
+    }
+    porFuturo.set(key, {
+      etiqueta: mesLargoEs(fecha),
+      etiquetaCorte: formatoFechaCortaEs(fecha),
+      fechaCorte: fecha,
+      monto: Math.round(monto * 100) / 100,
+    });
+  };
+
+  const desdeMovs = Array.isArray(movimientos) && movimientos.length > 0;
+  if (desdeMovs) {
+    for (const m of movimientos) {
+      const tipo = (m.tipo || '').toUpperCase();
+      if (tipo !== 'CARGO' && tipo !== 'INTERES') continue;
+      const monto = Number(m.monto) || 0;
+      if (!(monto > 0)) continue;
+      const meses = Math.floor(Number(m.meses) || 0);
+      if (meses > 1) {
+        const cortes = cortesPlanMeses(cuenta, m.fecha, meses);
+        const cuotas = cuotasDeTotal(monto, meses);
+        if (!cortes?.length) continue;
+        for (let i = 0; i < cortes.length; i++) {
+          acumFuturo(cortes[i].fechaCorte, cuotas[i] || 0);
+        }
+      } else {
+        const cal = calendarioCompraTdc(cuenta, m.fecha);
+        if (cal) acumFuturo(cal.fechaCorte, monto);
+      }
+    }
+  } else if (cuenta.saldoAlCorte != null && Number.isFinite(Number(cuenta.saldoAlCorte))) {
     const alCorte = Math.round(Number(cuenta.saldoAlCorte) * 100) / 100;
     const despues = Math.max(
       0,
       Math.round((Number(cuenta.saldoDespuesCorte ?? total - alCorte) || 0) * 100) / 100,
     );
-    return { total, alCorte: Math.min(total, Math.max(0, alCorte)), despuesDelCorte: despues, fechaCorte };
+    return {
+      total,
+      alCorte: Math.min(total, Math.max(0, alCorte)),
+      despuesDelCorte: despues,
+      fechaCorte: ciclo,
+      etiquetaCiclo: mesLargoEs(ciclo),
+      futuros: despues > 0.005
+        ? [{
+            etiqueta: 'Cortes siguientes',
+            etiquetaCorte: '',
+            fechaCorte: ciclo,
+            monto: despues,
+          }]
+        : [],
+    };
   }
 
-  return { total, alCorte: total, despuesDelCorte: 0, fechaCorte };
+  const futuros = [...porFuturo.values()].sort(
+    (a, b) => a.fechaCorte.getTime() - b.fechaCorte.getTime(),
+  );
+  let msiFuturo = 0;
+  for (const f of futuros) msiFuturo += f.monto;
+  msiFuturo = Math.round(msiFuturo * 100) / 100;
+  const alCorte = Math.max(0, Math.min(total, Math.round((total - msiFuturo) * 100) / 100));
+  return {
+    total,
+    alCorte,
+    despuesDelCorte: Math.round((total - alCorte) * 100) / 100,
+    fechaCorte: ciclo,
+    etiquetaCiclo: mesLargoEs(ciclo),
+    futuros,
+  };
 }
 
 /** Monto a considerar para “pagar esta quincena”: al corte si hay, si no el saldo. */

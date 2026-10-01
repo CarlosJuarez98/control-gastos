@@ -36,7 +36,7 @@
       />
     </label>
     <label class="campo-tipo">Tipo
-      <select [(ngModel)]="nueva.tipo" name="tipo">
+      <select [(ngModel)]="nueva.tipo" (ngModelChange)="refrescarFormNuevaOk()" name="tipo">
         @for (t of tipos; track t) { <option [value]="t">{{ etiquetaTipo(t) }}</option> }
       </select>
     </label>
@@ -63,10 +63,10 @@
     </label>
     @if (nuevaConCalendario) {
       <label class="campo-corte">Corte
-        <input type="text" inputmode="numeric" pattern="[0-9]*" [(ngModel)]="nuevaDiaCorte" name="nuevaDiaCorte" placeholder="15" autocomplete="off" />
+        <input type="text" inputmode="numeric" pattern="[0-9]*" [(ngModel)]="nuevaDiaCorte" (ngModelChange)="refrescarFormNuevaOk()" name="nuevaDiaCorte" placeholder="15" autocomplete="off" />
       </label>
       <label class="campo-pago-dia">Pago
-        <input type="text" inputmode="numeric" pattern="[0-9]*" [(ngModel)]="nuevaDiaLimite" name="nuevaDiaLimite" placeholder="5" autocomplete="off" />
+        <input type="text" inputmode="numeric" pattern="[0-9]*" [(ngModel)]="nuevaDiaLimite" (ngModelChange)="refrescarFormNuevaOk()" name="nuevaDiaLimite" placeholder="5" autocomplete="off" />
       </label>
       <label class="campo-limite">Límite crédito
         <div class="monto-wrap">
@@ -263,19 +263,19 @@
             }
           </p>
           @if (resumenTdc; as rt) {
-            <div class="card-tdc-corte" role="group" aria-label="Deuda total y saldo al corte">
+            <div class="card-tdc-corte" role="group" aria-label="Deuda total y ciclos de corte">
               <div class="rp-item total">
                 <span>Deuda total</span>
                 <strong class="mono">{{ rt.total | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
               </div>
               <div class="rp-item">
-                <span>Al corte · {{ rt.etiquetaCorte }}</span>
+                <span>{{ rt.etiquetaCiclo }} · corte {{ rt.etiquetaCorte }}</span>
                 <strong class="mono aviso">{{ rt.alCorte | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
               </div>
-              @if (rt.despuesDelCorte > 0.005) {
+              @for (f of rt.futuros; track f.etiqueta) {
                 <div class="rp-item">
-                  <span>Después del corte</span>
-                  <strong class="mono">{{ rt.despuesDelCorte | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
+                  <span>{{ f.etiqueta }}</span>
+                  <strong class="mono">{{ f.monto | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
                 </div>
               }
             </div>
@@ -347,13 +347,13 @@
               <strong class="mono">{{ rt.total | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
             </div>
             <div class="metrica">
-              <span>Al corte · {{ rt.etiquetaCorte }}</span>
+              <span>{{ rt.etiquetaCiclo }} · {{ rt.etiquetaCorte }}</span>
               <strong class="mono aviso">{{ rt.alCorte | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
             </div>
-            @if (rt.despuesDelCorte > 0.005) {
+            @for (f of rt.futuros; track f.etiqueta) {
               <div class="metrica">
-                <span>Después del corte</span>
-                <strong class="mono">{{ rt.despuesDelCorte | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
+                <span>{{ f.etiqueta }}</span>
+                <strong class="mono">{{ f.monto | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
               </div>
             }
           }
