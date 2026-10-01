@@ -318,24 +318,38 @@ public class FinanzasService {
                 cuentaRepository.save(cuenta);
                 gasto.setMovimientoId(savedMov.getId());
             } else {
-                MovimientoCuenta mov = movimientoRepository.findById(existing.getMovimientoId())
-                        .orElseThrow(() -> new IllegalArgumentException("Movimiento del gasto no encontrado"));
-                exigirPropietario(u, mov.getPropietario());
-                Cuenta cuentaAnterior = mov.getCuenta();
-                revertirSaldo(cuentaAnterior, mov.getTipo(), mov.getMonto());
-                Cuenta destino = cuentaAnterior.getId().equals(cuenta.getId()) ? cuentaAnterior : cuenta;
-                if (!cuentaAnterior.getId().equals(cuenta.getId())) {
-                    cuentaRepository.save(cuentaAnterior);
+                MovimientoCuenta mov = movimientoRepository.findById(existing.getMovimientoId()).orElse(null);
+                if (mov == null) {
+                    // Gasto apunta a un movimiento borrado: recrear el cargo (evita huérfanos).
+                    MovimientoCuenta nuevo = new MovimientoCuenta();
+                    nuevo.setCuenta(cuenta);
+                    nuevo.setFecha(gasto.getFecha());
+                    nuevo.setTipo("CARGO");
+                    nuevo.setMonto(cargo);
+                    nuevo.setPropietario(u);
+                    nuevo.setConcepto(conceptoCargo);
+                    MovimientoCuenta savedMov = movimientoRepository.save(nuevo);
+                    aplicarSaldo(cuenta, "CARGO", cargo);
+                    cuentaRepository.save(cuenta);
+                    gasto.setMovimientoId(savedMov.getId());
+                } else {
+                    exigirPropietario(u, mov.getPropietario());
+                    Cuenta cuentaAnterior = mov.getCuenta();
+                    revertirSaldo(cuentaAnterior, mov.getTipo(), mov.getMonto());
+                    Cuenta destino = cuentaAnterior.getId().equals(cuenta.getId()) ? cuentaAnterior : cuenta;
+                    if (!cuentaAnterior.getId().equals(cuenta.getId())) {
+                        cuentaRepository.save(cuentaAnterior);
+                    }
+                    mov.setCuenta(destino);
+                    mov.setFecha(gasto.getFecha());
+                    mov.setMonto(cargo);
+                    mov.setConcepto(conceptoCargo);
+                    movimientoRepository.save(mov);
+                    aplicarSaldo(destino, "CARGO", cargo);
+                    cuentaRepository.save(destino);
+                    gasto.setMovimientoId(mov.getId());
+                    gasto.setCuenta(destino);
                 }
-                mov.setCuenta(destino);
-                mov.setFecha(gasto.getFecha());
-                mov.setMonto(cargo);
-                mov.setConcepto(conceptoCargo);
-                movimientoRepository.save(mov);
-                aplicarSaldo(destino, "CARGO", cargo);
-                cuentaRepository.save(destino);
-                gasto.setMovimientoId(mov.getId());
-                gasto.setCuenta(destino);
             }
             if (gasto.getCuenta() == null) {
                 gasto.setCuenta(cuenta);
@@ -690,9 +704,8 @@ public class FinanzasService {
     }
 
     /**
-     * Desglose por ciclo / MSI para toda cuenta tipo TDC con día de corte.
-     * No depende del banco ni del nombre: BBVA, Nu, MP, o cualquier TDC nueva.
-     * listarCuentas / obtenerCuenta lo calculan igual.
+     * Desglose TDC: saldoAlCorte = deuda de hoy (total − MSI de cortes posteriores).
+     * Si no se pagó el corte pasado, ya va incluido. saldoDespuesCorte = cuotas futuras.
      */
     private void enriquecerSaldoAlCorte(Cuenta c) {
         if (c == null || c.getId() == null || !esCuentaTdc(c) || c.getDiaCorte() == null) {

@@ -253,8 +253,8 @@ export class CuentasComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * TDC como Mercado Pago: deuda total, monto del ciclo abierto (próximo corte)
-   * y cuotas MSI de cortes posteriores (no el resto completo del plan).
+   * TDC: deuda total, monto del mes (deuda de hoy) y cuotas MSI futuras.
+   * Si no pagaste el corte pasado, ya va en el monto del mes.
    */
   get resumenTdc(): {
     total: number;
