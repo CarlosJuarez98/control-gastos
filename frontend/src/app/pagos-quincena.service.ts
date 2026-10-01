@@ -3,7 +3,7 @@ import { Observable, forkJoin, map, of } from 'rxjs';
 import { ApiService } from './api.service';
 import { AuthService } from './auth.service';
 import { Cuenta, Gasto, GastoMensual } from './modelos';
-import { calendarioCompraTdc, pagosPorQuincena } from './tdc-calendario.util';
+import { calendarioCompraTdc, montoAPagarTdc, pagosPorQuincena } from './tdc-calendario.util';
 
 /** Perfiles que solo contemplan compras TDC nuevas (no deuda histórica). */
 const CALENDARIO_SOLO_COMPRAS_NUEVAS = new Set(['carlos']);
@@ -70,8 +70,8 @@ export class PagosQuincenaService {
       }
     } else {
       const pagos = pagosPorQuincena(cuentas);
-      for (const p of pagos.esta) esta += Number(p.cuenta.saldoActual) || 0;
-      for (const p of pagos.siguiente) siguiente += Number(p.cuenta.saldoActual) || 0;
+      for (const p of pagos.esta) esta += montoAPagarTdc(p.cuenta);
+      for (const p of pagos.siguiente) siguiente += montoAPagarTdc(p.cuenta);
     }
 
     return {

@@ -49,6 +49,17 @@ public class Cuenta {
     @Column(name = "BLOQUEADA")
     private Boolean bloqueada = Boolean.FALSE;
 
+    /**
+     * Saldo del estado de cuenta (al último corte cerrado).
+     * = deuda total − cargos/intereses posteriores al corte. Solo TDC con día de corte.
+     */
+    @Transient
+    private BigDecimal saldoAlCorte;
+
+    /** Compras después del último corte (aún no entran al estado de cuenta). */
+    @Transient
+    private BigDecimal saldoDespuesCorte;
+
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
     public String getNombre() { return nombre; }
@@ -82,6 +93,11 @@ public class Cuenta {
     public void setBloqueada(boolean bloqueada) {
         this.bloqueada = bloqueada;
     }
+
+    public BigDecimal getSaldoAlCorte() { return saldoAlCorte; }
+    public void setSaldoAlCorte(BigDecimal saldoAlCorte) { this.saldoAlCorte = saldoAlCorte; }
+    public BigDecimal getSaldoDespuesCorte() { return saldoDespuesCorte; }
+    public void setSaldoDespuesCorte(BigDecimal saldoDespuesCorte) { this.saldoDespuesCorte = saldoDespuesCorte; }
 
     /** Crédito disponible = límite − deuda (saldo). Null si no hay límite. */
     @Transient

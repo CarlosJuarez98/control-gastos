@@ -33,6 +33,18 @@ public class MovimientoCuenta {
     @Column(name = "PROPIETARIO", length = 80)
     private String propietario;
 
+    /** Si el cargo viene de un gasto TDC a N meses (solo JSON). */
+    @Transient
+    private Integer meses;
+
+    /** Forma de pago del gasto ligado: TARJETA / DISPOSICION (solo JSON). */
+    @Transient
+    private String formaPagoGasto;
+
+    /** Id del gasto origen (solo JSON); editar ahí, no en Deudas. */
+    @Transient
+    private Long gastoId;
+
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
     public Cuenta getCuenta() { return cuenta; }
@@ -47,4 +59,22 @@ public class MovimientoCuenta {
     public void setConcepto(String concepto) { this.concepto = concepto; }
     public String getPropietario() { return propietario; }
     public void setPropietario(String propietario) { this.propietario = propietario; }
+    public Integer getMeses() { return meses; }
+    public void setMeses(Integer meses) { this.meses = meses; }
+    public String getFormaPagoGasto() { return formaPagoGasto; }
+    public void setFormaPagoGasto(String formaPagoGasto) { this.formaPagoGasto = formaPagoGasto; }
+    public Long getGastoId() { return gastoId; }
+    public void setGastoId(Long gastoId) { this.gastoId = gastoId; }
+
+    @Transient
+    public boolean isAMeses() {
+        return meses != null && meses > 1;
+    }
+
+    /** Cargo nacido de Gastos (tarjeta / disposición): la edición canónica es en Gastos. */
+    @Transient
+    public boolean isDesdeGasto() {
+        return gastoId != null
+                || (formaPagoGasto != null && !formaPagoGasto.isBlank());
+    }
 }

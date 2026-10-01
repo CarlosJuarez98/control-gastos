@@ -10,6 +10,7 @@ import { FechaCortaPipe, fechaHoyLocal } from '../../fecha.util';
 import { EnterAvanceDirective } from '../../enter-avance.directive';
 import { PaginadorComponent } from '../../compartido/paginador/paginador.component';
 import { EstadoPaginacion } from '../../compartido/paginar.util';
+import { formatoFechaCortaEs, desgloseSaldoTdc, etiquetaCortesPlanMeses } from '../../tdc-calendario.util';
 
 @Component({
   selector: 'app-cuentas',
@@ -49,11 +50,15 @@ export class CuentasComponent implements OnInit, OnDestroy {
   };
   montoMov = '';
   editMovId: number | null = null;
+  /** Meses del cargo en edición (plan MSI); null si no aplica. */
+  editMovMeses: number | null = null;
   tipos = ['TDC', 'PRESTAMO', 'TIENDA', 'TERRENO', 'PRESTAMO_OTORGADO', 'OTRO'];
   /** Tipos base; en TDC el CARGO nuevo se registra desde Gastos. */
   private readonly tiposMovBase = ['ABONO', 'CARGO', 'INTERES', 'REEMBOLSO'];
   private readonly tiposMovPrestamista = ['CARGO', 'INTERES', 'ABONO', 'REEMBOLSO'];
   private readonly tiposMovTdc = ['ABONO', 'INTERES', 'REEMBOLSO'];
+  /** Misma referencia estable: un array nuevo en cada CD rearmaba el <select> y trababa la UI. */
+  private readonly tiposMovTdcEditCargo = ['CARGO', 'ABONO', 'INTERES', 'REEMBOLSO'];
   error = '';
   hoy = fechaHoyLocal();
   guardandoTipo = false;
@@ -199,6 +204,15 @@ export class CuentasComponent implements OnInit, OnDestroy {
     return !!c && (c.tipo || '').toUpperCase() === 'TDC';
   }
 
+  esTienda(c?: Cuenta | null): boolean {
+    return !!c && (c.tipo || '').toUpperCase() === 'TIENDA';
+  }
+
+  /** TDC / Tienda: crédito para compras; no se eliminan, se dejan de usar. */
+  esCreditoCompras(c?: Cuenta | null): boolean {
+    return this.esTdc(c) || this.esTienda(c);
+  }
+
   enCero(c: Cuenta): boolean {
     return Number(c.saldoActual) === 0;
   }
@@ -213,20 +227,60 @@ export class CuentasComponent implements OnInit, OnDestroy {
     return this.esConCalendario(this.nueva);
   }
 
-  /** En TDC no se crean cargos manuales (van por Gastos); al editar un CARGO existente sí se muestra. */
+  /** En TDC no se crean cargos manuales (van por Gastos); al editar un CARGO existente sí se muestra.
+   *  Tienda bloqueada: sin cargos nuevos (sí abonos/interés). */
   get tiposMov(): string[] {
     if (this.seleccionPrestamista) return this.tiposMovPrestamista;
-    if (!this.esTdc(this.seleccionada)) return this.tiposMovBase;
-    if (this.editMovId != null && (this.mov.tipo || '').toUpperCase() === 'CARGO') {
-      return ['CARGO', ...this.tiposMovTdc];
+    if (this.esTdc(this.seleccionada)) {
+      if (this.editMovId != null && (this.mov.tipo || '').toUpperCase() === 'CARGO') {
+        return this.tiposMovTdcEditCargo;
+      }
+      return this.tiposMovTdc;
     }
-    return this.tiposMovTdc;
+    if (this.esTienda(this.seleccionada) && this.seleccionada?.bloqueada) {
+      if (this.editMovId != null && (this.mov.tipo || '').toUpperCase() === 'CARGO') {
+        return this.tiposMovBase;
+      }
+      return this.tiposMovTdc;
+    }
+    return this.tiposMovBase;
   }
 
   creditoDisponibleDe(c: Cuenta): number | null {
     if (c.creditoDisponible != null) return Number(c.creditoDisponible);
     if (c.limiteCredito == null) return null;
     return Math.round((Number(c.limiteCredito) - Number(c.saldoActual || 0)) * 100) / 100;
+  }
+
+  /**
+   * TDC como el banco: deuda total vs saldo al corte
+   * (excluye compras hechas después del último corte).
+   */
+  get resumenTdc(): {
+    total: number;
+    alCorte: number;
+    despuesDelCorte: number;
+    etiquetaCorte: string;
+  } | null {
+    if (!this.seleccionada || !this.esTdc(this.seleccionada) || this.seleccionada.diaCorte == null) {
+      return null;
+    }
+    const d = desgloseSaldoTdc(this.seleccionada, this.movimientos);
+    if (!d.fechaCorte) return null;
+    return {
+      total: d.total,
+      alCorte: d.alCorte,
+      despuesDelCorte: d.despuesDelCorte,
+      etiquetaCorte: formatoFechaCortaEs(d.fechaCorte),
+    };
+  }
+
+  /** En lista: tip corto si el corte difiere del total. */
+  tipCorteTdc(c: Cuenta): string | null {
+    if (!this.esTdc(c) || c.diaCorte == null) return null;
+    const d = desgloseSaldoTdc(c);
+    if (!d.fechaCorte || d.despuesDelCorte < 0.005) return null;
+    return `Corte ${formatoFechaCortaEs(d.fechaCorte)}: ${formatDineroNumero(d.alCorte)}`;
   }
 
   /** Texto corto en lista: "Corte 9 · Pago 22" (solo el día, sin fecha repetida). */
@@ -315,17 +369,71 @@ export class CuentasComponent implements OnInit, OnDestroy {
     }
   }
 
+  esCargoAMeses(m?: Movimiento | null): boolean {
+    if (!m) return false;
+    if (m.aMeses) return true;
+    return m.meses != null && Number(m.meses) > 1;
+  }
+
+  /** Cargo nacido en Gastos (tarjeta/disposición): no se edita en Deudas. */
+  esCargoDesdeGasto(m?: Movimiento | null): boolean {
+    if (!m) return false;
+    if (m.desdeGasto || m.gastoId != null) return true;
+    const f = (m.formaPagoGasto || '').toUpperCase();
+    return f === 'TARJETA' || f === 'DISPOSICION';
+  }
+
+  etiquetaMesesMov(m: Movimiento): string {
+    const n = Number(m.meses) || 0;
+    if (n <= 1) return '';
+    const info = this.infoCortesPlan(m);
+    return info?.corta || `${n} meses`;
+  }
+
+  detalleCortesPlan(m: Movimiento): string {
+    return this.infoCortesPlan(m)?.detalle || this.etiquetaMesesMov(m);
+  }
+
+  /** Interés embebido en concepto: "(interés $287.48)". */
+  interesDeConcepto(m: Movimiento): number | null {
+    const c = m.concepto || '';
+    const match = /inter[eé]s\s*\$?\s*([\d,.]+)/i.exec(c);
+    if (!match) return null;
+    const n = Number(String(match[1]).replace(/,/g, ''));
+    return Number.isFinite(n) && n > 0 ? n : null;
+  }
+
+  conceptoSinInteres(m: Movimiento): string {
+    const c = (m.concepto || '')
+      .replace(/\s*\(\s*inter[eé]s\s*\$?\s*[\d,.]+\s*\)/i, '')
+      .trim();
+    return c;
+  }
+
+  private infoCortesPlan(m: Movimiento): { corta: string; detalle: string } | null {
+    const n = Number(m.meses) || 0;
+    if (n <= 1 || !this.seleccionada) return null;
+    return etiquetaCortesPlanMeses(this.seleccionada, m.fecha, n);
+  }
+
   onTipoMovChange(tipo: string): void {
-    this.mov.tipo = tipo;
+    const next = (tipo || '').toUpperCase();
+    const prev = (this.mov.tipo || '').toUpperCase();
+    this.mov.tipo = next;
     this.ajustandoRedito = false;
     this.error = '';
     if (this.editMovId != null) {
       this.refrescarFormMovOk();
       return;
     }
+    // Evita limpiar el monto si el select re-emite el mismo valor.
+    if (next === prev) {
+      this.refrescarFormMovOk();
+      return;
+    }
     // TDC: capturas la deuda que marca hoy → se calcula el interés.
     // Prestamista: capturas el rédito a cobrar (monto directo).
-    if (tipo === 'INTERES' && this.seleccionada && !this.seleccionPrestamista) {
+    if (next === 'INTERES' && this.seleccionada && !this.seleccionPrestamista) {
       const actual = Number(this.seleccionada.saldoActual) || 0;
       this.montoMov = actual > 0 ? formatDineroNumero(actual) : '';
     } else {
@@ -392,6 +500,7 @@ export class CuentasComponent implements OnInit, OnDestroy {
   prepararCobrarRedito(): void {
     if (!this.seleccionPrestamista) return;
     this.editMovId = null;
+    this.editMovMeses = null;
     this.ajustandoRedito = false;
     this.hoy = fechaHoyLocal();
     this.mov = { fecha: this.hoy, tipo: 'INTERES' };
@@ -405,6 +514,7 @@ export class CuentasComponent implements OnInit, OnDestroy {
   prepararCobro(): void {
     if (!this.seleccionPrestamista) return;
     this.editMovId = null;
+    this.editMovMeses = null;
     this.ajustandoRedito = false;
     this.hoy = fechaHoyLocal();
     this.mov = { fecha: this.hoy, tipo: 'ABONO' };
@@ -418,6 +528,7 @@ export class CuentasComponent implements OnInit, OnDestroy {
   prepararAjustarRedito(): void {
     if (!this.seleccionPrestamista) return;
     this.editMovId = null;
+    this.editMovMeses = null;
     this.ajustandoRedito = true;
     this.hoy = fechaHoyLocal();
     this.mov = { fecha: this.hoy, tipo: 'INTERES' };
@@ -482,11 +593,11 @@ export class CuentasComponent implements OnInit, OnDestroy {
 
   get puedeEliminarCuenta(): boolean {
     if (!this.seleccionada?.id || Number(this.seleccionada.saldoActual) !== 0) return false;
-    // Las TDC se dejan de usar (bloqueo), no se eliminan.
-    return !this.esTdc(this.seleccionada);
+    // TDC / Tienda: se dejan de usar (bloqueo), no se eliminan.
+    return !this.esCreditoCompras(this.seleccionada);
   }
 
-  /** TDC saldada u otra: texto del botón de bloqueo. */
+  /** TDC / Tienda: texto del botón de bloqueo. */
   etiquetaBloqueoTdc(c?: Cuenta | null): string {
     const cuenta = c || this.seleccionada;
     if (!cuenta) return 'Dejar de usar';
@@ -498,7 +609,7 @@ export class CuentasComponent implements OnInit, OnDestroy {
   }
 
   puedeQuitarDeLista(c: Cuenta): boolean {
-    return Number(c.saldoActual) === 0 && !this.esTdc(c);
+    return Number(c.saldoActual) === 0 && !this.esCreditoCompras(c);
   }
 
   private fechaLocal(d = new Date()): string {
@@ -561,14 +672,14 @@ export class CuentasComponent implements OnInit, OnDestroy {
       .sort((a, b) => this.porNombre(a, b));
   }
 
-  /** TDC en $0: se quedan en el bloque TDC (abajo), no en Saldadas. */
-  private tdcEnCero(): Cuenta[] {
+  /** TDC / Tienda en $0: se quedan en su bloque, no en Saldadas. */
+  private creditoComprasEnCero(tipo: 'TDC' | 'TIENDA'): Cuenta[] {
     return this.cuentas
-      .filter((c) => this.esTdc(c) && Number(c.saldoActual) === 0)
+      .filter((c) => (c.tipo || '').toUpperCase() === tipo && Number(c.saldoActual) === 0)
       .sort((a, b) => this.porNombre(a, b));
   }
 
-  /** Mis deudas agrupadas por tipo; cada bloque ordenado A→Z. TDC en $0 al final del grupo TDC. */
+  /** Mis deudas agrupadas por tipo; cada bloque ordenado A→Z. TDC/Tienda en $0 al final de su grupo. */
   get gruposMisDeudas(): { tipo: string; etiqueta: string; cuentas: Cuenta[] }[] {
     const orden = ['TDC', 'PRESTAMO', 'TIENDA', 'TERRENO', 'OTRO'];
     const mapa = new Map<string, Cuenta[]>();
@@ -579,18 +690,20 @@ export class CuentasComponent implements OnInit, OnDestroy {
       list.push(c);
       mapa.set(t, list);
     }
-    const cero = this.tdcEnCero();
-    if (cero.length) {
-      const list = mapa.get('TDC') || [];
-      list.push(...cero);
-      mapa.set('TDC', list);
+    for (const tipo of ['TDC', 'TIENDA'] as const) {
+      const cero = this.creditoComprasEnCero(tipo);
+      if (cero.length) {
+        const list = mapa.get(tipo) || [];
+        list.push(...cero);
+        mapa.set(tipo, list);
+      }
     }
     return orden
       .filter((t) => (mapa.get(t) || []).length > 0)
       .map((t) => {
         const raw = mapa.get(t) || [];
         const cuentas =
-          t === 'TDC'
+          t === 'TDC' || t === 'TIENDA'
             ? [
                 ...raw
                   .filter((c) => Number(c.saldoActual) !== 0)
@@ -612,7 +725,7 @@ export class CuentasComponent implements OnInit, OnDestroy {
 
   get cuentasSaldadas(): Cuenta[] {
     return this.cuentas
-      .filter((c) => Number(c.saldoActual) === 0 && !this.esTdc(c))
+      .filter((c) => Number(c.saldoActual) === 0 && !this.esCreditoCompras(c))
       .sort((a, b) => this.porNombre(a, b));
   }
 
@@ -825,9 +938,9 @@ export class CuentasComponent implements OnInit, OnDestroy {
     this.guardarDatosCalendario();
   }
 
-  /** Bloquea/desbloquea compras nuevas en Gastos (solo TDC). */
+  /** Bloquea/desbloquea compras nuevas (TDC / Tienda). */
   toggleBloqueoTdc(): void {
-    if (!this.seleccionada?.id || !this.esTdc(this.seleccionada) || this.guardandoBloqueo) return;
+    if (!this.seleccionada?.id || !this.esCreditoCompras(this.seleccionada) || this.guardandoBloqueo) return;
     this.error = '';
     this.guardandoBloqueo = true;
     const body: Cuenta = {
@@ -873,8 +986,8 @@ export class CuentasComponent implements OnInit, OnDestroy {
   async eliminarCuenta(c?: Cuenta): Promise<void> {
     const cuenta = c || this.seleccionada;
     if (!cuenta?.id) return;
-    if (this.esTdc(cuenta)) {
-      this.error = 'Las TDC no se eliminan; usa «Dejar de usar» para quitarlas de compras';
+    if (this.esCreditoCompras(cuenta)) {
+      this.error = 'Las TDC y tiendas no se eliminan; usa «Dejar de usar» para quitarlas de compras';
       return;
     }
     if (Number(cuenta.saldoActual) !== 0) {
@@ -904,8 +1017,13 @@ export class CuentasComponent implements OnInit, OnDestroy {
 
   editarMovimiento(m: Movimiento): void {
     if (!m.id) return;
+    if (this.esCargoDesdeGasto(m)) {
+      this.error = 'Este cargo viene de Gastos; edítalo ahí para que se actualicen Deudas y Mensuales.';
+      return;
+    }
     this.error = '';
     this.editMovId = m.id;
+    this.editMovMeses = this.esCargoAMeses(m) ? Number(m.meses) || null : null;
     this.ajustandoRedito = false;
     this.mov = {
       fecha: (m.fecha || '').slice(0, 10) || fechaHoyLocal(),
@@ -921,6 +1039,7 @@ export class CuentasComponent implements OnInit, OnDestroy {
 
   cancelarEdicionMov(): void {
     this.editMovId = null;
+    this.editMovMeses = null;
     this.ajustandoRedito = false;
     this.hoy = fechaHoyLocal();
     this.mov = { fecha: this.hoy, tipo: 'ABONO' };
@@ -995,6 +1114,15 @@ export class CuentasComponent implements OnInit, OnDestroy {
       this.error = 'En TDC las compras se registran en Gastos (pago con tarjeta)';
       return;
     }
+    if (
+      this.esTienda(this.seleccionada) &&
+      this.seleccionada?.bloqueada &&
+      (this.mov.tipo || '').toUpperCase() === 'CARGO' &&
+      this.editMovId == null
+    ) {
+      this.error = 'Esta tienda está bloqueada; no admite compras nuevas';
+      return;
+    }
 
     const monto = this.resolverMonto();
     if (monto == null) return;
@@ -1037,6 +1165,10 @@ export class CuentasComponent implements OnInit, OnDestroy {
 
   async eliminarMovimiento(m: Movimiento): Promise<void> {
     if (!this.seleccionada?.id || !m.id) return;
+    if (this.esCargoDesdeGasto(m)) {
+      this.error = 'Este cargo viene de Gastos; bórralo ahí para que se actualicen Deudas y Mensuales.';
+      return;
+    }
     const ok = await this.confirmDlg.ask(
       `¿Eliminar ${this.etiquetaMov(m.tipo, m.monto)} de ${formatDineroNumero(Number(m.monto) || 0)}?`,
       { titulo: 'Eliminar movimiento', confirmarTexto: 'Borrar' },

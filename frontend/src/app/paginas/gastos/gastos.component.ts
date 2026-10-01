@@ -1,6 +1,8 @@
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnInit } from '@angular/core';
 import { CurrencyPipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { ActivatedRoute, Router } from '@angular/router';
+import { Subscription } from 'rxjs';
 import { ApiService } from '../../api.service';
 import { ConfirmDialogService } from '../../confirm-dialog.service';
 import { Cuenta, Gasto } from '../../modelos';
@@ -93,6 +95,9 @@ export class GastosComponent implements OnInit, OnDestroy {
   readonly paginas = new PaginasPorClave();
   private media?: MediaQueryList;
   private onMedia?: () => void;
+  private routeSub?: Subscription;
+  /** Abrir edición al llegar con ?edit=id (desde Deudas). */
+  private pendienteEditId: number | null = null;
 
   private readonly meses = [
     'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
@@ -102,7 +107,9 @@ export class GastosComponent implements OnInit, OnDestroy {
   constructor(
     private api: ApiService,
     private confirmDlg: ConfirmDialogService,
-    private cdr: ChangeDetectorRef
+    private cdr: ChangeDetectorRef,
+    private route: ActivatedRoute,
+    private router: Router,
   ) {}
 
   ngOnInit(): void {
@@ -118,6 +125,13 @@ export class GastosComponent implements OnInit, OnDestroy {
     this.form.fecha = this.hoy;
     this.claveHoy = this.claveQuincena(this.hoy);
     this.etiquetaQuincenaActual = this.etiquetaDeClave(this.claveHoy);
+    this.routeSub = this.route.queryParamMap.subscribe((pm) => {
+      const raw = pm.get('edit') || pm.get('id');
+      const id = Number(raw);
+      if (Number.isFinite(id) && id > 0) {
+        this.abrirGastoDesdeRuta(id);
+      }
+    });
     this.cargar();
     this.cargarTarjetas();
   }
@@ -127,6 +141,7 @@ export class GastosComponent implements OnInit, OnDestroy {
       this.media.removeEventListener('change', this.onMedia);
     }
     if (this.filtroTimer) clearTimeout(this.filtroTimer);
+    this.routeSub?.unsubscribe();
   }
 
   toggleAlta(): void {
@@ -347,12 +362,58 @@ export class GastosComponent implements OnInit, OnDestroy {
       next: (r) => {
         this.items = r;
         this.recalcular();
+        if (this.pendienteEditId != null) {
+          const id = this.pendienteEditId;
+          this.pendienteEditId = null;
+          this.abrirGastoDesdeRuta(id);
+        }
         this.cdr.markForCheck();
       },
       error: (e) => {
         this.error = e?.error?.error || 'Error al cargar gastos';
         this.cdr.markForCheck();
       },
+    });
+  }
+
+  /** Deep-link desde Deudas: /gastos?edit=123 */
+  private abrirGastoDesdeRuta(id: number): void {
+    if (!this.items.length) {
+      this.pendienteEditId = id;
+      return;
+    }
+    const original = this.items.find((x) => x.id === id);
+    if (!original) {
+      this.error = 'No se encontró ese gasto (¿ya se borró?)';
+      this.limpiarQueryEdit();
+      this.cdr.markForCheck();
+      return;
+    }
+    const clave = this.claveQuincena((original.fecha || '').slice(0, 10));
+    if (this.vista === 'quincena' && clave && clave !== this.claveHoy) {
+      this.vista = 'total';
+      this.abiertas.clear();
+    }
+    if (clave) this.abiertas.add(clave);
+    this.recalcular();
+    const filas = this.filasPorClave.get(clave) || [];
+    const idx = filas.findIndex((f) => f.id === id);
+    if (idx >= 0 && clave) {
+      const pagina = Math.floor(idx / this.paginas.tam) + 1;
+      this.paginas.setPagina(clave, pagina, filas.length);
+    }
+    this.editar({ id } as GastoFila);
+    this.limpiarQueryEdit();
+  }
+
+  private limpiarQueryEdit(): void {
+    if (!this.route.snapshot.queryParamMap.has('edit') && !this.route.snapshot.queryParamMap.has('id')) {
+      return;
+    }
+    void this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: {},
+      replaceUrl: true,
     });
   }
 

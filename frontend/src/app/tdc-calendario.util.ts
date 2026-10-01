@@ -1,4 +1,4 @@
-import { Cuenta } from './modelos';
+import { Cuenta, Movimiento } from './modelos';
 
 export type QuincenaPago = 'esta' | 'siguiente' | 'despues';
 
@@ -200,6 +200,78 @@ export function calendarioCompraTdc(
   };
 }
 
+/** Un corte del plan a meses (cuota i de N). */
+export interface CortePlanMeses {
+  indice: number;
+  fechaCorte: Date;
+  fechaPago: Date;
+  etiquetaCorte: string;
+}
+
+/**
+ * Cortes del estado de cuenta que cubre una compra a N meses:
+ * el 1.er corte es el del ciclo de la compra; luego +1 mes cada cuota.
+ */
+export function cortesPlanMeses(
+  cuenta: Pick<Cuenta, 'diaCorte' | 'diaLimitePago' | 'tipo'>,
+  fechaCompra: Date | string,
+  meses: number,
+): CortePlanMeses[] | null {
+  const n = Math.floor(Number(meses) || 0);
+  if (n <= 1) return null;
+  const primero = calendarioCompraTdc(cuenta as Cuenta, fechaCompra);
+  if (!primero) return null;
+
+  const out: CortePlanMeses[] = [];
+  let anio = primero.fechaCorte.getFullYear();
+  let mes = primero.fechaCorte.getMonth();
+  for (let i = 0; i < n; i++) {
+    const fechaCorte = fechaConDia(anio, mes, primero.diaCorte);
+    const fechaPago = fechaDiaDespuesDe(primero.diaLimitePago, fechaCorte);
+    out.push({
+      indice: i + 1,
+      fechaCorte,
+      fechaPago,
+      etiquetaCorte: formatoFechaCortaEs(fechaCorte),
+    });
+    mes += 1;
+    if (mes > 11) {
+      mes = 0;
+      anio += 1;
+    }
+  }
+  return out;
+}
+
+function mesCortoEs(d: Date): string {
+  return d
+    .toLocaleDateString('es-MX', { month: 'short' })
+    .replace(/\./g, '')
+    .trim()
+    .toLowerCase();
+}
+
+/** Etiqueta corta + detalle de cortes (para pill / title). */
+export function etiquetaCortesPlanMeses(
+  cuenta: Pick<Cuenta, 'diaCorte' | 'diaLimitePago' | 'tipo'>,
+  fechaCompra: Date | string,
+  meses: number,
+): { corta: string; detalle: string } | null {
+  const cortes = cortesPlanMeses(cuenta, fechaCompra, meses);
+  if (!cortes?.length) {
+    const n = Math.floor(Number(meses) || 0);
+    return n > 1 ? { corta: `${n} meses`, detalle: `Plan a ${n} meses` } : null;
+  }
+  const n = cortes.length;
+  const primero = mesCortoEs(cortes[0].fechaCorte);
+  const ultimo = mesCortoEs(cortes[n - 1].fechaCorte);
+  const rango = primero === ultimo ? primero : `${primero}–${ultimo}`;
+  return {
+    corta: `${n} cortes · ${rango}`,
+    detalle: `Cae en ${n} cortes: ${cortes.map((c) => c.etiquetaCorte).join(' · ')}`,
+  };
+}
+
 /**
  * Próximo pago pendiente.
  * - Con corte + pago: ciclo de tarjeta/tienda.
@@ -272,6 +344,104 @@ export function proximoPagoPendiente(cuenta: Cuenta, hoy = new Date()): Calendar
     ...q,
     etiquetaPagoCorta: formatoFechaCortaEs(fechaPago),
   };
+}
+
+/** Último día de corte ya cerrado (≤ hoy). Null si no hay día de corte. */
+export function ultimoCorteCerrado(cuenta: Pick<Cuenta, 'diaCorte'>, hoy = new Date()): Date | null {
+  const corte = Number(cuenta.diaCorte);
+  if (!Number.isFinite(corte) || corte < 1 || corte > 31) return null;
+  const h = aMedianoche(hoy);
+  let anio = h.getFullYear();
+  let mes = h.getMonth();
+  let fecha = fechaConDia(anio, mes, corte);
+  if (fecha.getTime() > h.getTime()) {
+    mes -= 1;
+    if (mes < 0) {
+      mes = 11;
+      anio -= 1;
+    }
+    fecha = fechaConDia(anio, mes, corte);
+  }
+  return fecha;
+}
+
+/** Compara solo día calendario (YYYYMMDD), igual que LocalDate en el backend. */
+function yyyymmdd(d: Date): number {
+  return d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
+}
+
+function yyyymmddDeFechaMov(fecha: string | Date): number | null {
+  if (typeof fecha === 'string') {
+    const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(fecha.trim());
+    if (m) {
+      return Number(m[1]) * 10000 + Number(m[2]) * 100 + Number(m[3]);
+    }
+  }
+  const d = typeof fecha === 'string'
+    ? aMedianoche(new Date(fecha.length === 10 ? fecha + 'T12:00:00' : fecha))
+    : aMedianoche(new Date(fecha));
+  if (Number.isNaN(d.getTime())) return null;
+  return yyyymmdd(d);
+}
+
+/**
+ * Como el banco: deuda total vs saldo al corte.
+ * Después del corte = suma de CARGO/INTERÉS con fecha &gt; último corte cerrado
+ * (lo gastado / cargado después del corte, validado por fecha).
+ * Al corte = total − eso (mín. 0). Misma regla que el API.
+ */
+export function desgloseSaldoTdc(
+  cuenta: Cuenta,
+  movimientos?: Pick<Movimiento, 'fecha' | 'tipo' | 'monto'>[] | null,
+  hoy = new Date(),
+): { total: number; alCorte: number; despuesDelCorte: number; fechaCorte: Date | null } {
+  const total = Math.round((Number(cuenta.saldoActual) || 0) * 100) / 100;
+  const fechaCorte = ultimoCorteCerrado(cuenta, hoy);
+  if (!fechaCorte) {
+    return { total, alCorte: total, despuesDelCorte: 0, fechaCorte: null };
+  }
+
+  const desdeMovs = Array.isArray(movimientos) && movimientos.length > 0;
+  if (desdeMovs) {
+    const corteN = yyyymmdd(fechaCorte);
+    let cargosDespues = 0;
+    for (const m of movimientos) {
+      const tipo = (m.tipo || '').toUpperCase();
+      if (tipo !== 'CARGO' && tipo !== 'INTERES') continue;
+      const fn = yyyymmddDeFechaMov(m.fecha);
+      if (fn == null || fn <= corteN) continue;
+      cargosDespues += Number(m.monto) || 0;
+    }
+    cargosDespues = Math.round(cargosDespues * 100) / 100;
+    if (cargosDespues < 0) cargosDespues = 0;
+    const alCorte = Math.max(0, Math.min(total, Math.round((total - cargosDespues) * 100) / 100));
+    return {
+      total,
+      alCorte,
+      despuesDelCorte: Math.round((total - alCorte) * 100) / 100,
+      fechaCorte,
+    };
+  }
+
+  // Lista / sin historial: valores del API (misma fórmula en backend).
+  if (cuenta.saldoAlCorte != null && Number.isFinite(Number(cuenta.saldoAlCorte))) {
+    const alCorte = Math.round(Number(cuenta.saldoAlCorte) * 100) / 100;
+    const despues = Math.max(
+      0,
+      Math.round((Number(cuenta.saldoDespuesCorte ?? total - alCorte) || 0) * 100) / 100,
+    );
+    return { total, alCorte: Math.min(total, Math.max(0, alCorte)), despuesDelCorte: despues, fechaCorte };
+  }
+
+  return { total, alCorte: total, despuesDelCorte: 0, fechaCorte };
+}
+
+/** Monto a considerar para “pagar esta quincena”: al corte si hay, si no el saldo. */
+export function montoAPagarTdc(cuenta: Cuenta): number {
+  if ((cuenta.tipo || '').toUpperCase() === 'TDC' && cuenta.saldoAlCorte != null) {
+    return Math.max(0, Number(cuenta.saldoAlCorte) || 0);
+  }
+  return Math.max(0, Number(cuenta.saldoActual) || 0);
 }
 
 /** Crédito libre = límite − deuda. Null si no hay límite capturado. */

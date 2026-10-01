@@ -10,7 +10,7 @@ import { formatDineroInput, parseDinero, soloMontoKey } from '../../dinero.util'
 import { EnterAvanceDirective } from '../../enter-avance.directive';
 import { PaginadorComponent } from '../../compartido/paginador/paginador.component';
 import { EstadoPaginacion } from '../../compartido/paginar.util';
-import { CalendarioTdc, calendarioCompraTdc, pagosPorQuincena } from '../../tdc-calendario.util';
+import { CalendarioTdc, calendarioCompraTdc, montoAPagarTdc, pagosPorQuincena } from '../../tdc-calendario.util';
 
 /**
  * Perfiles que de momento solo contemplan pagos de quincena
@@ -240,7 +240,12 @@ export class MensualesComponent implements OnInit, OnDestroy {
   }
 
   private sumaSaldos(lista: CalendarioTdc[]): number {
-    return Math.round(lista.reduce((a, p) => a + Number(p.cuenta.saldoActual || 0), 0) * 100) / 100;
+    return Math.round(lista.reduce((a, p) => a + montoAPagarTdc(p.cuenta), 0) * 100) / 100;
+  }
+
+  /** Monto a mostrar en lista de pagos (al corte en TDC si aplica). */
+  montoPagoCuenta(p: CalendarioTdc): number {
+    return montoAPagarTdc(p.cuenta);
   }
 
   private sumaMontos(lista: { monto: number }[]): number {

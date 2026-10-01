@@ -50,6 +50,15 @@ public interface MovimientoCuentaRepository extends JpaRepository<MovimientoCuen
             """)
     BigDecimal sumaCargosDespues(String propietario, LocalDate fecha);
 
+    @Query("""
+            select coalesce(sum(m.monto), 0) from MovimientoCuenta m
+            where m.propietario = ?1
+              and m.cuenta.id = ?2
+              and upper(m.tipo) in ('CARGO', 'INTERES')
+              and m.fecha > ?3
+            """)
+    BigDecimal sumaCargosDespuesDeCuenta(String propietario, Long cuentaId, LocalDate fecha);
+
     @Query("select coalesce(max(m.id), 0) from MovimientoCuenta m where m.propietario = ?1")
     Long maxId(String propietario);
 

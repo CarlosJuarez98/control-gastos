@@ -75,6 +75,13 @@ export interface Cuenta {
   limiteCredito?: number | null;
   /** límite − deuda (viene del API). */
   creditoDisponible?: number | null;
+  /**
+   * TDC: saldo del estado de cuenta (al último corte).
+   * Deuda total − cargos posteriores al corte.
+   */
+  saldoAlCorte?: number | null;
+  /** TDC: compras después del corte (aún no van en el estado de cuenta). */
+  saldoDespuesCorte?: number | null;
   /** TDC sin compras nuevas (sigue en Deudas). */
   bloqueada?: boolean;
   /** Cuenta saldada / fuera de lista. */
@@ -88,6 +95,14 @@ export interface Movimiento {
   monto: number;
   concepto?: string;
   cuenta?: Cuenta;
+  /** Si el cargo TDC es a N meses (viene del API). */
+  meses?: number | null;
+  /** TARJETA / DISPOSICION del gasto ligado. */
+  formaPagoGasto?: string | null;
+  /** Id del gasto origen; la edición canónica es en Gastos. */
+  gastoId?: number | null;
+  aMeses?: boolean;
+  desdeGasto?: boolean;
 }
 
 export interface SaldoSnapshot {

@@ -105,11 +105,14 @@
                 >
                   <a [routerLink]="linkCuenta(c)" (click)="alClicCuenta($event, c)">
                     <strong>{{ c.nombre }}</strong>
-                    @if (esTdc(c) && c.bloqueada) {
+                    @if (esCreditoCompras(c) && c.bloqueada) {
                       <small class="meta-bloqueada">Bloqueada</small>
                     }
                     @if (esConCalendario(c) && (c.diaCorte || c.diaLimitePago)) {
                       <small class="meta-tdc">{{ textoCalendario(c.diaCorte, c.diaLimitePago) }}</small>
+                    }
+                    @if (tipCorteTdc(c); as tip) {
+                      <small class="meta-corte">{{ tip }}</small>
                     }
                     @if (esConCalendario(c) && creditoDisponibleDe(c) != null) {
                       <small class="meta-libre">Libre {{ creditoDisponibleDe(c) | currency:'MXN':'symbol-narrow':'1.0-0' }}</small>
@@ -212,18 +215,40 @@
     @if (!esMovil) {
       <div class="detalle-cab">
         <div class="detalle-titulo">
-          <label class="nombre-cuenta">Nombre
-            <input
-              type="text"
-              [(ngModel)]="nombreEdit"
-              name="nombreCuenta"
-              autocomplete="off"
-              maxlength="80"
-              [disabled]="guardandoNombre"
-              (blur)="guardarNombre()"
-              (keydown.enter)="$event.preventDefault(); $any($event.target).blur()"
-            />
-          </label>
+          <div class="campos-cuenta">
+            <label class="nombre-cuenta">Nombre
+              <input
+                type="text"
+                [(ngModel)]="nombreEdit"
+                name="nombreCuenta"
+                autocomplete="off"
+                maxlength="80"
+                [disabled]="guardandoNombre"
+                (blur)="guardarNombre()"
+                (keydown.enter)="$event.preventDefault(); $any($event.target).blur()"
+              />
+            </label>
+            <label class="tipo-cuenta">Categoría
+              <select
+                [ngModel]="seleccionada.tipo"
+                (ngModelChange)="cambiarTipo($event)"
+                name="tipoCuenta"
+              >
+                @for (t of tipos; track t) { <option [value]="t">{{ etiquetaTipo(t) }}</option> }
+              </select>
+            </label>
+            @if (esCreditoCompras(seleccionada)) {
+              <button
+                type="button"
+                class="secundario btn-bloqueo"
+                [class.bloqueo-activo]="seleccionada.bloqueada"
+                [disabled]="guardandoBloqueo"
+                (click)="toggleBloqueoTdc()"
+              >
+                {{ etiquetaBloqueoTdc() }}
+              </button>
+            }
+          </div>
           <p class="saldo-linea">
             Saldo actual:
             <strong class="mono">{{ seleccionada.saldoActual | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
@@ -233,10 +258,28 @@
             @if (esConCalendario(seleccionada) && creditoDisponibleDe(seleccionada) != null) {
               <span class="pill-disponible">Crédito libre {{ creditoDisponibleDe(seleccionada) | currency:'MXN':'symbol-narrow':'1.2-2' }}</span>
             }
-            @if (esTdc(seleccionada) && seleccionada.bloqueada) {
+            @if (esCreditoCompras(seleccionada) && seleccionada.bloqueada) {
               <span class="pill-bloqueada">Sin compras</span>
             }
           </p>
+          @if (resumenTdc; as rt) {
+            <div class="card-tdc-corte" role="group" aria-label="Deuda total y saldo al corte">
+              <div class="rp-item total">
+                <span>Deuda total</span>
+                <strong class="mono">{{ rt.total | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
+              </div>
+              <div class="rp-item">
+                <span>Al corte · {{ rt.etiquetaCorte }}</span>
+                <strong class="mono aviso">{{ rt.alCorte | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
+              </div>
+              @if (rt.despuesDelCorte > 0.005) {
+                <div class="rp-item">
+                  <span>Después del corte</span>
+                  <strong class="mono">{{ rt.despuesDelCorte | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
+                </div>
+              }
+            </div>
+          }
           @if (resumenPrestamo; as rp) {
             <div
               class="card-prestamo"
@@ -274,31 +317,11 @@
             </div>
           }
         </div>
-        <div class="detalle-acciones">
-          <label class="tipo-cuenta">Categoría
-            <select
-              [ngModel]="seleccionada.tipo"
-              (ngModelChange)="cambiarTipo($event)"
-              name="tipoCuenta"
-            >
-              @for (t of tipos; track t) { <option [value]="t">{{ etiquetaTipo(t) }}</option> }
-            </select>
-          </label>
-          @if (esTdc(seleccionada)) {
-            <button
-              type="button"
-              class="secundario"
-              [class.bloqueo-activo]="seleccionada.bloqueada"
-              [disabled]="guardandoBloqueo"
-              (click)="toggleBloqueoTdc()"
-            >
-              {{ etiquetaBloqueoTdc() }}
-            </button>
-          }
-          @if (puedeEliminarCuenta) {
+        @if (puedeEliminarCuenta) {
+          <div class="detalle-acciones">
             <button type="button" class="peligro" (click)="eliminarCuenta()">Eliminar cuenta</button>
-          }
-        </div>
+          </div>
+        }
       </div>
     }
 
@@ -317,6 +340,23 @@
             <span>Te deben</span>
             <strong class="mono">{{ rp.total | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
           </div>
+        } @else if (resumenTdc) {
+          @if (resumenTdc; as rt) {
+            <div class="metrica">
+              <span>Deuda total</span>
+              <strong class="mono">{{ rt.total | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
+            </div>
+            <div class="metrica">
+              <span>Al corte · {{ rt.etiquetaCorte }}</span>
+              <strong class="mono aviso">{{ rt.alCorte | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
+            </div>
+            @if (rt.despuesDelCorte > 0.005) {
+              <div class="metrica">
+                <span>Después del corte</span>
+                <strong class="mono">{{ rt.despuesDelCorte | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
+              </div>
+            }
+          }
         } @else {
           <div class="metrica">
             <span>Saldo</span>
@@ -340,7 +380,7 @@
             <strong class="mono">{{ creditoDisponibleDe(seleccionada) | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
           </div>
         }
-        @if (esTdc(seleccionada)) {
+        @if (esCreditoCompras(seleccionada)) {
           <div class="metrica" [class.alerta]="seleccionada.bloqueada">
             <span>Compras</span>
             <strong>{{ seleccionada.bloqueada ? 'Bloqueadas' : 'Activas' }}</strong>
@@ -369,7 +409,7 @@
         </div>
       }
 
-      @if (esTdc(seleccionada)) {
+      @if (esCreditoCompras(seleccionada)) {
         <button
           type="button"
           class="btn-bloqueo"
@@ -548,38 +588,40 @@
             <span class="movil-card-meta">{{ etiquetaTipo(seleccionada.tipo) }}</span>
           </header>
           <div class="movil-form detalle-acciones">
-            <label class="nombre-cuenta">Nombre
-              <input
-                type="text"
-                [(ngModel)]="nombreEdit"
-                name="nombreCuentaMovil"
-                autocomplete="off"
-                maxlength="80"
-                [disabled]="guardandoNombre"
-                (blur)="guardarNombre()"
-                (keydown.enter)="$event.preventDefault(); $any($event.target).blur()"
-              />
-            </label>
-            <label class="tipo-cuenta">Categoría
-              <select
-                [ngModel]="seleccionada.tipo"
-                (ngModelChange)="cambiarTipo($event)"
-                name="tipoCuentaMovil"
-              >
-                @for (t of tipos; track t) { <option [value]="t">{{ etiquetaTipo(t) }}</option> }
-              </select>
-            </label>
-            @if (esTdc(seleccionada)) {
-              <button
-                type="button"
-                class="secundario"
-                [class.bloqueo-activo]="seleccionada.bloqueada"
-                [disabled]="guardandoBloqueo"
-                (click)="toggleBloqueoTdc()"
-              >
-                {{ etiquetaBloqueoTdc() }}
-              </button>
-            }
+            <div class="campos-cuenta">
+              <label class="nombre-cuenta">Nombre
+                <input
+                  type="text"
+                  [(ngModel)]="nombreEdit"
+                  name="nombreCuentaMovil"
+                  autocomplete="off"
+                  maxlength="80"
+                  [disabled]="guardandoNombre"
+                  (blur)="guardarNombre()"
+                  (keydown.enter)="$event.preventDefault(); $any($event.target).blur()"
+                />
+              </label>
+              <label class="tipo-cuenta">Categoría
+                <select
+                  [ngModel]="seleccionada.tipo"
+                  (ngModelChange)="cambiarTipo($event)"
+                  name="tipoCuentaMovil"
+                >
+                  @for (t of tipos; track t) { <option [value]="t">{{ etiquetaTipo(t) }}</option> }
+                </select>
+              </label>
+              @if (esCreditoCompras(seleccionada)) {
+                <button
+                  type="button"
+                  class="secundario btn-bloqueo"
+                  [class.bloqueo-activo]="seleccionada.bloqueada"
+                  [disabled]="guardandoBloqueo"
+                  (click)="toggleBloqueoTdc()"
+                >
+                  {{ etiquetaBloqueoTdc() }}
+                </button>
+              }
+            </div>
             @if (puedeEliminarCuenta) {
               <button type="button" class="peligro" (click)="eliminarCuenta()">Eliminar cuenta</button>
             }
@@ -594,27 +636,46 @@
           <ul class="movs-lista">
             @for (m of movimientosPagina; track m.id) {
               <li [class.editando]="editMovId === m.id">
-                <div class="mov-meta">
-                  <span>{{ m.fecha | fechaCorta }}</span>
-                  <span class="mov-tipo">{{ etiquetaMov(m.tipo, m.monto) }}</span>
-                </div>
-                @if (m.concepto) {
-                  <p class="mov-concepto">{{ m.concepto }}</p>
-                }
-                <div class="mov-fila">
-                  <strong class="mono">{{ m.monto | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
-                  <div class="acciones-mov">
-                    <button type="button" class="icono" title="Editar" aria-label="Editar" (click)="editarMovimiento(m)">
-                      <svg viewBox="0 0 24 24" aria-hidden="true">
-                        <path d="M4 20h4.5L19 9.5 14.5 5 4 15.5V20z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
-                        <path d="M12.5 7l4.5 4.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
-                      </svg>
-                    </button>
-                    <button type="button" class="icono peligro" title="Borrar" aria-label="Borrar" (click)="eliminarMovimiento(m)">
-                      <svg viewBox="0 0 24 24" aria-hidden="true">
-                        <path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                      </svg>
-                    </button>
+                <div class="mov-fila-compacta">
+                  <div class="mov-izq">
+                    <span class="mov-fecha">{{ m.fecha | fechaCorta }}</span>
+                    <span class="mov-tipo">{{ etiquetaMov(m.tipo, m.monto) }}</span>
+                    @if (esCargoAMeses(m)) {
+                      <span class="pill-meses" [title]="detalleCortesPlan(m)">{{ etiquetaMesesMov(m) }}</span>
+                    }
+                    @if (interesDeConcepto(m); as interes) {
+                      <span class="pill-interes">interés {{ interes | currency:'MXN':'symbol-narrow':'1.2-2' }}</span>
+                    }
+                    @if (conceptoSinInteres(m); as conc) {
+                      <span class="mov-concepto" [title]="m.concepto || ''">{{ conc }}</span>
+                    }
+                  </div>
+                  <div class="mov-der">
+                    <strong class="mono">{{ m.monto | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
+                    <div class="acciones-mov">
+                      @if (esCargoDesdeGasto(m) && m.gastoId) {
+                        <a
+                          [routerLink]="['/gastos']"
+                          [queryParams]="{ edit: m.gastoId }"
+                          class="link-en-gastos"
+                          title="Ver o editar este gasto"
+                        >Gastos</a>
+                      } @else if (esCargoDesdeGasto(m)) {
+                        <a routerLink="/gastos" class="link-en-gastos" title="Ir a Gastos">Gastos</a>
+                      } @else {
+                        <button type="button" class="icono" title="Editar" aria-label="Editar" (click)="editarMovimiento(m)">
+                          <svg viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M4 20h4.5L19 9.5 14.5 5 4 15.5V20z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+                            <path d="M12.5 7l4.5 4.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                          </svg>
+                        </button>
+                        <button type="button" class="icono peligro" title="Borrar" aria-label="Borrar" (click)="eliminarMovimiento(m)">
+                          <svg viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                          </svg>
+                        </button>
+                      }
+                    </div>
                   </div>
                 </div>
               </li>
@@ -679,22 +740,49 @@
             @for (m of movimientosPagina; track m.id) {
               <tr [class.editando]="editMovId === m.id">
                 <td class="col-fecha">{{ m.fecha | fechaCorta }}</td>
-                <td class="col-tipo">{{ etiquetaMov(m.tipo, m.monto) }}</td>
-                <td class="col-concepto" [title]="m.concepto || ''">{{ m.concepto || '—' }}</td>
+                <td class="col-tipo">
+                  <span class="tipo-linea">
+                    <span>{{ etiquetaMov(m.tipo, m.monto) }}</span>
+                    @if (esCargoAMeses(m)) {
+                      <span class="pill-meses" [title]="detalleCortesPlan(m)">{{ etiquetaMesesMov(m) }}</span>
+                    }
+                  </span>
+                </td>
+                <td class="col-concepto" [title]="m.concepto || ''">
+                  @if (conceptoSinInteres(m); as conc) {
+                    <span>{{ conc }}</span>
+                  } @else {
+                    <span>—</span>
+                  }
+                  @if (interesDeConcepto(m); as interes) {
+                    <span class="pill-interes">interés {{ interes | currency:'MXN':'symbol-narrow':'1.2-2' }}</span>
+                  }
+                </td>
                 <td class="col-monto mono">{{ m.monto | currency:'MXN':'symbol-narrow':'1.2-2' }}</td>
                 <td class="col-acciones">
                   <div class="acciones-mov">
-                    <button type="button" class="icono" title="Editar" aria-label="Editar" (click)="editarMovimiento(m)">
-                      <svg viewBox="0 0 24 24" aria-hidden="true">
-                        <path d="M4 20h4.5L19 9.5 14.5 5 4 15.5V20z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
-                        <path d="M12.5 7l4.5 4.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
-                      </svg>
-                    </button>
-                    <button type="button" class="icono peligro" title="Borrar" aria-label="Borrar" (click)="eliminarMovimiento(m)">
-                      <svg viewBox="0 0 24 24" aria-hidden="true">
-                        <path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                      </svg>
-                    </button>
+                    @if (esCargoDesdeGasto(m) && m.gastoId) {
+                      <a
+                        [routerLink]="['/gastos']"
+                        [queryParams]="{ edit: m.gastoId }"
+                        class="link-en-gastos"
+                        title="Ver o editar este gasto"
+                      >Gastos</a>
+                    } @else if (esCargoDesdeGasto(m)) {
+                      <a routerLink="/gastos" class="link-en-gastos" title="Ir a Gastos">Gastos</a>
+                    } @else {
+                      <button type="button" class="icono" title="Editar" aria-label="Editar" (click)="editarMovimiento(m)">
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                          <path d="M4 20h4.5L19 9.5 14.5 5 4 15.5V20z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+                          <path d="M12.5 7l4.5 4.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                        </svg>
+                      </button>
+                      <button type="button" class="icono peligro" title="Borrar" aria-label="Borrar" (click)="eliminarMovimiento(m)">
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                          <path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                      </button>
+                    }
                   </div>
                 </td>
               </tr>

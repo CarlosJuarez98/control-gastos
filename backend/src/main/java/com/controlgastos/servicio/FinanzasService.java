@@ -8,7 +8,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
+import java.time.YearMonth;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -666,6 +668,7 @@ public class FinanzasService {
     public List<Cuenta> listarCuentas() {
         String u = Sesion.usuario();
         return cuentaRepository.findActivasByPropietario(u).stream()
+                .peek(this::enriquecerSaldoAlCorte)
                 .sorted(Comparator
                         .comparing((Cuenta c) -> c.getSaldoActual() == null
                                 || c.getSaldoActual().compareTo(BigDecimal.ZERO) == 0)
@@ -682,7 +685,63 @@ public class FinanzasService {
         if (cuenta.isArchivada()) {
             throw new IllegalArgumentException("Cuenta no encontrada");
         }
+        enriquecerSaldoAlCorte(cuenta);
         return cuenta;
+    }
+
+    /**
+     * Como el banco: deuda total vs saldo al corte.
+     * Después del corte = CARGO + INTERÉS con fecha &gt; último corte cerrado
+     * (lo cargado después del corte, por fecha de movimiento).
+     * Al corte = max(0, total − después). Misma regla en front (desgloseSaldoTdc).
+     */
+    private void enriquecerSaldoAlCorte(Cuenta c) {
+        if (c == null || c.getId() == null || !esCuentaTdc(c) || c.getDiaCorte() == null) {
+            c.setSaldoAlCorte(null);
+            c.setSaldoDespuesCorte(null);
+            return;
+        }
+        LocalDate corte = ultimoCorteCerrado(c.getDiaCorte(), LocalDate.now());
+        if (corte == null) {
+            c.setSaldoAlCorte(null);
+            c.setSaldoDespuesCorte(null);
+            return;
+        }
+        String u = c.getPropietario() != null ? c.getPropietario() : Sesion.usuario();
+        BigDecimal cargosDespues = nullSafe(
+                movimientoRepository.sumaCargosDespuesDeCuenta(u, c.getId(), corte));
+        if (cargosDespues.compareTo(BigDecimal.ZERO) < 0) {
+            // Ajustes negativos de interés: no empujan "después" bajo cero.
+            cargosDespues = BigDecimal.ZERO;
+        }
+        BigDecimal total = nullSafe(c.getSaldoActual());
+        BigDecimal alCorte = total.subtract(cargosDespues);
+        if (alCorte.compareTo(BigDecimal.ZERO) < 0) {
+            alCorte = BigDecimal.ZERO;
+        }
+        if (alCorte.compareTo(total) > 0) {
+            alCorte = total;
+        }
+        BigDecimal despues = total.subtract(alCorte);
+        if (despues.compareTo(BigDecimal.ZERO) < 0) {
+            despues = BigDecimal.ZERO;
+        }
+        c.setSaldoAlCorte(alCorte.setScale(2, RoundingMode.HALF_UP));
+        c.setSaldoDespuesCorte(despues.setScale(2, RoundingMode.HALF_UP));
+    }
+
+    /** Último día de corte ya ocurrido (≤ hoy). */
+    private static LocalDate ultimoCorteCerrado(Integer diaCorte, LocalDate hoy) {
+        if (diaCorte == null || diaCorte < 1 || diaCorte > 31) {
+            return null;
+        }
+        YearMonth ym = YearMonth.from(hoy);
+        LocalDate corte = DiaCobroMes.fechaEnMes(ym, diaCorte);
+        if (corte.isAfter(hoy)) {
+            ym = ym.minusMonths(1);
+            corte = DiaCobroMes.fechaEnMes(ym, diaCorte);
+        }
+        return corte;
     }
 
     @Transactional
@@ -749,14 +808,14 @@ public class FinanzasService {
     /**
      * Quita de la lista una cuenta en $0. No borra movimientos:
      * los abonos/cargos siguen contando en el saldo disponible.
-     * Las TDC no se archivan: se dejan de usar (bloqueo de compras).
+     * TDC / Tienda no se archivan: se dejan de usar (bloqueo de compras).
      */
     @Transactional
     public void archivarCuenta(Long id) {
         Cuenta cuenta = obtenerCuenta(id);
-        if (esCuentaTdc(cuenta)) {
+        if (esCreditoCompras(cuenta)) {
             throw new IllegalArgumentException(
-                    "Las TDC no se eliminan; usa «Dejar de usar» para quitarlas de compras");
+                    "Las TDC y tiendas no se eliminan; usa «Dejar de usar» para quitarlas de compras");
         }
         BigDecimal saldo = nullSafe(cuenta.getSaldoActual());
         if (saldo.compareTo(BigDecimal.ZERO) != 0) {
@@ -769,7 +828,61 @@ public class FinanzasService {
     public List<MovimientoCuenta> movimientosDeCuenta(Long cuentaId) {
         String u = Sesion.usuario();
         obtenerCuenta(cuentaId);
-        return movimientoRepository.findByPropietarioAndCuentaIdOrderByFechaDescIdDesc(u, cuentaId);
+        List<MovimientoCuenta> movs =
+                movimientoRepository.findByPropietarioAndCuentaIdOrderByFechaDescIdDesc(u, cuentaId);
+        enriquecerMovimientosConGasto(movs);
+        return movs;
+    }
+
+    /** Marca cargos ligados a gasto TDC (meses / disposición) para la UI de Deudas. */
+    private void enriquecerMovimientosConGasto(List<MovimientoCuenta> movs) {
+        if (movs == null || movs.isEmpty()) {
+            return;
+        }
+        List<Long> ids = movs.stream()
+                .map(MovimientoCuenta::getId)
+                .filter(Objects::nonNull)
+                .toList();
+        if (ids.isEmpty()) {
+            return;
+        }
+        Map<Long, Long> cuentaPorMov = new HashMap<>();
+        for (MovimientoCuenta m : movs) {
+            if (m.getId() != null && m.getCuenta() != null) {
+                cuentaPorMov.put(m.getId(), m.getCuenta().getId());
+            }
+        }
+        Map<Long, Gasto> porMov = new HashMap<>();
+        for (Gasto g : gastoRepository.findByMovimientoIdIn(ids)) {
+            Long mid = g.getMovimientoId();
+            if (mid == null) {
+                continue;
+            }
+            Gasto prev = porMov.get(mid);
+            if (prev == null) {
+                porMov.put(mid, g);
+                continue;
+            }
+            Long cuentaMov = cuentaPorMov.get(mid);
+            boolean prevOk = cuentaMov != null && cuentaMov.equals(prev.getCuentaId());
+            boolean curOk = cuentaMov != null && cuentaMov.equals(g.getCuentaId());
+            if (curOk && !prevOk) {
+                porMov.put(mid, g);
+            } else if (curOk == prevOk && g.getId() < prev.getId()) {
+                porMov.put(mid, g);
+            }
+        }
+        for (MovimientoCuenta m : movs) {
+            Gasto g = porMov.get(m.getId());
+            if (g == null) {
+                continue;
+            }
+            m.setGastoId(g.getId());
+            m.setFormaPagoGasto(g.getFormaPago());
+            if (g.getMeses() != null && g.getMeses() > 1) {
+                m.setMeses(g.getMeses());
+            }
+        }
     }
 
     @Transactional
@@ -780,6 +893,10 @@ public class FinanzasService {
         if (esCuentaTdc(cuenta) && "CARGO".equals(mov.getTipo())) {
             throw new IllegalArgumentException(
                     "En TDC las compras se registran en Gastos (pago con tarjeta)");
+        }
+        if (esCuentaTienda(cuenta) && cuenta.isBloqueada() && "CARGO".equals(mov.getTipo())) {
+            throw new IllegalArgumentException(
+                    "La tienda «" + cuenta.getNombre() + "» está bloqueada; no admite compras nuevas");
         }
         if (esPrestamoOtorgado(cuenta.getTipo()) && esCargoPrestamo(mov.getTipo())) {
             exigirSaldoDisponible(u, mov.getMonto());
@@ -808,11 +925,9 @@ public class FinanzasService {
             throw new IllegalArgumentException("El movimiento no pertenece a esta cuenta");
         }
 
-        String nuevoTipo = cambios.getTipo().trim().toUpperCase(Locale.ROOT);
-        boolean ligadoAGasto = gastoRepository.findByMovimientoId(movimientoId).isPresent();
-        if (ligadoAGasto && !"CARGO".equals(nuevoTipo)) {
+        if (gastoDeMovimiento(movimientoId).isPresent()) {
             throw new IllegalArgumentException(
-                    "Este cargo viene de un gasto con tarjeta; edita el monto en Gastos o aquí como CARGO.");
+                    "Este cargo viene de Gastos; edítalo ahí para que se actualicen Deudas y Mensuales.");
         }
 
         if (esPrestamoOtorgado(cuenta.getTipo()) && esCargoPrestamo(cambios.getTipo())) {
@@ -850,7 +965,7 @@ public class FinanzasService {
             throw new IllegalArgumentException("El movimiento no pertenece a esta cuenta");
         }
         // Si el cargo nació de un gasto TDC, borra también gasto + plan (sin tocar saldo 2 veces)
-        gastoRepository.findByMovimientoId(movimientoId).ifPresent(g -> {
+        gastoDeMovimiento(movimientoId).ifPresent(g -> {
             for (GastoMensual p : gastoMensualRepository.findByGastoOrigenId(g.getId())) {
                 if (p.isActivo()) {
                     p.setActivo(false);
@@ -873,12 +988,22 @@ public class FinanzasService {
         if (mov.getId() == null) {
             return;
         }
-        gastoRepository.findByMovimientoId(mov.getId()).ifPresent(g -> {
-            g.setMonto(mov.getMonto());
-            g.setFecha(mov.getFecha());
-            if (mov.getConcepto() != null && !mov.getConcepto().isBlank()) {
-                g.setMotivo(mov.getConcepto());
+        gastoDeMovimiento(mov.getId()).ifPresent(g -> {
+            if (esFormaDisposicion(g.getFormaPago())) {
+                // Cargo = total del banco (con interés). El efectivo recibido no cambia aquí.
+                g.setTotalDeuda(mov.getMonto());
+                String base = g.getMotivo() != null && !g.getMotivo().isBlank()
+                        ? g.getMotivo()
+                        : "Disposición de efectivo";
+                mov.setConcepto(conceptoCargoTdc(g, base, mov.getMonto()));
+                movimientoRepository.save(mov);
+            } else {
+                g.setMonto(mov.getMonto());
+                if (mov.getConcepto() != null && !mov.getConcepto().isBlank()) {
+                    g.setMotivo(mov.getConcepto());
+                }
             }
+            g.setFecha(mov.getFecha());
             if (mov.getCuenta() != null) {
                 g.setCuenta(mov.getCuenta());
             }
@@ -888,6 +1013,38 @@ public class FinanzasService {
                     : "Gasto " + guardado.getCategoria();
             sincronizarPlanMeses(guardado, concepto);
         });
+    }
+
+    /**
+     * Resuelve el gasto ligado a un cargo. Si por datos viejos hay más de uno,
+     * conserva el de la misma TDC (o el más viejo) y suelta el resto.
+     */
+    private java.util.Optional<Gasto> gastoDeMovimiento(Long movimientoId) {
+        if (movimientoId == null) {
+            return java.util.Optional.empty();
+        }
+        List<Gasto> ligados = gastoRepository.findByMovimientoIdOrderByIdAsc(movimientoId);
+        if (ligados.isEmpty()) {
+            return java.util.Optional.empty();
+        }
+        if (ligados.size() == 1) {
+            return java.util.Optional.of(ligados.get(0));
+        }
+        Long cuentaId = movimientoRepository.findById(movimientoId)
+                .map(MovimientoCuenta::getCuenta)
+                .map(Cuenta::getId)
+                .orElse(null);
+        Gasto keep = ligados.stream()
+                .filter(g -> cuentaId != null && cuentaId.equals(g.getCuentaId()))
+                .findFirst()
+                .orElse(ligados.get(0));
+        for (Gasto g : ligados) {
+            if (!g.getId().equals(keep.getId())) {
+                g.setMovimientoId(null);
+                gastoRepository.save(g);
+            }
+        }
+        return java.util.Optional.of(keep);
     }
 
     private void validarMovimientoEntrada(MovimientoCuenta mov) {
@@ -937,6 +1094,16 @@ public class FinanzasService {
     private static boolean esCuentaTdc(Cuenta cuenta) {
         return cuenta != null && cuenta.getTipo() != null
                 && "TDC".equalsIgnoreCase(cuenta.getTipo().trim());
+    }
+
+    private static boolean esCuentaTienda(Cuenta cuenta) {
+        return cuenta != null && cuenta.getTipo() != null
+                && "TIENDA".equalsIgnoreCase(cuenta.getTipo().trim());
+    }
+
+    /** TDC / Tienda: crédito para compras; no se archivan. */
+    private static boolean esCreditoCompras(Cuenta cuenta) {
+        return esCuentaTdc(cuenta) || esCuentaTienda(cuenta);
     }
 
     private static boolean esCargoPrestamo(String tipo) {
