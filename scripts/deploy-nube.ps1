@@ -15,7 +15,8 @@ $tar = Join-Path $env:TEMP "cg-deploy.tar"
 
 Write-Host "== Deploy control-gastos (codigo) ==" -ForegroundColor Cyan
 Push-Location $Root
-tar -cf $tar backend/src frontend/src docker-compose.cloud-atp.yml Dockerfile
+# Incluir angular.json (budgets) y package*; solo frontend/src deja budgets viejos en la VM.
+tar -cf $tar backend/src frontend/src frontend/angular.json frontend/package.json frontend/package-lock.json docker-compose.cloud-atp.yml Dockerfile
 Pop-Location
 scp @SshOpts $tar "${VmHost}:~/cg-deploy.tar"
 
