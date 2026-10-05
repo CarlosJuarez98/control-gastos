@@ -776,6 +776,21 @@ th {
     padding-right: 0;
     padding-bottom: max(0.35rem, env(safe-area-inset-bottom));
   }
+
+  /*
+   * Teclado móvil: el dock NO se esconde; sube encima del teclado.
+   * El bottom concreto lo aplica también JS (--teclado-inset + estilo inline)
+   * porque algunos WebViews no resuelven bien max()+var en bottom.
+   */
+  body.teclado-abierto .nav-dock {
+    z-index: 70 !important;
+    transition: bottom 0.18s ease;
+  }
+
+  body.teclado-abierto .menu-nav-panel {
+    z-index: 71 !important;
+    transition: bottom 0.18s ease;
+  }
 }
 
 /* —— Motion global —— */

@@ -94,6 +94,7 @@ export class AppComponent implements AfterViewInit, AfterViewChecked, OnDestroy 
   private altoAppCongelado = false;
   private focusScrollTimer: ReturnType<typeof setTimeout> | null = null;
   private focusOutTimer: ReturnType<typeof setTimeout> | null = null;
+  private insetPollTimer: ReturnType<typeof setTimeout> | null = null;
   private vvCleanup: (() => void) | null = null;
 
   private readonly linksBase: NavLink[] = [
@@ -170,6 +171,7 @@ export class AppComponent implements AfterViewInit, AfterViewChecked, OnDestroy 
     if (this.recalcTimer != null) clearTimeout(this.recalcTimer);
     if (this.focusScrollTimer != null) clearTimeout(this.focusScrollTimer);
     if (this.focusOutTimer != null) clearTimeout(this.focusOutTimer);
+    if (this.insetPollTimer != null) clearTimeout(this.insetPollTimer);
     this.vvCleanup?.();
   }
 
@@ -214,9 +216,15 @@ export class AppComponent implements AfterViewInit, AfterViewChecked, OnDestroy 
       this.altoAppCongelado = true;
       this.fijarAltoApp(true);
     }
+    this.actualizarInsetTeclado();
     this.marcarTeclado(true);
+    this.sondearInsetTeclado();
     if (this.focusScrollTimer != null) clearTimeout(this.focusScrollTimer);
-    this.focusScrollTimer = setTimeout(() => this.asegurarCampoVisible(t!), 300);
+    // Esperar animación del teclado y volver a medir inset
+    this.focusScrollTimer = setTimeout(() => {
+      this.actualizarInsetTeclado();
+      this.asegurarCampoVisible(t!);
+    }, 320);
   }
 
   @HostListener('focusout')
@@ -229,15 +237,17 @@ export class AppComponent implements AfterViewInit, AfterViewChecked, OnDestroy 
       this.altoAppCongelado = false;
       this.fijarAltoApp(true);
       document.documentElement.style.setProperty('--teclado-inset', '0px');
+      this.aplicarDockSobreTeclado(0);
     }, 120);
   }
 
-  /** Mientras escribe (móvil), el campo activo sigue visible sobre el teclado. */
+  /** Mientras escribe (móvil), el campo activo sigue visible sobre el teclado + dock. */
   @HostListener('input', ['$event'])
   onInputCampo(ev: Event): void {
     if (!this.tecladoAbierto) return;
     const t = ev.target;
     if (!(t instanceof HTMLInputElement) && !(t instanceof HTMLTextAreaElement)) return;
+    this.actualizarInsetTeclado();
     if (this.focusScrollTimer != null) clearTimeout(this.focusScrollTimer);
     this.focusScrollTimer = setTimeout(() => this.asegurarCampoVisible(t), 80);
   }
@@ -268,15 +278,63 @@ export class AppComponent implements AfterViewInit, AfterViewChecked, OnDestroy 
     }
   }
 
+  /** Altura del teclado ≈ layout − visual viewport (Chrome/Android; iOS similar). */
+  private actualizarInsetTeclado(permitirFallback = false): void {
+    const vv = window.visualViewport;
+    let inset = vv ? Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop)) : 0;
+    // Algunos WebViews / DevTools no reportan el teclado en visualViewport
+    if (
+      permitirFallback &&
+      inset < 80 &&
+      this.tecladoAbierto &&
+      window.matchMedia('(max-width: 720px)').matches
+    ) {
+      inset = Math.min(340, Math.round(window.innerHeight * 0.4));
+    }
+    document.documentElement.style.setProperty('--teclado-inset', `${inset}px`);
+    this.aplicarDockSobreTeclado(inset);
+  }
+
+  /** Sube el dock por encima del teclado (inline: más fiable que solo CSS var). */
+  private aplicarDockSobreTeclado(inset: number): void {
+    const dock = document.querySelector('.nav-dock') as HTMLElement | null;
+    const panel = document.querySelector('.menu-nav-panel') as HTMLElement | null;
+    if (inset > 80) {
+      const bottom = `${inset + 6}px`;
+      dock?.style.setProperty('bottom', bottom, 'important');
+      if (panel) {
+        // panel encima del dock (~4.35rem ≈ 70px)
+        panel.style.setProperty('bottom', `${inset + 76}px`, 'important');
+      }
+    } else {
+      dock?.style.removeProperty('bottom');
+      panel?.style.removeProperty('bottom');
+    }
+  }
+
+  /** El teclado tarda en abrir: relee el inset varias veces para subir el dock a tiempo. */
+  private sondearInsetTeclado(): void {
+    if (this.insetPollTimer != null) clearTimeout(this.insetPollTimer);
+    let n = 0;
+    const tick = () => {
+      // Tras ~300ms sin inset real, usar estimación en móvil
+      this.actualizarInsetTeclado(n >= 6);
+      n += 1;
+      if (n < 14 && this.tecladoAbierto) {
+        this.insetPollTimer = setTimeout(tick, 50);
+      }
+    };
+    tick();
+  }
+
   private iniciarTecladoViewport(): void {
     const vv = window.visualViewport;
     if (!vv) return;
     const actualizar = () => {
+      this.actualizarInsetTeclado();
       const inset = Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop));
-      document.documentElement.style.setProperty('--teclado-inset', `${inset}px`);
-      // Si hay campo enfocado y el visual viewport bajó mucho, confirmar teclado
       const activo = document.activeElement as HTMLElement | null;
-      if (this.esCampoEditable(activo) && inset > 100) {
+      if (this.esCampoEditable(activo) && inset > 80) {
         this.zone.run(() => this.marcarTeclado(true));
       } else if (!this.esCampoEditable(activo) && inset < 40) {
         this.zone.run(() => {
@@ -293,13 +351,17 @@ export class AppComponent implements AfterViewInit, AfterViewChecked, OnDestroy 
       document.documentElement.style.removeProperty('--teclado-inset');
       document.documentElement.style.removeProperty('--app-height');
       document.body.classList.remove('teclado-abierto');
+      this.aplicarDockSobreTeclado(0);
     };
   }
 
   private asegurarCampoVisible(el: HTMLElement): void {
     const vv = window.visualViewport;
+    const dockH = this.mostrarNav ? 76 : 16;
     const topLimit = (vv?.offsetTop ?? 0) + 12;
-    const bottomLimit = vv ? vv.offsetTop + vv.height - 16 : window.innerHeight - 16;
+    const bottomLimit = vv
+      ? vv.offsetTop + vv.height - dockH
+      : window.innerHeight - dockH;
     const rect = el.getBoundingClientRect();
     if (rect.bottom > bottomLimit || rect.top < topLimit) {
       el.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'smooth' });

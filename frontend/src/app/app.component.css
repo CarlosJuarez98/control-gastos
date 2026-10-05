@@ -574,17 +574,24 @@ main > *:not(router-outlet) {
     padding-bottom: calc(4.6rem + env(safe-area-inset-bottom));
   }
 
-  /* Teclado abierto: no apretar UI; ocultar dock y dejar espacio al campo */
-  .shell.teclado-abierto .nav-dock,
-  .shell.teclado-abierto .menu-nav-panel,
-  .shell.teclado-abierto .menu-nav-backdrop {
-    opacity: 0;
-    visibility: hidden;
-    pointer-events: none;
+  /* Teclado abierto: dock visible (el bottom lo fija JS con el inset real) */
+  .shell.teclado-abierto .nav-dock {
+    z-index: 70;
+    transition: bottom 0.18s ease;
+    box-shadow:
+      0 12px 36px rgba(0, 0, 0, 0.5),
+      0 0 0 1px color-mix(in srgb, var(--acento) 12%, transparent),
+      inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  }
+
+  .shell.teclado-abierto .menu-nav-panel {
+    transition: bottom 0.18s ease;
+    z-index: 71;
   }
 
   .shell.teclado-abierto.con-dock main {
-    padding-bottom: max(0.85rem, calc(var(--teclado-inset, 0px) * 0.15));
+    /* Espacio extra: dock (~4.6rem) queda sobre el teclado */
+    padding-bottom: calc(4.6rem + var(--teclado-inset, 0px) + env(safe-area-inset-bottom));
   }
 
   .top {
