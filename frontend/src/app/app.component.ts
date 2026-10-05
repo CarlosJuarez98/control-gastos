@@ -20,6 +20,7 @@ import { sha256Hex } from './password-digest';
 import { EnterAvanceDirective } from './enter-avance.directive';
 import { filter, Subscription } from 'rxjs';
 import { scrollCampoEnVista } from './scroll-campo.util';
+import { AppUpdateService } from './app-update.service';
 
 type NavLink = {
   path: string;
@@ -50,6 +51,7 @@ export class AppComponent implements AfterViewInit, AfterViewChecked, OnDestroy 
   readonly avisosCobro = inject(AvisosCobroService);
   private readonly router = inject(Router);
   private readonly zone = inject(NgZone);
+  private readonly appUpdate = inject(AppUpdateService);
 
   @ViewChild('navDock') private navDock?: ElementRef<HTMLElement>;
   @ViewChild('dockMeasure') private dockMeasure?: ElementRef<HTMLElement>;
@@ -558,6 +560,12 @@ export class AppComponent implements AfterViewInit, AfterViewChecked, OnDestroy 
       const err = e as { error?: { error?: string } };
       this.perfilError = err?.error?.error || 'No se pudo actualizar';
     }
+  }
+
+  actualizarApp(): void {
+    this.menuNavAbierto = false;
+    this.cerrarPerfil();
+    void this.appUpdate.forzarRefresh();
   }
 
   salir(): void {

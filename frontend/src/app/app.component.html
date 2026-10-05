@@ -30,6 +30,9 @@
             }
           </button>
         }
+        <button type="button" class="secundario actualizar-app" (click)="actualizarApp()" title="Descargar última versión">
+          Actualizar
+        </button>
         <button type="button" class="secundario salir" (click)="salir()">Salir</button>
       </div>
     </header>
@@ -85,6 +88,9 @@
             <span>{{ l.label }}</span>
           </a>
         }
+        <button type="button" class="menu-nav-actualizar" role="menuitem" (click)="actualizarApp()">
+          Actualizar app
+        </button>
       </div>
     }
     <div class="dock-measure" #dockMeasure aria-hidden="true">
@@ -169,6 +175,7 @@
       </label>
       <button type="submit" [disabled]="perfilCargando || !puedeGuardarPerfil">Guardar</button>
     </form>
+    <button type="button" class="perfil-actualizar" (click)="actualizarApp()">Actualizar app</button>
   </aside>
 }
 

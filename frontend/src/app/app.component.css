@@ -399,10 +399,29 @@ nav.nav-top a.activo .nav-ico {
   color: var(--texto-suave);
 }
 
+button.actualizar-app {
+  padding: 0.4rem 0.85rem;
+  font-size: 0.85rem;
+  border-radius: 999px;
+}
+
 button.salir {
   padding: 0.4rem 0.85rem;
   font-size: 0.85rem;
   border-radius: 999px;
+}
+
+.menu-nav-actualizar,
+.perfil-actualizar {
+  width: 100%;
+  margin-top: 0.35rem;
+  padding: 0.65rem 0.85rem;
+  border-radius: 0.75rem;
+  border: 1px solid color-mix(in srgb, var(--acento, #2d6a4f) 35%, var(--linea));
+  background: color-mix(in srgb, var(--acento, #2d6a4f) 10%, transparent);
+  color: var(--texto);
+  font-weight: 700;
+  cursor: pointer;
 }
 
 .perfil-backdrop {
