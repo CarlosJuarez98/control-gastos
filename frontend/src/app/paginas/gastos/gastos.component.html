@@ -109,7 +109,27 @@
   @if (esConTdc) {
     <div class="bloque-tarjeta">
       <span class="etiqueta-tdc">TDC</span>
-      @if (recomendacionesTdc.length) {
+      @if (esMovil) {
+        @if (recomendacionAuto; as rec) {
+          <p class="hint-tdc-rec hint-tdc-auto" role="status">
+            Automática:
+            <strong>{{ rec.cuenta.nombre }}</strong>
+            @if (rec.diasHastaPago >= 0) {
+              · {{ rec.etiquetaPagoCorta }} · {{ rec.diasHastaPago }}d
+            }
+            @if (!esDisposicion && !rec.cubreMonto) {
+              · no cubre el monto
+            }
+            @if (rec.creditoDisponible != null) {
+              · libre {{ rec.creditoDisponible | currency:'MXN':'symbol-narrow':'1.0-0' }}
+            }
+          </p>
+        } @else if (sinTdcParaMonto) {
+          <p class="hint-tdc-rec hint-tdc-aviso">Ninguna TDC con crédito libre para este monto</p>
+        } @else if (!cuentasTdc.length) {
+          <p class="hint-tdc-rec hint-tdc-aviso">No hay TDC activas; en Deudas usa «Volver a usar» si las bloqueaste</p>
+        }
+      } @else if (recomendacionesTdc.length) {
         <div class="hint-tdc-recs" role="list" aria-label="Tarjetas por conveniencia">
           @for (rec of recomendacionesTdc; track rec.cuenta.id; let i = $index) {
             <button

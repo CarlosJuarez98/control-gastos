@@ -10,6 +10,7 @@ import {
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { fromEvent } from 'rxjs';
 import { fechaHoyLocal } from './fecha.util';
+import { cursorAlFinal, cursorAlFinalTrasUpdate } from './dinero.util';
 
 /**
  * En un form con atributo enterAvance:
@@ -17,6 +18,8 @@ import { fechaHoyLocal } from './fecha.util';
  * - En inputs de texto/monto, muestra un botón ✕ para vaciar (PC y móvil).
  * - En fechas: no se vacían; si quedan vacías, al enfocar vuelven a hoy.
  * - Pone enterkeyhint=next|done|go|search para que el teclado móvil muestre la acción correcta.
+ * - Montos: cursor siempre al final (editar en medio rompe formato/validación).
+ * - El campo activo se mantiene visible al scrollear / con teclado.
  */
 @Directive({
   selector: 'form[enterAvance]',
@@ -30,6 +33,7 @@ export class EnterAvanceDirective implements AfterViewInit {
   private observer?: MutationObserver;
   private refreshing = false;
   private scheduled = false;
+  private scrollCampoTimer: ReturnType<typeof setTimeout> | null = null;
 
   private readonly observeOptions: MutationObserverInit = {
     childList: true,
@@ -53,7 +57,10 @@ export class EnterAvanceDirective implements AfterViewInit {
       });
       this.observer.observe(this.host.nativeElement, this.observeOptions);
     });
-    this.destroyRef.onDestroy(() => this.observer?.disconnect());
+    this.destroyRef.onDestroy(() => {
+      this.observer?.disconnect();
+      if (this.scrollCampoTimer != null) clearTimeout(this.scrollCampoTimer);
+    });
   }
 
   private mutationsRelevantes(mutations: MutationRecord[]): boolean {
@@ -98,6 +105,17 @@ export class EnterAvanceDirective implements AfterViewInit {
 
   @HostListener('keydown', ['$event'])
   onKeydown(ev: KeyboardEvent): void {
+    const target = ev.target as HTMLElement | null;
+
+    // Montos: no dejar el caret en medio (rompe formato/validación)
+    if (target instanceof HTMLInputElement && this.esCampoMonto(target)) {
+      if (ev.key === 'ArrowLeft' || ev.key === 'ArrowUp' || ev.key === 'Home') {
+        ev.preventDefault();
+        cursorAlFinal(target);
+        return;
+      }
+    }
+
     if (ev.key === 'Escape') {
       this.onEscapeClear(ev);
       return;
@@ -106,7 +124,6 @@ export class EnterAvanceDirective implements AfterViewInit {
     if (ev.key !== 'Enter' || ev.defaultPrevented) return;
     if (ev.isComposing) return;
 
-    const target = ev.target as HTMLElement | null;
     if (!target) return;
 
     const tag = target.tagName;
@@ -125,7 +142,8 @@ export class EnterAvanceDirective implements AfterViewInit {
       ev.preventDefault();
       ev.stopPropagation();
       input.focus();
-      input.select();
+      cursorAlFinal(input);
+      this.scrollCampoVisible(input);
       return;
     }
 
@@ -169,15 +187,49 @@ export class EnterAvanceDirective implements AfterViewInit {
   private enfocarCampo(el: HTMLElement): void {
     // En iOS a veces hace falta un tick para que el teclado no se cierre
     requestAnimationFrame(() => {
-      el.focus();
-      if (el instanceof HTMLInputElement && this.esSeleccionable(el)) {
-        try {
-          el.select();
-        } catch {
-          /* ignore */
-        }
+      el.focus({ preventScroll: true });
+      this.scrollCampoVisible(el);
+      // Solo montos: cursor al final. En texto libre no tocar (sugiere el teclado móvil).
+      if (el instanceof HTMLInputElement && this.esCampoMonto(el)) {
+        cursorAlFinalTrasUpdate(el);
       }
     });
+  }
+
+  /** Mantiene el campo activo dentro del viewport (teclado / scroll). */
+  private scrollCampoVisible(el: HTMLElement): void {
+    if (this.scrollCampoTimer != null) clearTimeout(this.scrollCampoTimer);
+    const aplicar = () => {
+      const vv = window.visualViewport;
+      const topLimit = (vv?.offsetTop ?? 0) + 12;
+      const bottomLimit = vv ? vv.offsetTop + vv.height - 20 : window.innerHeight - 20;
+      const rect = el.getBoundingClientRect();
+      if (rect.bottom > bottomLimit || rect.top < topLimit) {
+        el.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'smooth' });
+      }
+    };
+    // Tras abrir teclado / reformatear monto el layout tarda un poco
+    requestAnimationFrame(aplicar);
+    this.scrollCampoTimer = setTimeout(aplicar, 280);
+  }
+
+  /** Montos con formato (comas): editar solo desde el final. */
+  private esCampoMonto(el: HTMLElement): boolean {
+    if (!(el instanceof HTMLInputElement)) return false;
+    if (el.closest('.monto-wrap')) return true;
+    const mode = (el.getAttribute('inputmode') || '').toLowerCase();
+    if (mode === 'decimal') return true;
+    const name = (el.name || el.id || '').toLowerCase();
+    return (
+      name === 'monto' ||
+      name === 'mmonto' ||
+      name === 'falta' ||
+      name === 'totaldeuda' ||
+      name.includes('monto') ||
+      name.includes('limite') ||
+      name.includes('saldo') ||
+      name.includes('deuda')
+    );
   }
 
   private enviarForm(form: HTMLFormElement): void {
@@ -207,7 +259,40 @@ export class EnterAvanceDirective implements AfterViewInit {
   @HostListener('input', ['$event'])
   onInput(ev: Event): void {
     const t = ev.target;
+    if (!(t instanceof HTMLInputElement) && !(t instanceof HTMLTextAreaElement)) return;
     if (t instanceof HTMLInputElement) this.syncClearBtn(t);
+    // Montos: caret al final tras formatear. Texto libre: no interferir (autocompletado móvil).
+    if (this.esCampoMonto(t)) {
+      cursorAlFinalTrasUpdate(t);
+    }
+  }
+
+  @HostListener('keyup', ['$event'])
+  onKeyup(ev: KeyboardEvent): void {
+    const t = ev.target;
+    if (!(t instanceof HTMLInputElement)) return;
+    if (!this.esCampoMonto(t)) return;
+    // Tras borrar/escribir, el formateo puede mover el caret: forzar final
+    if (ev.key === 'Backspace' || ev.key === 'Delete' || /^\d$/.test(ev.key) || ev.key === '.' || ev.key === '+' || ev.key === ';') {
+      cursorAlFinalTrasUpdate(t);
+    }
+  }
+
+  @HostListener('click', ['$event'])
+  onClick(ev: MouseEvent): void {
+    const t = ev.target;
+    if (!(t instanceof HTMLInputElement)) return;
+    if (!this.esCampoMonto(t)) return;
+    cursorAlFinalTrasUpdate(t);
+  }
+
+  @HostListener('mouseup', ['$event'])
+  onMouseUp(ev: MouseEvent): void {
+    const t = ev.target;
+    if (!(t instanceof HTMLInputElement)) return;
+    if (!this.esCampoMonto(t)) return;
+    // Evita que el usuario deje el caret en medio del monto
+    cursorAlFinal(t);
   }
 
   @HostListener('change', ['$event'])
@@ -222,7 +307,13 @@ export class EnterAvanceDirective implements AfterViewInit {
   onFocusIn(ev: FocusEvent): void {
     this.syncEnterHints();
     const t = ev.target;
-    if (!(t instanceof HTMLInputElement)) return;
+    if (!(t instanceof HTMLInputElement) && !(t instanceof HTMLTextAreaElement)) return;
+
+    this.scrollCampoVisible(t);
+
+    if (t instanceof HTMLTextAreaElement) {
+      return;
+    }
 
     const tipo = (t.type || '').toLowerCase();
     if (tipo === 'date' || tipo === 'datetime-local') {
@@ -236,6 +327,10 @@ export class EnterAvanceDirective implements AfterViewInit {
       return;
     }
 
+    // Solo montos: caret al final. Motivo/concepto: dejar sugerencias del teclado.
+    if (this.esCampoMonto(t)) {
+      cursorAlFinalTrasUpdate(t);
+    }
     if (this.esClearable(t)) this.syncClearBtn(t);
   }
 

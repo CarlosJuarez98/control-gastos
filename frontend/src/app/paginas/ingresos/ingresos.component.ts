@@ -4,7 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { ApiService } from '../../api.service';
 import { ConfirmDialogService } from '../../confirm-dialog.service';
 import { Ingreso } from '../../modelos';
-import { formatDineroInput, formatDineroInputFlexible, formatDineroNumero, parseDineroSuma, soloMontoKey } from '../../dinero.util';
+import { formatDineroInput, formatDineroInputFlexible, formatDineroNumero, parseDineroSuma, soloMontoKey, cursorAlFinalTrasUpdate, cursorAlFinal } from '../../dinero.util';
 import { formatFechaCorta, fechaHoyLocal } from '../../fecha.util';
 import { EnterAvanceDirective } from '../../enter-avance.directive';
 import { PaginadorComponent } from '../../compartido/paginador/paginador.component';
@@ -122,13 +122,11 @@ export class IngresosComponent implements OnInit, OnDestroy {
       this.form.monto = formatDineroInputFlexible(cur + '+');
     }
     this.cdr.detectChanges();
-    const valor = this.form.monto;
     setTimeout(() => {
       const el = document.querySelector<HTMLInputElement>('form.alta input[name="monto"]');
       if (!el) return;
       el.focus();
-      const len = valor.length;
-      el.setSelectionRange(len, len);
+      cursorAlFinal(el);
       el.scrollLeft = el.scrollWidth;
     }, 0);
   }
@@ -421,7 +419,7 @@ export class IngresosComponent implements OnInit, OnDestroy {
     queueMicrotask(() => {
       const el = document.querySelector<HTMLInputElement>('form.alta input[name="monto"]');
       el?.focus();
-      el?.select();
+      cursorAlFinalTrasUpdate(el);
     });
   }
 

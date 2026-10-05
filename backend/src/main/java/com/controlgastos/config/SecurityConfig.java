@@ -32,7 +32,10 @@ public class SecurityConfig {
     private String allowedOriginsRaw;
 
     @Bean
-    SecurityFilterChain securityFilterChain(HttpSecurity http, LoginRateLimitFilter loginRateLimitFilter)
+    SecurityFilterChain securityFilterChain(
+            HttpSecurity http,
+            LoginRateLimitFilter loginRateLimitFilter,
+            SessionCookieHelper sessionCookieHelper)
             throws Exception {
         http
                 .addFilterBefore(loginRateLimitFilter, UsernamePasswordAuthenticationFilter.class)
@@ -54,7 +57,9 @@ public class SecurityConfig {
                 .httpBasic(basic -> basic.disable())
                 .logout(logout -> logout
                         .logoutUrl("/api/auth/logout")
+                        .deleteCookies(SessionCookieHelper.COOKIE_NAME)
                         .logoutSuccessHandler((request, response, authentication) -> {
+                            sessionCookieHelper.borrarCookie(response);
                             response.setStatus(HttpStatus.OK.value());
                             response.setContentType("application/json;charset=UTF-8");
                             response.getWriter().write("{\"ok\":true}");

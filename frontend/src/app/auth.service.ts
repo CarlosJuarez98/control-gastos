@@ -42,9 +42,9 @@ export class AuthService {
   }
 
   /**
-   * Listeners de actividad: cada movimiento (clic, tecla, scroll…) marca la sesión
-   * para renovar el timeout de 20 min en el servidor. Sin movimiento, caduca.
-   * Además, un chequeo periódico fuerza /login si la sesión ya murió.
+   * Listeners de actividad: cada movimiento renueva el idle en el servidor
+   * (20 min normal / 7 días si entraste con “Recordarme”).
+   * Sin movimiento, caduca. Un chequeo periódico fuerza /login si ya murió.
    */
   initSesionViva(): void {
     if (this.listenersListos || typeof window === 'undefined') return;

@@ -232,6 +232,16 @@ export class AppComponent implements AfterViewInit, AfterViewChecked, OnDestroy 
     }, 120);
   }
 
+  /** Mientras escribe (móvil), el campo activo sigue visible sobre el teclado. */
+  @HostListener('input', ['$event'])
+  onInputCampo(ev: Event): void {
+    if (!this.tecladoAbierto) return;
+    const t = ev.target;
+    if (!(t instanceof HTMLInputElement) && !(t instanceof HTMLTextAreaElement)) return;
+    if (this.focusScrollTimer != null) clearTimeout(this.focusScrollTimer);
+    this.focusScrollTimer = setTimeout(() => this.asegurarCampoVisible(t), 80);
+  }
+
   private esCampoEditable(el: HTMLElement | null): boolean {
     if (!el) return false;
     const tag = el.tagName;

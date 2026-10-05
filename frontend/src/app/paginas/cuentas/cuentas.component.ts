@@ -5,7 +5,7 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { ApiService } from '../../api.service';
 import { ConfirmDialogService } from '../../confirm-dialog.service';
 import { Cuenta, Movimiento } from '../../modelos';
-import { formatDineroInput, formatDineroNumero, parseDinero, soloMontoKey } from '../../dinero.util';
+import { formatDineroInput, formatDineroNumero, parseDinero, soloMontoKey, cursorAlFinalTrasUpdate } from '../../dinero.util';
 import { FechaCortaPipe, fechaHoyLocal } from '../../fecha.util';
 import { EnterAvanceDirective } from '../../enter-avance.directive';
 import { PaginadorComponent } from '../../compartido/paginador/paginador.component';
@@ -541,10 +541,10 @@ export class CuentasComponent implements OnInit, OnDestroy {
     this.montoMov = actual > 0 ? formatDineroNumero(actual) : '0';
     this.error = '';
     this.refrescarFormMovOk();
-    this.enfocarMontoMov(true);
+    this.enfocarMontoMov();
   }
 
-  private enfocarMontoMov(seleccionar = false): void {
+  private enfocarMontoMov(): void {
     this.cdr.detectChanges();
     const aplicar = () => {
       const hostEl = this.host.nativeElement;
@@ -557,7 +557,7 @@ export class CuentasComponent implements OnInit, OnDestroy {
       }
       if (input) {
         input.focus({ preventScroll: true });
-        if (seleccionar) input.select();
+        cursorAlFinalTrasUpdate(input);
       }
     };
     // Doble rAF: el layout de la card/form ya está estable (sobre todo en PC).
@@ -1063,7 +1063,7 @@ export class CuentasComponent implements OnInit, OnDestroy {
       this.movilHistorialAbierto = true;
     }
     this.refrescarFormMovOk();
-    this.enfocarMontoMov(true);
+    this.enfocarMontoMov();
   }
 
   cancelarEdicionMov(): void {

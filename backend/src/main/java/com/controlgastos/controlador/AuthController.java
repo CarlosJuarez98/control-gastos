@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.controlgastos.config.SessionCookieHelper;
 import com.controlgastos.dto.UsuarioDto;
 import com.controlgastos.modelo.UsuarioAcceso;
 import com.controlgastos.repositorio.UsuarioAccesoRepository;
@@ -35,7 +36,10 @@ import jakarta.validation.constraints.NotBlank;
 public class AuthController {
 
     public static final String ATTR_TIMEOUT = "cg.sessionTimeoutSec";
+    public static final String ATTR_RECORDAR = "cg.sessionRecordar";
+    /** Sin “recordarme”: 20 min de inactividad. */
     public static final int TIMEOUT_NORMAL_SEC = 20 * 60;
+    /** Con “recordarme”: 7 días de inactividad + cookie persistente. */
     public static final int TIMEOUT_RECORDAR_SEC = 7 * 24 * 60 * 60;
 
     private final AuthenticationManager authenticationManager;
@@ -43,18 +47,21 @@ public class AuthController {
     private final UsuarioAdminService usuarioAdminService;
     private final UsuarioAccesoRepository usuarioAccesoRepository;
     private final PasswordEncoder passwordEncoder;
+    private final SessionCookieHelper sessionCookieHelper;
 
     public AuthController(
             AuthenticationManager authenticationManager,
             SecurityContextRepository securityContextRepository,
             UsuarioAdminService usuarioAdminService,
             UsuarioAccesoRepository usuarioAccesoRepository,
-            PasswordEncoder passwordEncoder) {
+            PasswordEncoder passwordEncoder,
+            SessionCookieHelper sessionCookieHelper) {
         this.authenticationManager = authenticationManager;
         this.securityContextRepository = securityContextRepository;
         this.usuarioAdminService = usuarioAdminService;
         this.usuarioAccesoRepository = usuarioAccesoRepository;
         this.passwordEncoder = passwordEncoder;
+        this.sessionCookieHelper = sessionCookieHelper;
     }
 
     /**
@@ -90,16 +97,21 @@ public class AuthController {
             SecurityContextHolder.setContext(context);
             securityContextRepository.saveContext(context, request, response);
 
-            int timeout = Boolean.TRUE.equals(body.recordar()) ? TIMEOUT_RECORDAR_SEC : TIMEOUT_NORMAL_SEC;
+            boolean recordar = Boolean.TRUE.equals(body.recordar());
+            int timeout = recordar ? TIMEOUT_RECORDAR_SEC : TIMEOUT_NORMAL_SEC;
             HttpSession session = request.getSession(true);
             session.setAttribute(ATTR_TIMEOUT, timeout);
+            session.setAttribute(ATTR_RECORDAR, recordar);
             session.setMaxInactiveInterval(timeout);
+            // Sin esto la cookie muere al cerrar el navegador/app y “7 días” no se nota
+            sessionCookieHelper.emitirCookieSesion(request, response, recordar ? timeout : -1);
 
             return ResponseEntity.ok(Map.of(
                     "autenticado", true,
                     "usuario", authentication.getName(),
                     "rol", rolDe(authentication),
-                    "recordar", Boolean.TRUE.equals(body.recordar())));
+                    "recordar", recordar,
+                    "timeoutSec", timeout));
         } catch (Exception ex) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(Map.of("error", "Usuario o contraseña incorrectos"));
@@ -109,10 +121,14 @@ public class AuthController {
     @GetMapping("/me")
     public Map<String, Object> me(Authentication authentication, HttpServletRequest request) {
         HttpSession session = request.getSession(false);
+        boolean recordar = false;
+        int timeout = TIMEOUT_NORMAL_SEC;
         if (session != null) {
             Object stored = session.getAttribute(ATTR_TIMEOUT);
-            int timeout = stored instanceof Integer i ? i : TIMEOUT_NORMAL_SEC;
+            timeout = stored instanceof Integer i ? i : TIMEOUT_NORMAL_SEC;
             session.setMaxInactiveInterval(timeout);
+            Object rec = session.getAttribute(ATTR_RECORDAR);
+            recordar = Boolean.TRUE.equals(rec) || timeout >= TIMEOUT_RECORDAR_SEC;
         }
         if (authentication == null || !authentication.isAuthenticated()
                 || "anonymousUser".equals(authentication.getPrincipal())) {
@@ -121,7 +137,9 @@ public class AuthController {
         return Map.of(
                 "autenticado", true,
                 "usuario", authentication.getName(),
-                "rol", rolDe(authentication));
+                "rol", rolDe(authentication),
+                "recordar", recordar,
+                "timeoutSec", timeout);
     }
 
     /** El usuario autenticado cambia su propia contraseña. */

@@ -6,7 +6,7 @@ import { Subscription } from 'rxjs';
 import { ApiService } from '../../api.service';
 import { ConfirmDialogService } from '../../confirm-dialog.service';
 import { Cuenta, Gasto } from '../../modelos';
-import { formatDineroInput, formatDineroInputFlexible, formatDineroNumero, parseDineroSuma, soloMontoKey } from '../../dinero.util';
+import { formatDineroInput, formatDineroInputFlexible, formatDineroNumero, parseDineroSuma, soloMontoKey, cursorAlFinalTrasUpdate, cursorAlFinal } from '../../dinero.util';
 import { formatFechaCorta, fechaHoyLocal } from '../../fecha.util';
 import { EnterAvanceDirective } from '../../enter-avance.directive';
 import { PaginadorComponent } from '../../compartido/paginador/paginador.component';
@@ -48,6 +48,9 @@ export class GastosComponent implements OnInit, OnDestroy {
   cuentasTdc: Cuenta[] = [];
   /** true si el usuario eligió otra TDC distinta de la 1ª sugerida. */
   private tdcElegidaManual = false;
+  /** Cache de recomendaciones (evitar recalcular en cada CD). */
+  recomendacionesTdc: RecomendacionTdc[] = [];
+  private tdcCtxTimer: ReturnType<typeof setTimeout> | null = null;
   grupos: GrupoQuincena[] = [];
   total = 0;
   totalQuincenaActual = 0;
@@ -141,6 +144,7 @@ export class GastosComponent implements OnInit, OnDestroy {
       this.media.removeEventListener('change', this.onMedia);
     }
     if (this.filtroTimer) clearTimeout(this.filtroTimer);
+    if (this.tdcCtxTimer) clearTimeout(this.tdcCtxTimer);
     this.routeSub?.unsubscribe();
   }
 
@@ -174,6 +178,7 @@ export class GastosComponent implements OnInit, OnDestroy {
       Number.POSITIVE_INFINITY,
       this.optsRecomendacionTdc(),
     );
+    this.recomendacionesTdc = recs;
     this.cuentasTdc = recs.map((r) => r.cuenta);
     if (
       this.form.cuentaId != null &&
@@ -182,12 +187,15 @@ export class GastosComponent implements OnInit, OnDestroy {
       this.form.cuentaId = null;
       this.tdcElegidaManual = false;
     }
+    // Móvil: siempre la mejor en automático (sin picker interactivo).
+    const forzarAuto = this.esMovil || autoSeleccionar;
     if (
-      autoSeleccionar &&
+      forzarAuto &&
       this.esConTdc &&
-      (!this.tdcElegidaManual || this.form.cuentaId == null)
+      (this.esMovil || !this.tdcElegidaManual || this.form.cuentaId == null)
     ) {
       this.form.cuentaId = this.cuentasTdc[0]?.id ?? null;
+      if (this.esMovil) this.tdcElegidaManual = false;
     }
   }
 
@@ -262,7 +270,7 @@ export class GastosComponent implements OnInit, OnDestroy {
   /** Al cambiar monto o fecha, reordena y elige automáticamente la mejor. */
   alCambiarContextoTdc(): void {
     if (!this.esConTdc) return;
-    this.tdcElegidaManual = false;
+    if (!this.esMovil) this.tdcElegidaManual = false;
     if (!this.cuentas.length) {
       this.cargarTarjetas(true);
       return;
@@ -271,17 +279,11 @@ export class GastosComponent implements OnInit, OnDestroy {
     this.cdr.markForCheck();
   }
 
-  /** Todas las TDC activas, ordenadas por cuál conviene más. */
-  get recomendacionesTdc(): RecomendacionTdc[] {
-    if (!this.esConTdc) return [];
-    const monto = parseDineroSuma(this.form.monto).total;
-    return recomendarTdcs(
-      this.cuentasTdc,
-      this.form.fecha,
-      monto,
-      Number.POSITIVE_INFINITY,
-      this.optsRecomendacionTdc(),
-    );
+  /** Mejor TDC elegida en automático (móvil: solo lectura). */
+  get recomendacionAuto(): RecomendacionTdc | null {
+    if (!this.esConTdc || !this.recomendacionesTdc.length) return null;
+    const id = this.form.cuentaId;
+    return this.recomendacionesTdc.find((r) => r.cuenta.id === id) ?? this.recomendacionesTdc[0] ?? null;
   }
 
   /** Hay monto pero ninguna TDC con crédito libre suficiente (no aplica a disposición). */
@@ -303,6 +305,8 @@ export class GastosComponent implements OnInit, OnDestroy {
 
   usarRecomendacionTdc(id: number | null | undefined): void {
     if (id == null) return;
+    // En móvil la elección es automática; no hay picker.
+    if (this.esMovil) return;
     this.tdcElegidaManual = id !== this.cuentasTdc[0]?.id;
     this.form.cuentaId = id;
     this.cdr.markForCheck();
@@ -318,7 +322,13 @@ export class GastosComponent implements OnInit, OnDestroy {
 
   alEscribirMonto(v: string): void {
     this.form.monto = formatDineroInputFlexible(v);
-    this.alCambiarContextoTdc();
+    // En móvil: debounce para no recalcular cards/TDC en cada tecla (traba el teclado).
+    if (this.esMovil && this.esConTdc) {
+      if (this.tdcCtxTimer) clearTimeout(this.tdcCtxTimer);
+      this.tdcCtxTimer = setTimeout(() => this.alCambiarContextoTdc(), 320);
+    } else {
+      this.alCambiarContextoTdc();
+    }
     this.cdr.markForCheck();
   }
 
@@ -336,13 +346,11 @@ export class GastosComponent implements OnInit, OnDestroy {
     }
     this.alCambiarContextoTdc();
     this.cdr.detectChanges();
-    const valor = this.form.monto;
     setTimeout(() => {
       const el = document.querySelector<HTMLInputElement>('form.alta input[name="monto"]');
       if (!el) return;
       el.focus();
-      const len = valor.length;
-      el.setSelectionRange(len, len);
+      cursorAlFinal(el);
       el.scrollLeft = el.scrollWidth;
     }, 0);
   }
@@ -832,7 +840,7 @@ export class GastosComponent implements OnInit, OnDestroy {
     queueMicrotask(() => {
       const el = document.querySelector<HTMLInputElement>('form.alta input[name="monto"]');
       el?.focus();
-      el?.select();
+      cursorAlFinalTrasUpdate(el);
     });
   }
 

@@ -391,6 +391,16 @@ button.total-btn.activo {
 .hint-tdc-rec.hint-tdc-aviso {
   color: var(--peligro);
 }
+.hint-tdc-rec.hint-tdc-auto {
+  margin: 0.15rem 0 0.35rem;
+  padding: 0.55rem 0.7rem;
+  border-radius: 0.7rem;
+  border: 1px solid color-mix(in srgb, var(--acento) 35%, var(--linea));
+  background: color-mix(in srgb, var(--acento) 10%, var(--superficie-2));
+  color: var(--texto);
+  font-size: 0.86rem;
+  line-height: 1.35;
+}
 .hint-tdc-rec strong {
   color: var(--texto);
   font-weight: 700;

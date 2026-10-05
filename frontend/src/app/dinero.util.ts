@@ -125,3 +125,32 @@ export function soloMontoKey(ev: KeyboardEvent): void {
   if (ok.includes(ev.key) || ev.ctrlKey || ev.metaKey) return;
   if (!/^\d$/.test(ev.key)) ev.preventDefault();
 }
+
+/**
+ * Cursor al final del valor (montos formateados con comas).
+ * Editar en medio rompe el formato y la validación.
+ */
+export function cursorAlFinal(
+  el: HTMLInputElement | HTMLTextAreaElement | null | undefined,
+): void {
+  if (!el) return;
+  const len = String(el.value ?? '').length;
+  try {
+    el.setSelectionRange(len, len);
+  } catch {
+    /* date/number nativos pueden no soportar selection */
+  }
+  el.scrollLeft = el.scrollWidth;
+}
+
+/** Reaplica el cursor al final tras el ciclo de ngModel/formato. */
+export function cursorAlFinalTrasUpdate(
+  el: HTMLInputElement | HTMLTextAreaElement | null | undefined,
+): void {
+  if (!el) return;
+  cursorAlFinal(el);
+  queueMicrotask(() => cursorAlFinal(el));
+  requestAnimationFrame(() => cursorAlFinal(el));
+  setTimeout(() => cursorAlFinal(el), 0);
+  setTimeout(() => cursorAlFinal(el), 40);
+}

@@ -57,7 +57,10 @@
         </label>
         <label class="check recordar">
           <input type="checkbox" [(ngModel)]="recordar" name="recordar" />
-          Recordarme 7 días
+          <span class="recordar-txt">
+            <strong>Recordarme 7 días</strong>
+            <small>Mantener sesión aunque cierres la app o el navegador (si no la usas 7 días, pide login otra vez)</small>
+          </span>
         </label>
         @if (error) {
           <p class="error" role="alert">{{ error }}</p>

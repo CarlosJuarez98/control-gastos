@@ -206,8 +206,8 @@ label:nth-of-type(2) { animation-delay: 0.2s; }
 
 .check.recordar {
   display: flex;
-  align-items: center;
-  gap: 0.45rem;
+  align-items: flex-start;
+  gap: 0.55rem;
   font-weight: 500;
   font-size: 0.88rem;
   animation: entrar 0.5s var(--ease-out) 0.22s forwards;
@@ -215,6 +215,26 @@ label:nth-of-type(2) { animation-delay: 0.2s; }
 
 .check.recordar input {
   width: auto;
+  margin-top: 0.2rem;
+  flex: 0 0 auto;
+}
+
+.recordar-txt {
+  display: grid;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.recordar-txt strong {
+  font-weight: 650;
+  color: var(--texto);
+}
+
+.recordar-txt small {
+  color: var(--texto-suave);
+  font-size: 0.78rem;
+  line-height: 1.35;
+  font-weight: 500;
 }
 
 .campo-clave {
