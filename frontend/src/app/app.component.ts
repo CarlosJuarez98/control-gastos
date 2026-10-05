@@ -89,6 +89,13 @@ export class AppComponent implements AfterViewInit, AfterViewChecked, OnDestroy 
   private pullActivo = false;
   private readonly pullUmbral = 78;
 
+  /** Teclado móvil: evita que el layout se aplaste. */
+  tecladoAbierto = false;
+  private altoAppCongelado = false;
+  private focusScrollTimer: ReturnType<typeof setTimeout> | null = null;
+  private focusOutTimer: ReturnType<typeof setTimeout> | null = null;
+  private vvCleanup: (() => void) | null = null;
+
   private readonly linksBase: NavLink[] = [
     { path: '/resumen', label: 'Resumen', short: 'Inicio', icon: '◈', exact: true },
     { path: '/ingresos', label: 'Ingresos', short: 'Ingresos', icon: '↑', exact: false },
@@ -123,6 +130,9 @@ export class AppComponent implements AfterViewInit, AfterViewChecked, OnDestroy 
   }
 
   ngAfterViewInit(): void {
+    this.fijarAltoApp(true);
+    this.iniciarTecladoViewport();
+
     this.routeSub = this.router.events
       .pipe(filter((e): e is NavigationEnd => e instanceof NavigationEnd))
       .subscribe(() => {
@@ -158,6 +168,9 @@ export class AppComponent implements AfterViewInit, AfterViewChecked, OnDestroy 
     this.dockObserver?.disconnect();
     this.routeSub?.unsubscribe();
     if (this.recalcTimer != null) clearTimeout(this.recalcTimer);
+    if (this.focusScrollTimer != null) clearTimeout(this.focusScrollTimer);
+    if (this.focusOutTimer != null) clearTimeout(this.focusOutTimer);
+    this.vvCleanup?.();
   }
 
   sincronizarAhora(): void {
@@ -170,7 +183,117 @@ export class AppComponent implements AfterViewInit, AfterViewChecked, OnDestroy 
 
   @HostListener('window:resize')
   onWindowResize(): void {
+    if (!this.tecladoAbierto && !this.altoAppCongelado) {
+      this.fijarAltoApp(true);
+    }
     this.programarRecalcDock();
+  }
+
+  @HostListener('window:orientationchange')
+  onOrientationChange(): void {
+    // Tras rotar, recalcular alto estable (el teclado suele cerrarse)
+    window.setTimeout(() => {
+      this.tecladoAbierto = false;
+      this.altoAppCongelado = false;
+      document.body.classList.remove('teclado-abierto');
+      this.fijarAltoApp(true);
+      this.programarRecalcDock();
+    }, 250);
+  }
+
+  @HostListener('focusin', ['$event'])
+  onFocusIn(ev: FocusEvent): void {
+    const t = ev.target as HTMLElement | null;
+    if (!this.esCampoEditable(t)) return;
+    if (this.focusOutTimer != null) {
+      clearTimeout(this.focusOutTimer);
+      this.focusOutTimer = null;
+    }
+    // Congelar alto ANTES de que el viewport se encoja (fallback iOS / navegadores viejos)
+    if (!this.altoAppCongelado) {
+      this.altoAppCongelado = true;
+      this.fijarAltoApp(true);
+    }
+    this.marcarTeclado(true);
+    if (this.focusScrollTimer != null) clearTimeout(this.focusScrollTimer);
+    this.focusScrollTimer = setTimeout(() => this.asegurarCampoVisible(t!), 300);
+  }
+
+  @HostListener('focusout')
+  onFocusOut(): void {
+    if (this.focusOutTimer != null) clearTimeout(this.focusOutTimer);
+    this.focusOutTimer = setTimeout(() => {
+      const activo = document.activeElement as HTMLElement | null;
+      if (this.esCampoEditable(activo)) return;
+      this.marcarTeclado(false);
+      this.altoAppCongelado = false;
+      this.fijarAltoApp(true);
+      document.documentElement.style.setProperty('--teclado-inset', '0px');
+    }, 120);
+  }
+
+  private esCampoEditable(el: HTMLElement | null): boolean {
+    if (!el) return false;
+    const tag = el.tagName;
+    if (tag === 'TEXTAREA' || tag === 'SELECT') return true;
+    if (tag !== 'INPUT') return false;
+    const tipo = ((el as HTMLInputElement).type || 'text').toLowerCase();
+    return !['checkbox', 'radio', 'button', 'submit', 'reset', 'file', 'hidden', 'range', 'color'].includes(tipo);
+  }
+
+  private marcarTeclado(abierto: boolean): void {
+    if (this.tecladoAbierto === abierto) {
+      document.body.classList.toggle('teclado-abierto', abierto);
+      return;
+    }
+    this.tecladoAbierto = abierto;
+    document.body.classList.toggle('teclado-abierto', abierto);
+  }
+
+  private fijarAltoApp(forzar = false): void {
+    if (this.tecladoAbierto && !forzar) return;
+    const h = Math.round(window.innerHeight);
+    if (h > 0) {
+      document.documentElement.style.setProperty('--app-height', `${h}px`);
+    }
+  }
+
+  private iniciarTecladoViewport(): void {
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const actualizar = () => {
+      const inset = Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop));
+      document.documentElement.style.setProperty('--teclado-inset', `${inset}px`);
+      // Si hay campo enfocado y el visual viewport bajó mucho, confirmar teclado
+      const activo = document.activeElement as HTMLElement | null;
+      if (this.esCampoEditable(activo) && inset > 100) {
+        this.zone.run(() => this.marcarTeclado(true));
+      } else if (!this.esCampoEditable(activo) && inset < 40) {
+        this.zone.run(() => {
+          this.marcarTeclado(false);
+          this.altoAppCongelado = false;
+        });
+      }
+    };
+    vv.addEventListener('resize', actualizar);
+    vv.addEventListener('scroll', actualizar);
+    this.vvCleanup = () => {
+      vv.removeEventListener('resize', actualizar);
+      vv.removeEventListener('scroll', actualizar);
+      document.documentElement.style.removeProperty('--teclado-inset');
+      document.documentElement.style.removeProperty('--app-height');
+      document.body.classList.remove('teclado-abierto');
+    };
+  }
+
+  private asegurarCampoVisible(el: HTMLElement): void {
+    const vv = window.visualViewport;
+    const topLimit = (vv?.offsetTop ?? 0) + 12;
+    const bottomLimit = vv ? vv.offsetTop + vv.height - 16 : window.innerHeight - 16;
+    const rect = el.getBoundingClientRect();
+    if (rect.bottom > bottomLimit || rect.top < topLimit) {
+      el.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'smooth' });
+    }
   }
 
   @HostListener('touchstart', ['$event'])

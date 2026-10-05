@@ -169,9 +169,19 @@ input[type='number'] {
   appearance: textfield;
 }
 
+html {
+  /* Alto estable (svh): no baja con el teclado como dvh en varios móviles */
+  --app-height: 100svh;
+  --teclado-inset: 0px;
+  height: 100%;
+  height: var(--app-height, 100svh);
+}
+
 html, body {
   margin: 0;
   height: 100%;
+  height: var(--app-height, 100svh);
+  max-height: var(--app-height, 100svh);
   overflow: hidden;
   font-family: var(--fuente-cuerpo);
   color: var(--texto);

@@ -1,4 +1,4 @@
-<div class="shell" [class.shell-login]="!mostrarNav" [class.con-dock]="mostrarNav">
+<div class="shell" [class.shell-login]="!mostrarNav" [class.con-dock]="mostrarNav" [class.teclado-abierto]="tecladoAbierto">
   @if (pullVisible) {
     <div class="pull-refresh" [class.listo]="pullListo" [style.height.px]="pullDistancia">
       <span>{{ pullListo ? 'Suelta para recargar' : 'Desliza para recargar' }}</span>

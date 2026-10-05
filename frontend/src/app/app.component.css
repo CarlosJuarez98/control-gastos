@@ -6,7 +6,9 @@
     max(1.25rem, env(safe-area-inset-right))
     max(1rem, env(safe-area-inset-bottom))
     max(1.25rem, env(safe-area-inset-left));
-  height: 100dvh;
+  /* svh + --app-height: evita que el teclado aplaste el layout (dvh sí se encoge) */
+  height: var(--app-height, 100svh);
+  max-height: var(--app-height, 100svh);
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
@@ -559,7 +561,8 @@ main > *:not(router-outlet) {
 
 @media (max-width: 720px) {
   .shell {
-    height: 100dvh;
+    height: var(--app-height, 100svh);
+    max-height: var(--app-height, 100svh);
     padding:
       max(0.55rem, env(safe-area-inset-top))
       max(0.7rem, env(safe-area-inset-right))
@@ -569,6 +572,19 @@ main > *:not(router-outlet) {
 
   .shell.con-dock main {
     padding-bottom: calc(4.6rem + env(safe-area-inset-bottom));
+  }
+
+  /* Teclado abierto: no apretar UI; ocultar dock y dejar espacio al campo */
+  .shell.teclado-abierto .nav-dock,
+  .shell.teclado-abierto .menu-nav-panel,
+  .shell.teclado-abierto .menu-nav-backdrop {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+  }
+
+  .shell.teclado-abierto.con-dock main {
+    padding-bottom: max(0.85rem, calc(var(--teclado-inset, 0px) * 0.15));
   }
 
   .top {
@@ -617,7 +633,7 @@ main > *:not(router-outlet) {
     right: max(0.45rem, env(safe-area-inset-right));
     bottom: calc(4.35rem + env(safe-area-inset-bottom));
     z-index: 50;
-    max-height: min(70dvh, 28rem);
+    max-height: min(70svh, 28rem);
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
     margin: 0;
@@ -910,7 +926,7 @@ main > *:not(router-outlet) {
     right: auto;
     transform: translate(-50%, -50%);
     width: min(100% - 1.5rem, 420px);
-    max-height: calc(100dvh - 1rem);
+    max-height: calc(var(--app-height, 100svh) - 1rem);
     overflow: auto;
     border-radius: 1rem;
     padding-bottom: 1.15rem;
