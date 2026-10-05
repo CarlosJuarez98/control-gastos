@@ -760,6 +760,18 @@ th {
 }
 
 @media (max-width: 720px), (pointer: coarse) {
+  /* Al registrar: scrollIntoView deja el campo en zona usable (teclado + dock) */
+  form.alta input,
+  form.alta select,
+  form.alta textarea,
+  form.gasto-form input,
+  form.gasto-form select,
+  form.panel-inline input,
+  form.panel-inline select,
+  form.perfil-form input {
+    scroll-margin-block: 28vh;
+  }
+
   * {
     scrollbar-width: none;
   }

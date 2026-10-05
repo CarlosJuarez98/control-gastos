@@ -11,6 +11,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { fromEvent } from 'rxjs';
 import { fechaHoyLocal } from './fecha.util';
 import { cursorAlFinal, cursorAlFinalTrasUpdate } from './dinero.util';
+import { scrollCampoEnVista } from './scroll-campo.util';
 
 /**
  * En un form con atributo enterAvance:
@@ -199,18 +200,10 @@ export class EnterAvanceDirective implements AfterViewInit {
   /** Mantiene el campo activo dentro del viewport (teclado / scroll). */
   private scrollCampoVisible(el: HTMLElement): void {
     if (this.scrollCampoTimer != null) clearTimeout(this.scrollCampoTimer);
-    const aplicar = () => {
-      const vv = window.visualViewport;
-      const topLimit = (vv?.offsetTop ?? 0) + 12;
-      const bottomLimit = vv ? vv.offsetTop + vv.height - 20 : window.innerHeight - 20;
-      const rect = el.getBoundingClientRect();
-      if (rect.bottom > bottomLimit || rect.top < topLimit) {
-        el.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'smooth' });
-      }
-    };
-    // Tras abrir teclado / reformatear monto el layout tarda un poco
-    requestAnimationFrame(aplicar);
-    this.scrollCampoTimer = setTimeout(aplicar, 280);
+    scrollCampoEnVista(el, { behavior: 'auto', forzar: true });
+    this.scrollCampoTimer = setTimeout(() => {
+      scrollCampoEnVista(el, { behavior: 'smooth', forzar: true });
+    }, 280);
   }
 
   /** Montos con formato (comas): editar solo desde el final. */

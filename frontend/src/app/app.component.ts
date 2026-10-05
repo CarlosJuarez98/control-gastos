@@ -19,6 +19,7 @@ import { AvisosCobroService } from './avisos-cobro.service';
 import { sha256Hex } from './password-digest';
 import { EnterAvanceDirective } from './enter-avance.directive';
 import { filter, Subscription } from 'rxjs';
+import { scrollCampoEnVista } from './scroll-campo.util';
 
 type NavLink = {
   path: string;
@@ -220,10 +221,11 @@ export class AppComponent implements AfterViewInit, AfterViewChecked, OnDestroy 
     this.marcarTeclado(true);
     this.sondearInsetTeclado();
     if (this.focusScrollTimer != null) clearTimeout(this.focusScrollTimer);
-    // Esperar animación del teclado y volver a medir inset
+    // Al enfocar: llevar el campo a la vista; repetir tras abrir teclado / subir dock
+    scrollCampoEnVista(t, { behavior: 'auto', forzar: true });
     this.focusScrollTimer = setTimeout(() => {
-      this.actualizarInsetTeclado();
-      this.asegurarCampoVisible(t!);
+      this.actualizarInsetTeclado(true);
+      scrollCampoEnVista(t!, { behavior: 'smooth', forzar: true });
     }, 320);
   }
 
@@ -241,15 +243,19 @@ export class AppComponent implements AfterViewInit, AfterViewChecked, OnDestroy 
     }, 120);
   }
 
-  /** Mientras escribe (móvil), el campo activo sigue visible sobre el teclado + dock. */
+  /** Mientras escribe, el campo activo sigue visible (scroll al registrar). */
   @HostListener('input', ['$event'])
   onInputCampo(ev: Event): void {
-    if (!this.tecladoAbierto) return;
     const t = ev.target;
-    if (!(t instanceof HTMLInputElement) && !(t instanceof HTMLTextAreaElement)) return;
+    if (!(t instanceof HTMLInputElement) && !(t instanceof HTMLTextAreaElement) && !(t instanceof HTMLSelectElement)) {
+      return;
+    }
+    if (!this.esCampoEditable(t)) return;
     this.actualizarInsetTeclado();
     if (this.focusScrollTimer != null) clearTimeout(this.focusScrollTimer);
-    this.focusScrollTimer = setTimeout(() => this.asegurarCampoVisible(t), 80);
+    this.focusScrollTimer = setTimeout(() => {
+      scrollCampoEnVista(t, { behavior: 'auto' });
+    }, 60);
   }
 
   private esCampoEditable(el: HTMLElement | null): boolean {
@@ -319,6 +325,10 @@ export class AppComponent implements AfterViewInit, AfterViewChecked, OnDestroy 
     const tick = () => {
       // Tras ~300ms sin inset real, usar estimación en móvil
       this.actualizarInsetTeclado(n >= 6);
+      const activo = document.activeElement as HTMLElement | null;
+      if (this.esCampoEditable(activo) && n === 6) {
+        scrollCampoEnVista(activo, { behavior: 'smooth', forzar: true });
+      }
       n += 1;
       if (n < 14 && this.tecladoAbierto) {
         this.insetPollTimer = setTimeout(tick, 50);
@@ -356,16 +366,7 @@ export class AppComponent implements AfterViewInit, AfterViewChecked, OnDestroy 
   }
 
   private asegurarCampoVisible(el: HTMLElement): void {
-    const vv = window.visualViewport;
-    const dockH = this.mostrarNav ? 76 : 16;
-    const topLimit = (vv?.offsetTop ?? 0) + 12;
-    const bottomLimit = vv
-      ? vv.offsetTop + vv.height - dockH
-      : window.innerHeight - dockH;
-    const rect = el.getBoundingClientRect();
-    if (rect.bottom > bottomLimit || rect.top < topLimit) {
-      el.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'smooth' });
-    }
+    scrollCampoEnVista(el, { behavior: 'smooth', forzar: true });
   }
 
   @HostListener('touchstart', ['$event'])
