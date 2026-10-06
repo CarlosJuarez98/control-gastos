@@ -2,9 +2,9 @@ import { Injectable, OnDestroy, signal } from '@angular/core';
 import { SwUpdate, VersionReadyEvent } from '@angular/service-worker';
 
 /**
- * Detecta builds nuevos vía Service Worker + appData.version (ngsw-config).
- * El botón «Actualizar app» solo aparece si la versión remota es mayor.
- * No recarga sola ni limpia caches a lo bruto (eso volvía lenta la app).
+ * Al entrar a la app (arranque o volver a primer plano) pregunta al SW si hay
+ * build nuevo. El botón «Actualizar app» solo aparece si appData.version remota
+ * es mayor. Sin intervalos periódicos.
  */
 @Injectable({ providedIn: 'root' })
 export class AppUpdateService implements OnDestroy {
@@ -12,10 +12,7 @@ export class AppUpdateService implements OnDestroy {
   readonly versionNueva = signal<string | null>(null);
 
   private reloading = false;
-  private timer: ReturnType<typeof setInterval> | null = null;
-  private lastCheck = 0;
-  private readonly minCheckMs = 15 * 60_000;
-  private readonly intervalMs = 30 * 60_000;
+  private checking = false;
 
   private readonly onVisibility = (): void => {
     if (document.visibilityState === 'visible') void this.buscarActualizacion();
@@ -30,25 +27,23 @@ export class AppUpdateService implements OnDestroy {
       }
     });
 
-    setTimeout(() => void this.buscarActualizacion(), 20_000);
-    this.timer = setInterval(() => void this.buscarActualizacion(), this.intervalMs);
+    void this.buscarActualizacion();
     document.addEventListener('visibilitychange', this.onVisibility);
   }
 
   ngOnDestroy(): void {
-    if (this.timer != null) clearInterval(this.timer);
     document.removeEventListener('visibilitychange', this.onVisibility);
   }
 
   async buscarActualizacion(): Promise<void> {
-    if (!this.sw.isEnabled || this.reloading) return;
-    const ahora = Date.now();
-    if (this.lastCheck > 0 && ahora - this.lastCheck < this.minCheckMs) return;
-    this.lastCheck = ahora;
+    if (!this.sw.isEnabled || this.reloading || this.checking) return;
+    this.checking = true;
     try {
       await this.sw.checkForUpdate();
     } catch {
       /* red / SW ocupado */
+    } finally {
+      this.checking = false;
     }
   }
 
