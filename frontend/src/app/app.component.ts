@@ -51,7 +51,7 @@ export class AppComponent implements AfterViewInit, AfterViewChecked, OnDestroy 
   readonly avisosCobro = inject(AvisosCobroService);
   private readonly router = inject(Router);
   private readonly zone = inject(NgZone);
-  private readonly appUpdate = inject(AppUpdateService);
+  readonly appUpdate = inject(AppUpdateService);
 
   @ViewChild('navDock') private navDock?: ElementRef<HTMLElement>;
   @ViewChild('dockMeasure') private dockMeasure?: ElementRef<HTMLElement>;
@@ -563,9 +563,8 @@ export class AppComponent implements AfterViewInit, AfterViewChecked, OnDestroy 
   }
 
   actualizarApp(): void {
-    this.menuNavAbierto = false;
-    this.cerrarPerfil();
-    void this.appUpdate.forzarRefresh();
+    // No cerrar menús antes: en móvil parecía que solo “desaparecían”.
+    this.appUpdate.aplicarActualizacion();
   }
 
   salir(): void {

@@ -30,9 +30,14 @@
             }
           </button>
         }
-        <button type="button" class="secundario actualizar-app" (click)="actualizarApp()" title="Descargar última versión">
-          Actualizar
-        </button>
+        @if (appUpdate.updateDisponible()) {
+          <button type="button" class="secundario actualizar-app" (click)="actualizarApp()" title="Descargar última versión">
+            Actualizar
+            @if (appUpdate.versionNueva(); as ver) {
+              <span>v{{ ver }}</span>
+            }
+          </button>
+        }
         <button type="button" class="secundario salir" (click)="salir()">Salir</button>
       </div>
     </header>
@@ -88,9 +93,14 @@
             <span>{{ l.label }}</span>
           </a>
         }
-        <button type="button" class="menu-nav-actualizar" role="menuitem" (click)="actualizarApp()">
-          Actualizar app
-        </button>
+        @if (appUpdate.updateDisponible()) {
+          <button type="button" class="menu-nav-actualizar" role="menuitem" (click)="actualizarApp()">
+            Actualizar app
+            @if (appUpdate.versionNueva(); as ver) {
+              <span>v{{ ver }}</span>
+            }
+          </button>
+        }
       </div>
     }
     <div class="dock-measure" #dockMeasure aria-hidden="true">
@@ -175,7 +185,14 @@
       </label>
       <button type="submit" [disabled]="perfilCargando || !puedeGuardarPerfil">Guardar</button>
     </form>
-    <button type="button" class="perfil-actualizar" (click)="actualizarApp()">Actualizar app</button>
+    @if (appUpdate.updateDisponible()) {
+      <button type="button" class="perfil-actualizar" (click)="actualizarApp()">
+        Actualizar app
+        @if (appUpdate.versionNueva(); as ver) {
+          <span>v{{ ver }}</span>
+        }
+      </button>
+    }
   </aside>
 }
 
