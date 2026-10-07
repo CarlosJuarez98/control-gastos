@@ -13,10 +13,23 @@ $Root = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $SshOpts = @("-i", $SshKey, "-o", "StrictHostKeyChecking=no", "-o", "BatchMode=yes")
 $tar = Join-Path $env:TEMP "cg-deploy.tar"
 
+function Bump-NgswPatch([string]$NgswPath) {
+  if (-not (Test-Path $NgswPath)) { throw "Falta $NgswPath (versionado PWA)" }
+  $raw = Get-Content -LiteralPath $NgswPath -Raw -Encoding UTF8
+  if ($raw -notmatch '"version"\s*:\s*"(\d+)\.(\d+)\.(\d+)"') {
+    throw "No se halló appData.version en $NgswPath"
+  }
+  $nueva = "$($Matches[1]).$($Matches[2]).$([int]$Matches[3] + 1)"
+  $actualizado = [regex]::Replace($raw, '"version"\s*:\s*"\d+\.\d+\.\d+"', "`"version`": `"$nueva`"", 1)
+  [System.IO.File]::WriteAllText($NgswPath, $actualizado)
+  Write-Host "PWA version → $nueva" -ForegroundColor Green
+}
+
 Write-Host "== Deploy control-gastos (codigo) ==" -ForegroundColor Cyan
 Push-Location $Root
-# Incluir angular.json (budgets) y package*; solo frontend/src deja budgets viejos en la VM.
-tar -cf $tar backend/src frontend/src frontend/angular.json frontend/package.json frontend/package-lock.json docker-compose.cloud-atp.yml Dockerfile
+Bump-NgswPatch (Join-Path $Root "frontend\ngsw-config.json")
+# ngsw-config: versionado PWA; angular.json/package*: build en la VM.
+tar -cf $tar backend/src frontend/src frontend/ngsw-config.json frontend/angular.json frontend/package.json frontend/package-lock.json docker-compose.cloud-atp.yml Dockerfile
 Pop-Location
 scp @SshOpts $tar "${VmHost}:~/cg-deploy.tar"
 

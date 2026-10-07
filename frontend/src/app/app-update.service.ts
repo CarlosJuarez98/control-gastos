@@ -2,9 +2,9 @@ import { Injectable, OnDestroy, signal } from '@angular/core';
 import { SwUpdate, VersionReadyEvent } from '@angular/service-worker';
 
 /**
- * Al entrar a la app (arranque o volver a primer plano) pregunta al SW si hay
- * build nuevo. El botón «Actualizar app» solo aparece si appData.version remota
- * es mayor. Sin intervalos periódicos.
+ * Al entrar (o volver a primer plano) pregunta al SW si hay build nuevo.
+ * Si appData.version remota es mayor, recarga sola — eso es el versionado.
+ * El botón «Actualizar» queda como respaldo manual.
  */
 @Injectable({ providedIn: 'root' })
 export class AppUpdateService implements OnDestroy {
@@ -49,23 +49,30 @@ export class AppUpdateService implements OnDestroy {
 
   aplicarActualizacion(): void {
     if (this.reloading || !this.updateDisponible()) return;
-    this.reloading = true;
-    document.location.reload();
+    void this.recargarConNuevaVersion();
   }
 
   private evaluarVersionLista(evt: VersionReadyEvent): void {
     const actual = versionDe(evt.currentVersion?.appData);
     const nueva = versionDe(evt.latestVersion?.appData);
 
-    if (!actual) {
-      this.updateDisponible.set(true);
-      this.versionNueva.set(nueva);
-      return;
+    const hayVersionNueva = !actual || (!!nueva && esVersionMayor(nueva, actual));
+    if (!hayVersionNueva) return;
+
+    this.updateDisponible.set(true);
+    this.versionNueva.set(nueva);
+    void this.recargarConNuevaVersion();
+  }
+
+  private async recargarConNuevaVersion(): Promise<void> {
+    if (this.reloading) return;
+    this.reloading = true;
+    try {
+      await this.sw.activateUpdate();
+    } catch {
+      /* igual recarga */
     }
-    if (nueva && esVersionMayor(nueva, actual)) {
-      this.updateDisponible.set(true);
-      this.versionNueva.set(nueva);
-    }
+    document.location.reload();
   }
 }
 
