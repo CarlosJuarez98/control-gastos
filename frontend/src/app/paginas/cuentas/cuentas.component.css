@@ -188,6 +188,9 @@
 .cuentas li.saldada .mono { color: var(--ok); }
 .grupo.saldadas .cuentas { border-style: dashed; }
 .grupo.prestamistas .cuentas { border-color: color-mix(in srgb, var(--ok) 35%, var(--linea)); }
+#prestamistas {
+  scroll-margin-top: 1rem;
+}
 .cab .pos { color: var(--ok); }
 .vacio {
   padding: 0.85rem;

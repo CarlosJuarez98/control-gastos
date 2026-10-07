@@ -78,6 +78,8 @@ export class CuentasComponent implements OnInit, OnDestroy {
   private anclarTrasCerrarId: number | null = null;
   /** Scroll del host capturado en el clic (antes de que el DOM crezca/encoja). */
   private scrollTopAlClic: number | null = null;
+  /** Desde Resumen → Prestamista: scroll a #prestamistas al cargar. */
+  private pendienteScrollSeccion: string | null = null;
 
   constructor(
     private api: ApiService,
@@ -102,6 +104,13 @@ export class CuentasComponent implements OnInit, OnDestroy {
     this.media.addEventListener('change', this.onMedia);
     this.cargarCuentas();
     this.cargarSaldoDisponible();
+    this.route.fragment.subscribe((frag) => {
+      const seccion = (frag || '').toLowerCase();
+      if (seccion === 'prestamistas' || seccion === 'prestamista') {
+        this.pendienteScrollSeccion = 'prestamistas';
+        this.intentarScrollSeccion();
+      }
+    });
     this.route.paramMap.subscribe((p) => {
       const id = p.get('id');
       if (id) this.abrir(+id);
@@ -763,9 +772,31 @@ export class CuentasComponent implements OnInit, OnDestroy {
 
   cargarCuentas(): void {
     this.api.cuentas().subscribe({
-      next: (r) => (this.cuentas = r),
+      next: (r) => {
+        this.cuentas = r;
+        this.cdr.detectChanges();
+        this.intentarScrollSeccion();
+      },
       error: (e) => (this.error = e?.error?.error || 'Error al cargar cuentas'),
     });
+  }
+
+  /** Resumen “Ver todas” (Prestamista) → ancla en Deudas. */
+  private intentarScrollSeccion(): void {
+    const id = this.pendienteScrollSeccion;
+    if (!id) return;
+    if (id === 'prestamistas' && !this.meDebenPendientes.length) return;
+    const aplicar = () => {
+      const el = this.host.nativeElement.querySelector(`#${id}`) as HTMLElement | null;
+      if (!el) return;
+      this.pendienteScrollSeccion = null;
+      this.scrollAElemento(el);
+    };
+    // Doble rAF + tick: el listado ya está en DOM (móvil/PC)
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      aplicar();
+      setTimeout(aplicar, 80);
+    }));
   }
 
   abrir(id: number): void {
