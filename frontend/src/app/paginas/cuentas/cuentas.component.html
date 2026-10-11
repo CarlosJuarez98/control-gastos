@@ -368,7 +368,7 @@
             <span>Para prestar</span>
             <strong class="mono">{{ saldoDisponible | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
           </div>
-        } @else if (saldoDisponible != null) {
+        } @else if (saldoDisponible != null && !esCreditoCompras(seleccionada)) {
           <div class="metrica" [class.alerta]="saldoDisponible < 0">
             <span>Tu disponible</span>
             <strong class="mono">{{ saldoDisponible | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>

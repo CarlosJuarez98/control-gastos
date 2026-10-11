@@ -168,7 +168,7 @@ export class GastosComponent implements OnInit, OnDestroy {
     });
   }
 
-  /** Ordena TDC por conveniencia y deja seleccionada la mejor (1ª). */
+  /** Ordena todas las TDC por conveniencia; preelige la 1ª solo si aún no elegiste. */
   private ordenarYSincronizarTdcs(autoSeleccionar: boolean): void {
     const monto = parseDineroSuma(this.form.monto).total;
     const recs = recomendarTdcs(
@@ -187,15 +187,13 @@ export class GastosComponent implements OnInit, OnDestroy {
       this.form.cuentaId = null;
       this.tdcElegidaManual = false;
     }
-    // Móvil: siempre la mejor en automático (sin picker interactivo).
-    const forzarAuto = this.esMovil || autoSeleccionar;
+    // Sugerida = 1ª; si ya tocaste otra, se respeta.
     if (
-      forzarAuto &&
       this.esConTdc &&
-      (this.esMovil || !this.tdcElegidaManual || this.form.cuentaId == null)
+      autoSeleccionar &&
+      (!this.tdcElegidaManual || this.form.cuentaId == null)
     ) {
       this.form.cuentaId = this.cuentasTdc[0]?.id ?? null;
-      if (this.esMovil) this.tdcElegidaManual = false;
     }
   }
 
@@ -267,23 +265,15 @@ export class GastosComponent implements OnInit, OnDestroy {
     return { total, interes, cuota, ultima, meses, recibido, aMeses: true };
   }
 
-  /** Al cambiar monto o fecha, reordena y elige automáticamente la mejor. */
+  /** Al cambiar monto o fecha, reordena; si no elegiste a mano, deja la 1ª. */
   alCambiarContextoTdc(): void {
     if (!this.esConTdc) return;
-    if (!this.esMovil) this.tdcElegidaManual = false;
     if (!this.cuentas.length) {
       this.cargarTarjetas(true);
       return;
     }
     this.ordenarYSincronizarTdcs(true);
     this.cdr.markForCheck();
-  }
-
-  /** Mejor TDC elegida en automático (móvil: solo lectura). */
-  get recomendacionAuto(): RecomendacionTdc | null {
-    if (!this.esConTdc || !this.recomendacionesTdc.length) return null;
-    const id = this.form.cuentaId;
-    return this.recomendacionesTdc.find((r) => r.cuenta.id === id) ?? this.recomendacionesTdc[0] ?? null;
   }
 
   /** Hay monto pero ninguna TDC con crédito libre suficiente (no aplica a disposición). */
@@ -305,9 +295,7 @@ export class GastosComponent implements OnInit, OnDestroy {
 
   usarRecomendacionTdc(id: number | null | undefined): void {
     if (id == null) return;
-    // En móvil la elección es automática; no hay picker.
-    if (this.esMovil) return;
-    this.tdcElegidaManual = id !== this.cuentasTdc[0]?.id;
+    this.tdcElegidaManual = true;
     this.form.cuentaId = id;
     this.cdr.markForCheck();
   }
