@@ -132,7 +132,7 @@ public class CompartidoController {
     }
 
     @GetMapping("/avisos-cobro")
-    public List<FijoPendienteCobro> avisosCobro() {
+    public AvisosCompartido avisosCobro() {
         return service.listarAvisosCobro();
     }
 

@@ -200,7 +200,12 @@ public final class CompartidoDtos {
             List<CuentaGlobalResumen> porCuenta,
             List<TdcCargaResumen> porTdc,
             /** Fijos «Yo pago» por cobrar: vencidos o próximos (≤3 días). */
-            List<FijoPendienteCobro> fijosPendientesCobro
+            List<FijoPendienteCobro> fijosPendientesCobro,
+            /**
+             * Cargos a TDC con gente que aún te debe: cobrarles antes del
+             * límite de pago de la tarjeta.
+             */
+            List<CobroTdcPendienteAviso> cobrosTdcPendientes
     ) {}
 
     public record FijoPendienteCobro(
@@ -214,6 +219,32 @@ public final class CompartidoDtos {
             String estado,
             /** Días hasta la fecha de cobro (negativo = atrasado). */
             long dias
+    ) {}
+
+    /**
+     * Gasto compartido cargado a TDC con saldo pendiente de otras personas.
+     * La fecha límite es la del ciclo de la tarjeta (día límite de pago).
+     */
+    public record CobroTdcPendienteAviso(
+            Long gastoCompartidoId,
+            String concepto,
+            String periodo,
+            Long cuentaId,
+            String tdcNombre,
+            LocalDate fechaCompra,
+            LocalDate fechaLimitePago,
+            /** Días hasta el límite (negativo = ya pasó). */
+            long dias,
+            /** VENCIDO | URGENTE (≤3d) | PROXIMO (≤7d). */
+            String estado,
+            BigDecimal pendiente,
+            List<String> deudores
+    ) {}
+
+    /** Respuesta de /avisos-cobro (badge + notificaciones). */
+    public record AvisosCompartido(
+            List<FijoPendienteCobro> fijos,
+            List<CobroTdcPendienteAviso> cobrosTdc
     ) {}
 
     public record AnularGastoResponse(

@@ -23,6 +23,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
 @Service
@@ -610,6 +611,13 @@ public class CompartidoService {
                             "Ya cobraste " + s.getConcepto() + " de " + periodo
                                     + " (fecha " + existente.getFecha() + ")");
                 });
+        // Si borraste y recreaste el fijo, el id cambia pero el cobro del mes ya existe.
+        buscarCobroMismoConceptoPeriodo(u, s.getConcepto(), periodo).ifPresent(existente -> {
+            throw new IllegalArgumentException(
+                    "Ya cobraste «" + s.getConcepto() + "» de " + periodo
+                            + " (fecha " + existente.getFecha()
+                            + "). No se vuelve a cargar a la TDC; anula el cobro viejo si fue un error.");
+        });
 
         return registrarGasto(new RegistrarGastoRequest(
                 "SERVICIO",
@@ -1415,14 +1423,23 @@ public class CompartidoService {
         List<CuentaGlobalResumen> porCuenta = agruparCuentasGlobales(filas, gastos);
         List<TdcCargaResumen> porTdc = agruparCargasTdc(gastos);
         List<FijoPendienteCobro> fijosPendientes = listarFijosPendientesCobro(u, gastos);
+        List<CobroTdcPendienteAviso> cobrosTdc = listarCobrosTdcPendientes(filas, gastos);
         return new ResumenCompartido(
-                filas, totalDebe, totalFavor, totalGuardado, porCuenta, porTdc, fijosPendientes);
+                filas, totalDebe, totalFavor, totalGuardado, porCuenta, porTdc, fijosPendientes, cobrosTdc);
     }
 
-    /** Fijos «Yo pago» vencidos o próximos (≤ {@link #DIAS_AVISO_PREVIO} días). */
-    public List<FijoPendienteCobro> listarAvisosCobro() {
+    /** Fijos por cobrar + cobros TDC con gente que aún te debe (badge / notificaciones). */
+    public AvisosCompartido listarAvisosCobro() {
         String u = Sesion.usuario();
-        return listarFijosPendientesCobro(u, gastoCompartidoRepository.findActivosByPropietario(u));
+        List<MovimientoPersonaCompartida> movs = movimientoRepository.findActivosByPropietario(u);
+        List<GastoCompartido> gastos = gastoCompartidoRepository.findActivosByPropietario(u);
+        List<PersonaResumen> filas = new ArrayList<>();
+        for (PersonaCompartida p : personaRepository.findActivasByPropietario(u)) {
+            filas.add(armarResumenPersona(p, movs, gastos));
+        }
+        return new AvisosCompartido(
+                listarFijosPendientesCobro(u, gastos),
+                listarCobrosTdcPendientes(filas, gastos));
     }
 
     /**
@@ -1450,8 +1467,9 @@ public class CompartidoService {
             if (dias > DIAS_AVISO_PREVIO) continue;
             boolean yaCobrado = gastos != null && gastos.stream().anyMatch(g ->
                     !g.isAnulado()
-                            && s.getId().equals(g.getServicioFijoId())
-                            && periodo.equals(g.getPeriodo()));
+                            && periodo.equals(g.getPeriodo())
+                            && (s.getId().equals(g.getServicioFijoId())
+                                    || mismoConcepto(s.getConcepto(), g.getConcepto())));
             if (yaCobrado) continue;
             String estado = dias <= 0 ? "VENCIDO" : "PROXIMO";
             out.add(new FijoPendienteCobro(
@@ -1589,6 +1607,96 @@ public class CompartidoService {
         out.sort(Comparator
                 .comparing((CuentaGlobalResumen c) -> c.pendiente(), Comparator.reverseOrder())
                 .thenComparing(CuentaGlobalResumen::concepto, String.CASE_INSENSITIVE_ORDER));
+        return out;
+    }
+
+    private Optional<GastoCompartido> buscarCobroMismoConceptoPeriodo(
+            String u, String concepto, String periodo) {
+        if (concepto == null || periodo == null) return Optional.empty();
+        return gastoCompartidoRepository.findActivosByPropietario(u).stream()
+                .filter(g -> !g.isAnulado())
+                .filter(g -> periodo.equals(g.getPeriodo()))
+                .filter(g -> mismoConcepto(concepto, g.getConcepto()))
+                .findFirst();
+    }
+
+    private static boolean mismoConcepto(String a, String b) {
+        String x = a == null ? "" : a.trim().toLowerCase(Locale.ROOT);
+        String y = b == null ? "" : b.trim().toLowerCase(Locale.ROOT);
+        return !x.isEmpty() && x.equals(y);
+    }
+
+    /**
+     * Cargos a TDC con saldo pendiente de otras personas: avisar para cobrarles
+     * antes del límite de pago del ciclo de la tarjeta.
+     */
+    List<CobroTdcPendienteAviso> listarCobrosTdcPendientes(
+            List<PersonaResumen> filas, List<GastoCompartido> gastos) {
+        if (gastos == null || gastos.isEmpty() || filas == null) return List.of();
+        LocalDate hoy = LocalDate.now();
+        Map<Long, BigDecimal> pendientePorGasto = new LinkedHashMap<>();
+        Map<Long, List<String>> deudoresPorGasto = new LinkedHashMap<>();
+        for (PersonaResumen fila : filas) {
+            if (fila.periodos() == null) continue;
+            for (PeriodoPendiente pp : fila.periodos()) {
+                if (pp.gastoCompartidoId() == null
+                        || pp.pendiente() == null
+                        || pp.pendiente().compareTo(BigDecimal.ZERO) <= 0) {
+                    continue;
+                }
+                Long gid = pp.gastoCompartidoId();
+                pendientePorGasto.merge(gid, pp.pendiente(), BigDecimal::add);
+                String etiqueta = fila.nombre()
+                        + " "
+                        + pp.pendiente().setScale(0, RoundingMode.HALF_UP).toPlainString();
+                deudoresPorGasto.computeIfAbsent(gid, k -> new ArrayList<>()).add(etiqueta);
+            }
+        }
+        if (pendientePorGasto.isEmpty()) return List.of();
+
+        Map<Long, Cuenta> cuentas = new LinkedHashMap<>();
+        for (Cuenta c : finanzasService.listarCuentas()) {
+            if (c.getId() != null) cuentas.put(c.getId(), c);
+        }
+
+        List<CobroTdcPendienteAviso> out = new ArrayList<>();
+        for (GastoCompartido g : gastos) {
+            if (g.isAnulado() || g.getId() == null) continue;
+            if (g.getFormaPago() == null || !"TARJETA".equalsIgnoreCase(g.getFormaPago().trim())) {
+                continue;
+            }
+            if (g.getCuentaId() == null) continue;
+            BigDecimal pend = pendientePorGasto.get(g.getId());
+            if (pend == null || pend.compareTo(BigDecimal.ZERO) <= 0) continue;
+            Cuenta tdc = cuentas.get(g.getCuentaId());
+            if (tdc == null) continue;
+            LocalDate fechaCompra = g.getFecha() != null ? g.getFecha() : LocalDate.now();
+            LocalDate limite = DiaCobroMes.fechaLimitePagoCiclo(
+                    fechaCompra, tdc.getDiaCorte(), tdc.getDiaLimitePago());
+            if (limite == null) continue;
+            long dias = java.time.temporal.ChronoUnit.DAYS.between(hoy, limite);
+            // Solo ciclo en curso / reciente: no inundar con deudas viejas sin límite útil.
+            if (dias > 14) continue;
+            String estado = dias < 0 ? "VENCIDO" : (dias <= DIAS_AVISO_PREVIO ? "URGENTE" : "PROXIMO");
+            String nombreTdc = tdc.getNombre() == null || tdc.getNombre().isBlank()
+                    ? ("TDC #" + tdc.getId())
+                    : tdc.getNombre().trim();
+            out.add(new CobroTdcPendienteAviso(
+                    g.getId(),
+                    g.getConcepto() == null ? "Gasto" : g.getConcepto().trim(),
+                    g.getPeriodo(),
+                    tdc.getId(),
+                    nombreTdc,
+                    fechaCompra,
+                    limite,
+                    dias,
+                    estado,
+                    pend.setScale(2, RoundingMode.HALF_UP).setScale(2, RoundingMode.UNNECESSARY),
+                    List.copyOf(deudoresPorGasto.getOrDefault(g.getId(), List.of()))));
+        }
+        out.sort(Comparator
+                .comparing(CobroTdcPendienteAviso::dias)
+                .thenComparing(CobroTdcPendienteAviso::concepto, String.CASE_INSENSITIVE_ORDER));
         return out;
     }
 

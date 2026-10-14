@@ -364,7 +364,7 @@ export class CompartidoComponent implements OnInit, OnDestroy {
           this.cobroForm.cuentaId = this.cuentasTdc[0].id ?? null;
         }
         this.avisarCobrosSiHay();
-        this.avisosCobro.avisos.set(this.resumen?.fijosPendientesCobro || []);
+        this.avisosCobro.aplicarResumen(this.resumen);
       }, 'Cargando compartido…');
     } catch (e: unknown) {
       this.error = this.msg(e, 'No se pudo cargar Compartido');
@@ -936,28 +936,32 @@ export class CompartidoComponent implements OnInit, OnDestroy {
     this.notifCobroPedida = perm === 'granted';
     if (this.notifCobroPedida) {
       this.avisarCobrosSiHay(true);
-      this.ok = 'Avisos activados: te avisará cuando haya fijos por cobrar';
+      this.ok = 'Avisos activados: te avisará por fijos y cobros pendientes de TDC';
     } else {
       this.error = 'No se activaron las notificaciones';
     }
   }
 
   private avisarCobrosSiHay(forzar = false): void {
-    const lista = this.resumen?.fijosPendientesCobro || [];
-    if (!lista.length || typeof Notification === 'undefined' || Notification.permission !== 'granted') {
+    const fijos = this.resumen?.fijosPendientesCobro || [];
+    const tdc = this.resumen?.cobrosTdcPendientes || [];
+    if ((!fijos.length && !tdc.length)
+      || typeof Notification === 'undefined'
+      || Notification.permission !== 'granted') {
       return;
     }
     const key = `cg-aviso-cobro-${fechaHoyLocal()}`;
     if (!forzar && sessionStorage.getItem(key)) return;
     sessionStorage.setItem(key, '1');
-    const vencidos = lista.filter((f) => f.estado !== 'PROXIMO').length;
-    const proximos = lista.filter((f) => f.estado === 'PROXIMO').length;
     const parts: string[] = [];
-    if (vencidos) parts.push(`${vencidos} por cobrar`);
-    if (proximos) parts.push(`${proximos} próximos`);
+    const vencidos = fijos.filter((f) => f.estado !== 'PROXIMO').length;
+    const proximos = fijos.filter((f) => f.estado === 'PROXIMO').length;
+    if (vencidos) parts.push(`${vencidos} fijos por cobrar`);
+    if (proximos) parts.push(`${proximos} fijos próximos`);
+    if (tdc.length) parts.push(`${tdc.length} por cobrar antes del límite TDC`);
     try {
       new Notification('Control de gastos', {
-        body: `Fijos compartidos: ${parts.join(' · ')}`,
+        body: `Compartido: ${parts.join(' · ')}`,
         tag: 'cg-fijos-cobro',
       });
     } catch {
@@ -1574,7 +1578,7 @@ export class CompartidoComponent implements OnInit, OnDestroy {
     );
     this.saldoDisponible =
       saldo?.esperado == null || saldo.esperado === undefined ? null : Number(saldo.esperado);
-    this.avisosCobro.avisos.set(resumen?.fijosPendientesCobro || []);
+    this.avisosCobro.aplicarResumen(resumen);
   }
 
 

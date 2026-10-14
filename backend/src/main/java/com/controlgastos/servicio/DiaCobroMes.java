@@ -33,4 +33,29 @@ public final class DiaCobroMes {
         int efectivo = Math.min(dia, max);
         return mes.atDay(efectivo);
     }
+
+    /**
+     * Fecha límite de pago del ciclo de una compra en TDC (misma regla que el front):
+     * si el día de compra &gt; corte → siguiente corte; el pago es el primer
+     * {@code diaLimitePago} estrictamente después del corte.
+     */
+    public static LocalDate fechaLimitePagoCiclo(
+            LocalDate fechaCompra, Integer diaCorte, Integer diaLimitePago) {
+        if (fechaCompra == null || diaCorte == null || diaLimitePago == null) {
+            return null;
+        }
+        int corte = normalizarDia(diaCorte);
+        int pago = normalizarDia(diaLimitePago);
+        YearMonth ym = YearMonth.from(fechaCompra);
+        if (fechaCompra.getDayOfMonth() > corte) {
+            ym = ym.plusMonths(1);
+        }
+        LocalDate fechaCorte = fechaEnMes(ym, corte);
+        YearMonth pagoYm = YearMonth.from(fechaCorte);
+        LocalDate fechaPago = fechaEnMes(pagoYm, pago);
+        if (!fechaPago.isAfter(fechaCorte)) {
+            fechaPago = fechaEnMes(pagoYm.plusMonths(1), pago);
+        }
+        return fechaPago;
+    }
 }

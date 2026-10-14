@@ -50,12 +50,41 @@
           </li>
         }
       </ul>
-      @if (!notifCobroPedida) {
-        <button type="button" class="chip-btn aviso-notif" (click)="activarNotificacionesCobro()">
-          Activar aviso en el teléfono
-        </button>
-      }
     </div>
+  }
+
+  @if (resumen?.cobrosTdcPendientes?.length) {
+    <div class="aviso-cobro aviso-tdc">
+      <strong>Cobra antes del límite de la TDC</strong>
+      <ul>
+        @for (a of resumen!.cobrosTdcPendientes!; track a.gastoCompartidoId) {
+          <li [class.proximo]="a.estado === 'PROXIMO'" [class.urgente]="a.estado === 'URGENTE' || a.estado === 'VENCIDO'">
+            <span>
+              {{ a.concepto }} · {{ a.tdcNombre }} ·
+              te deben {{ a.pendiente | currency:'MXN':'symbol-narrow':'1.0-0' }}
+              @if ((a.dias ?? 0) < 0) {
+                · límite pasó hace {{ -(a.dias ?? 0) }} {{ -(a.dias ?? 0) === 1 ? 'día' : 'días' }}
+              } @else if ((a.dias ?? 0) === 0) {
+                · límite hoy
+              } @else {
+                · paga antes del {{ formatFechaCorta(a.fechaLimitePago) }}
+                ({{ a.dias }}d)
+              }
+              @if (a.deudores?.length) {
+                · {{ a.deudores.join(', ') }}
+              }
+            </span>
+            <button type="button" class="chip-btn on" (click)="setTab('personas')">Personas</button>
+          </li>
+        }
+      </ul>
+    </div>
+  }
+
+  @if ((resumen?.fijosPendientesCobro?.length || resumen?.cobrosTdcPendientes?.length) && !notifCobroPedida) {
+    <button type="button" class="chip-btn aviso-notif" (click)="activarNotificacionesCobro()">
+      Activar aviso en el teléfono
+    </button>
   }
 
   @if (resumen?.porCuenta?.length || resumen?.porTdc?.length) {

@@ -261,6 +261,8 @@ export interface ResumenCompartido {
   porCuenta?: CuentaGlobalCompartido[];
   porTdc?: TdcCargaCompartido[];
   fijosPendientesCobro?: FijoPendienteCobro[];
+  /** Cargos TDC con gente que aún te debe (antes del límite de pago). */
+  cobrosTdcPendientes?: CobroTdcPendienteAviso[];
 }
 
 export interface FijoPendienteCobro {
@@ -274,6 +276,27 @@ export interface FijoPendienteCobro {
   estado?: string;
   /** Días hasta cobro (negativo = atrasado). */
   dias?: number;
+}
+
+export interface CobroTdcPendienteAviso {
+  gastoCompartidoId: number;
+  concepto: string;
+  periodo?: string | null;
+  cuentaId: number;
+  tdcNombre: string;
+  fechaCompra: string;
+  fechaLimitePago: string;
+  /** Días hasta el límite (negativo = ya pasó). */
+  dias: number;
+  /** VENCIDO | URGENTE | PROXIMO */
+  estado?: string;
+  pendiente: number;
+  deudores: string[];
+}
+
+export interface AvisosCompartido {
+  fijos?: FijoPendienteCobro[];
+  cobrosTdc?: CobroTdcPendienteAviso[];
 }
 
 export interface AnularGastoCompartidoResponse {

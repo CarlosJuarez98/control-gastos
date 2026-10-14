@@ -60,49 +60,54 @@
   opacity: 0.92;
 }
 
-.aviso-cobro .aviso-notif {
-  margin-top: 0.5rem;
+.aviso-cobro li.urgente {
+  font-weight: 600;
+}
+
+.aviso-cobro.aviso-tdc {
+  border-color: color-mix(in srgb, var(--aviso, #c47a2c) 45%, var(--linea));
+  background: color-mix(in srgb, var(--aviso, #c47a2c) 12%, var(--superficie));
+}
+
+.aviso-notif {
+  margin: 0 0 0.75rem;
 }
 
 .tabs {
-  display: flex;
-  flex-wrap: nowrap;
-  gap: 0.35rem;
-  margin-bottom: 0.45rem;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0.28rem;
+  margin-bottom: 0.55rem;
   flex: 0 0 auto;
-  overflow-x: auto;
-  overflow-y: hidden;
-  -webkit-overflow-scrolling: touch;
-  scrollbar-width: none;
-  padding: 0.12rem 0.05rem 0.25rem;
-  overscroll-behavior-x: contain;
-}
-
-.tabs::-webkit-scrollbar {
-  display: none;
+  padding: 0.28rem;
+  border: 1px solid var(--linea);
+  border-radius: 0.85rem;
+  background: color-mix(in srgb, var(--superficie-2, var(--superficie)) 70%, transparent);
+  box-sizing: border-box;
 }
 
 .tabs button {
-  flex: 1 1 0;
   min-width: 0;
-  border: 1px solid var(--linea);
-  background: var(--superficie);
-  color: var(--texto);
-  border-radius: 999px;
-  padding: 0.38rem 0.55rem;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--texto-suave, var(--texto));
+  border-radius: 0.55rem;
+  padding: 0.42rem 0.35rem;
   font: inherit;
   font-weight: 600;
-  font-size: 0.82rem;
+  font-size: 0.8rem;
+  line-height: 1.2;
   cursor: pointer;
-  white-space: nowrap;
-  min-height: 2.2rem;
+  white-space: normal;
+  min-height: 2.35rem;
   box-sizing: border-box;
   text-align: center;
 }
 
 .tabs button.activo {
-  border-color: color-mix(in srgb, var(--acento) 55%, var(--linea));
-  background: color-mix(in srgb, var(--acento) 16%, var(--superficie));
+  border-color: color-mix(in srgb, var(--acento) 40%, var(--linea));
+  background: color-mix(in srgb, var(--acento) 18%, var(--superficie));
+  color: var(--texto);
 }
 
 .totales {
@@ -850,18 +855,22 @@ button.peligro.btn-mini {
   }
 
   .tabs {
-    margin-left: -0.15rem;
-    margin-right: -0.15rem;
-    padding: 0.12rem 0.15rem 0.28rem;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
     gap: 0.3rem;
+    padding: 0.32rem;
   }
 
+  /* 3 arriba + 2 abajo, todo visible sin scroll */
   .tabs button {
-    flex: 0 0 auto;
-    min-width: max-content;
-    padding: 0.45rem 0.75rem;
-    font-size: 0.82rem;
-    min-height: 2.35rem;
+    grid-column: span 2;
+    padding: 0.5rem 0.35rem;
+    font-size: 0.8rem;
+    min-height: 2.5rem;
+  }
+
+  .tabs button:nth-child(4),
+  .tabs button:nth-child(5) {
+    grid-column: span 3;
   }
 
   .totales > div {

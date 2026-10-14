@@ -16,7 +16,7 @@
             <span class="nav-ico" aria-hidden="true">{{ l.icon }}</span>
             <span class="nav-lbl">{{ l.label }}</span>
             @if (l.path === '/compartido' && avisosCobro.cantidad > 0) {
-              <span class="nav-badge" [attr.aria-label]="avisosCobro.cantidad + ' fijos por cobrar'">{{ avisosCobro.cantidad }}</span>
+              <span class="nav-badge" [attr.aria-label]="avisosCobro.cantidad + ' avisos en compartido'">{{ avisosCobro.cantidad }}</span>
             }
           </a>
         }
