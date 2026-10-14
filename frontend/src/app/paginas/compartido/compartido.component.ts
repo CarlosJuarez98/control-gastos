@@ -48,7 +48,6 @@ export class CompartidoComponent implements OnInit, OnDestroy {
 
   tab: Tab = 'resumen';
   readonly tabs = TABS;
-  menuTabsAbierto = false;
   personas: PersonaCompartida[] = [];
   resumen: ResumenCompartido | null = null;
   gastos: GastoCompartido[] = [];
@@ -89,6 +88,7 @@ export class CompartidoComponent implements OnInit, OnDestroy {
     concepto: '',
     monto: '',
     diaCobro: 1,
+    vigenteDesde: fechaHoyLocal(),
     incluyePrincipal: true,
     yoPago: true,
   };
@@ -261,55 +261,19 @@ export class CompartidoComponent implements OnInit, OnDestroy {
 
   setTab(t: Tab): void {
     this.tab = t;
-    this.menuTabsAbierto = false;
     this.error = '';
     this.ok = '';
   }
 
-  etiquetaTab(t: Tab): string {
-    return this.tabs.find((x) => x.id === t)?.label ?? t;
-  }
-
-  toggleMenuTabs(): void {
-    this.menuTabsAbierto = !this.menuTabsAbierto;
-    if (this.menuTabsAbierto) {
-      queueMicrotask(() => {
-        document
-          .querySelector<HTMLButtonElement>('#menu-tabs-compartido button.activo, #menu-tabs-compartido button')
-          ?.focus();
-      });
-    }
-  }
-
-  /** Esc cancela; Enter confirma (menú / paneles). El diálogo global de confirmación manda. */
+  /** Esc cancela paneles abiertos. El diálogo global de confirmación manda. */
   @HostListener('document:keydown', ['$event'])
   onTeclasGlobales(ev: KeyboardEvent): void {
     if (ev.defaultPrevented || ev.isComposing) return;
     if (document.querySelector('.overlay .dialog')) return;
 
-    if (ev.key === 'Escape') {
-      if (this.menuTabsAbierto) {
-        ev.preventDefault();
-        this.menuTabsAbierto = false;
-        return;
-      }
-      if (this.hayCancelable()) {
-        ev.preventDefault();
-        this.cancelarUiActiva();
-      }
-      return;
-    }
-
-    if (ev.key !== 'Enter') return;
-
-    if (this.menuTabsAbierto) {
-      const t = ev.target as HTMLElement | null;
-      if (t?.closest?.('#menu-tabs-compartido button')) {
-        // El botón recibe el click nativo → setTab
-        return;
-      }
+    if (ev.key === 'Escape' && this.hayCancelable()) {
       ev.preventDefault();
-      this.menuTabsAbierto = false;
+      this.cancelarUiActiva();
     }
   }
 
@@ -768,7 +732,14 @@ export class CompartidoComponent implements OnInit, OnDestroy {
 
   resetFijoForm(): void {
     this.editFijoId = null;
-    this.fijoForm = { concepto: '', monto: '', diaCobro: 1, incluyePrincipal: true, yoPago: true };
+    this.fijoForm = {
+      concepto: '',
+      monto: '',
+      diaCobro: 1,
+      vigenteDesde: fechaHoyLocal(),
+      incluyePrincipal: true,
+      yoPago: true,
+    };
     this.fijoPersonas.clear();
     this.fijoPerfiles.clear();
     this.fijoPerfilesPrincipal = 1;
@@ -781,6 +752,7 @@ export class CompartidoComponent implements OnInit, OnDestroy {
       concepto: s.concepto || '',
       monto: formatDineroInput(String(Math.round(Number(s.monto) || 0))),
       diaCobro: Math.max(1, Math.min(31, Math.round(Number(s.diaCobro) || 1))),
+      vigenteDesde: (s.vigenteDesde || '').slice(0, 10) || fechaHoyLocal(),
       incluyePrincipal: s.incluyePrincipal !== false,
       yoPago: s.yoPago !== false,
     };
@@ -805,11 +777,13 @@ export class CompartidoComponent implements OnInit, OnDestroy {
     this.error = '';
     this.ok = '';
     const editando = this.editFijoId != null;
+    const vigenteDesde = (this.fijoForm.vigenteDesde || '').slice(0, 10) || fechaHoyLocal();
     const body = {
       concepto: (this.fijoForm.concepto || '').trim(),
       monto: Math.round(parseDinero(this.fijoForm.monto)),
       personaIds: [...this.fijoPersonas],
       diaCobro: Math.max(1, Math.min(31, Math.round(Number(this.fijoForm.diaCobro) || 1))),
+      vigenteDesde,
       incluyePrincipal: this.fijoForm.incluyePrincipal,
       yoPago: this.fijoForm.yoPago,
       perfiles: [...this.fijoPersonas].map((id) => this.perfilesDe(this.fijoPerfiles, id)),
@@ -875,7 +849,6 @@ export class CompartidoComponent implements OnInit, OnDestroy {
   irCobrarFijo(servicioId: number): void {
     const s = this.serviciosFijos.find((x) => x.id === servicioId);
     this.tab = 'fijos';
-    this.menuTabsAbierto = false;
     if (s) {
       this.abrirCobro(s);
     }

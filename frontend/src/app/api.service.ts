@@ -265,6 +265,7 @@ export class ApiService {
     monto: number;
     personaIds: number[];
     diaCobro?: number | null;
+    vigenteDesde?: string | null;
     incluyePrincipal?: boolean;
     yoPago?: boolean;
     perfiles?: number[];
@@ -280,6 +281,7 @@ export class ApiService {
       monto: number;
       personaIds: number[];
       diaCobro?: number | null;
+      vigenteDesde?: string | null;
       incluyePrincipal?: boolean;
       yoPago?: boolean;
       perfiles?: number[];

@@ -2,6 +2,7 @@ package com.controlgastos.modelo;
 
 import jakarta.persistence.*;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -38,6 +39,14 @@ public class ServicioFijoCompartido {
     /** Día del mes en que suele cobrarse (1–31). Si el mes no tiene ese día, se usa el último. */
     @Column(name = "DIA_COBRO")
     private Integer diaCobro = 1;
+
+    /**
+     * Desde qué día cuenta el fijo (alta / registro).
+     * No marca atrasado ni aviso un cobro con fecha anterior a este día.
+     * Null = sin tope (fijos viejos).
+     */
+    @Column(name = "VIGENTE_DESDE")
+    private LocalDate vigenteDesde;
 
     /**
      * Si true, tú también entras al reparto al cobrar.
@@ -82,6 +91,14 @@ public class ServicioFijoCompartido {
 
     public void setDiaCobro(Integer diaCobro) {
         this.diaCobro = diaCobro;
+    }
+
+    public LocalDate getVigenteDesde() {
+        return vigenteDesde;
+    }
+
+    public void setVigenteDesde(LocalDate vigenteDesde) {
+        this.vigenteDesde = vigenteDesde;
     }
 
     public boolean isIncluyePrincipal() {

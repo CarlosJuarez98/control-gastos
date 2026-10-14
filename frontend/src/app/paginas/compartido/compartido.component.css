@@ -67,11 +67,19 @@
 .tabs {
   display: flex;
   flex-wrap: nowrap;
-  gap: 0.3rem;
+  gap: 0.35rem;
   margin-bottom: 0.45rem;
   flex: 0 0 auto;
-  overflow: visible;
-  padding: 0.12rem 0.05rem 0.2rem;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  padding: 0.12rem 0.05rem 0.25rem;
+  overscroll-behavior-x: contain;
+}
+
+.tabs::-webkit-scrollbar {
+  display: none;
 }
 
 .tabs button {
@@ -95,99 +103,6 @@
 .tabs button.activo {
   border-color: color-mix(in srgb, var(--acento) 55%, var(--linea));
   background: color-mix(in srgb, var(--acento) 16%, var(--superficie));
-}
-
-.tabs-movil {
-  display: none;
-  position: relative;
-  flex: 0 0 auto;
-  margin-bottom: 0.45rem;
-  z-index: 5;
-}
-
-.tabs-movil-btn {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-  width: 100%;
-  border: 1px solid var(--linea);
-  background: var(--superficie);
-  color: var(--texto);
-  border-radius: 0.75rem;
-  padding: 0.55rem 0.75rem;
-  font: inherit;
-  font-weight: 700;
-  font-size: 0.95rem;
-  cursor: pointer;
-  min-height: 2.6rem;
-  box-sizing: border-box;
-}
-
-.tabs-movil.abierto .tabs-movil-btn {
-  border-color: color-mix(in srgb, var(--acento) 55%, var(--linea));
-  background: color-mix(in srgb, var(--acento) 12%, var(--superficie));
-}
-
-.tabs-movil-actual {
-  text-align: left;
-}
-
-.hamburguesa {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 4px;
-  width: 1.15rem;
-  flex: 0 0 auto;
-}
-
-.hamburguesa span {
-  display: block;
-  height: 2px;
-  width: 100%;
-  border-radius: 1px;
-  background: var(--texto);
-}
-
-.tabs-movil-panel {
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: calc(100% + 0.25rem);
-  display: flex;
-  flex-direction: column;
-  gap: 0.2rem;
-  padding: 0.35rem;
-  border: 1px solid var(--linea);
-  border-radius: 0.75rem;
-  background: var(--superficie);
-  box-shadow: 0 8px 24px color-mix(in srgb, #000 35%, transparent);
-}
-
-.tabs-movil-panel button {
-  display: block;
-  width: 100%;
-  text-align: left;
-  border: none;
-  background: transparent;
-  color: var(--texto);
-  font: inherit;
-  font-weight: 600;
-  font-size: 0.95rem;
-  padding: 0.65rem 0.75rem;
-  border-radius: 0.55rem;
-  cursor: pointer;
-  min-height: 2.5rem;
-}
-
-.tabs-movil-panel button.activo {
-  background: color-mix(in srgb, var(--acento) 18%, transparent);
-  color: var(--texto);
-}
-
-.tabs-movil-panel button:active {
-  background: color-mix(in srgb, var(--acento) 12%, transparent);
 }
 
 .totales {
@@ -922,14 +837,6 @@ button.peligro.btn-mini {
     padding-bottom: max(1.25rem, env(safe-area-inset-bottom));
   }
 
-  .tabs-desktop {
-    display: none !important;
-  }
-
-  .tabs-movil {
-    display: block;
-  }
-
   .lista-scroll {
     flex: 0 0 auto;
     overflow: visible;
@@ -943,16 +850,18 @@ button.peligro.btn-mini {
   }
 
   .tabs {
-    margin-left: 0;
-    margin-right: 0;
-    padding: 0.12rem 0 0.22rem;
-    gap: 0.25rem;
+    margin-left: -0.15rem;
+    margin-right: -0.15rem;
+    padding: 0.12rem 0.15rem 0.28rem;
+    gap: 0.3rem;
   }
 
   .tabs button {
-    padding: 0.32rem 0.15rem;
-    font-size: 0.68rem;
-    min-height: 2.1rem;
+    flex: 0 0 auto;
+    min-width: max-content;
+    padding: 0.45rem 0.75rem;
+    font-size: 0.82rem;
+    min-height: 2.35rem;
   }
 
   .totales > div {

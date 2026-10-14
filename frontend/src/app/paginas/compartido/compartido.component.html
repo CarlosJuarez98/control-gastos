@@ -4,34 +4,7 @@
   </div>
 </section>
 
-<div class="tabs-movil" [class.abierto]="menuTabsAbierto">
-  <button
-    type="button"
-    class="tabs-movil-btn"
-    (click)="toggleMenuTabs()"
-    [attr.aria-expanded]="menuTabsAbierto"
-    aria-controls="menu-tabs-compartido"
-  >
-    <span class="tabs-movil-actual">{{ etiquetaTab(tab) }}</span>
-    <span class="hamburguesa" aria-hidden="true">
-      <span></span><span></span><span></span>
-    </span>
-  </button>
-  @if (menuTabsAbierto) {
-    <div id="menu-tabs-compartido" class="tabs-movil-panel" role="menu">
-      @for (t of tabs; track t.id) {
-        <button
-          type="button"
-          role="menuitem"
-          [class.activo]="tab === t.id"
-          (click)="setTab(t.id)"
-        >{{ t.label }}</button>
-      }
-    </div>
-  }
-</div>
-
-<nav class="tabs tabs-desktop" aria-label="Secciones compartido">
+<nav class="tabs" aria-label="Secciones compartido">
   @for (t of tabs; track t.id) {
     <button type="button" [class.activo]="tab === t.id" (click)="setTab(t.id)">{{ t.label }}</button>
   }
@@ -837,6 +810,9 @@
         placeholder="15"
       />
     </label>
+    <label>Cuenta desde
+      <input type="date" [(ngModel)]="fijoForm.vigenteDesde" name="fVigenteDesde" required />
+    </label>
     <fieldset class="participantes span-all">
       <legend>¿Quién paga?</legend>
       <div class="chip-row">
@@ -925,6 +901,9 @@
                 <span class="meta">
                   {{ s.monto | currency:'MXN':'symbol-narrow':'1.0-0' }}/mes
                   · día {{ s.diaCobro || 1 }}
+                  @if (s.vigenteDesde) {
+                    · desde {{ formatFechaCorta(s.vigenteDesde) }}
+                  }
                   · {{ (s.incluyePrincipal !== false ? idsDeServicio(s).length + 1 : idsDeServicio(s).length) }} personas
                 </span>
                 @if (s.yoPago === false) {

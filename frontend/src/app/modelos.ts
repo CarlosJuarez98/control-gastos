@@ -180,6 +180,8 @@ export interface ServicioFijoCompartido {
   perfilesPrincipal?: number | null;
   /** Día del mes (1–31). Si el mes no lo tiene, se usa el último día. */
   diaCobro?: number | null;
+  /** Día en que se registró el fijo; no cuenta cobros anteriores. */
+  vigenteDesde?: string | null;
   /** Si false, al cobrar no te toca cuota (solo prestas el pago). */
   incluyePrincipal?: boolean | null;
   /** Si false, otro paga y tu parte se espeja en Mensuales. */

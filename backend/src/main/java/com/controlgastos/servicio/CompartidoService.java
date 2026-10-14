@@ -14,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
+import java.time.YearMonth;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -494,9 +495,13 @@ public class CompartidoService {
             s = new ServicioFijoCompartido();
             s.setPropietario(u);
             s.setActivo(true);
+            s.setVigenteDesde(req.vigenteDesde() != null ? req.vigenteDesde() : LocalDate.now());
         } else {
             s = servicioFijoRepository.findByIdAndPropietario(id, u)
                     .orElseThrow(() -> new IllegalArgumentException("Servicio fijo no encontrado"));
+            if (req.vigenteDesde() != null) {
+                s.setVigenteDesde(req.vigenteDesde());
+            }
         }
         s.setConcepto(concepto);
         s.setMonto(req.monto().setScale(0, RoundingMode.HALF_UP).setScale(2, RoundingMode.UNNECESSARY));
@@ -1420,14 +1425,27 @@ public class CompartidoService {
         return listarFijosPendientesCobro(u, gastoCompartidoRepository.findActivosByPropietario(u));
     }
 
-    /** Fijos «Yo pago» con día de cobro vencido o próximo este mes y aún sin cobro. */
+    /**
+     * Fijos «Yo pago» con día de cobro vencido o próximo y aún sin cobro.
+     * Respeta {@code vigenteDesde}: no cuenta cobros anteriores al alta del fijo.
+     */
     List<FijoPendienteCobro> listarFijosPendientesCobro(String u, List<GastoCompartido> gastos) {
         LocalDate hoy = LocalDate.now();
-        String periodo = hoy.format(DateTimeFormatter.ofPattern("yyyy-MM"));
+        DateTimeFormatter ymFmt = DateTimeFormatter.ofPattern("yyyy-MM");
         List<FijoPendienteCobro> out = new ArrayList<>();
         for (ServicioFijoCompartido s : servicioFijoRepository.findActivosByPropietario(u)) {
             if (!s.isYoPago()) continue;
-            LocalDate fechaCobro = DiaCobroMes.fechaEnPeriodo(periodo, s.getDiaCobro());
+            LocalDate desde = s.getVigenteDesde() != null ? s.getVigenteDesde() : LocalDate.MIN;
+            YearMonth mes = YearMonth.from(hoy);
+            LocalDate fechaCobro = DiaCobroMes.fechaEnMes(mes, s.getDiaCobro());
+            // Primer cobro posible ≥ fecha de registro (evita “atrasado” el mes del alta).
+            int guard = 0;
+            while (fechaCobro.isBefore(desde) && guard++ < 24) {
+                mes = mes.plusMonths(1);
+                fechaCobro = DiaCobroMes.fechaEnMes(mes, s.getDiaCobro());
+            }
+            if (fechaCobro.isBefore(desde)) continue;
+            String periodo = mes.format(ymFmt);
             long dias = java.time.temporal.ChronoUnit.DAYS.between(hoy, fechaCobro);
             if (dias > DIAS_AVISO_PREVIO) continue;
             boolean yaCobrado = gastos != null && gastos.stream().anyMatch(g ->

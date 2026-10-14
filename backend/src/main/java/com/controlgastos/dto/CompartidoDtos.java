@@ -53,6 +53,11 @@ public final class CompartidoDtos {
             List<Long> personaIds,
             /** Día del mes (1–31). Si el mes no lo tiene, se cobra el último día. */
             Integer diaCobro,
+            /**
+             * Día en que se registró / empezó a contar el fijo.
+             * Null en alta → hoy. Null en edición → no cambia.
+             */
+            java.time.LocalDate vigenteDesde,
             /** Si false, al cobrar no te toca cuota (solo prestas el pago). Default true. */
             Boolean incluyePrincipal,
             /**
