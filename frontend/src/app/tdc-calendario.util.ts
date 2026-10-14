@@ -440,9 +440,10 @@ export interface MesCicloTdc {
 
 /**
  * Como Mercado Pago / el banco a meses:
- * - Monto del ciclo abierto = deuda de hoy sin cuotas MSI de cortes posteriores
- *   (si no pagaste el corte pasado, ya va incluido ahí).
- * - MSI: cada corte futuro solo su cuota (~total/N).
+ * - Pasado el día de corte: lo que aún debes del estado cerrado se etiqueta con
+ *   ese mes (p. ej. 14-oct con corte 13 → «octubre»), no con el siguiente.
+ * - Antes/en el día de corte: el ciclo abierto es el corte de este mes.
+ * - MSI / compras del próximo corte van en «futuros».
  * - Día de corte inclusive; el día siguiente ya es otro ciclo.
  */
 export function desgloseSaldoTdc(
@@ -459,7 +460,14 @@ export function desgloseSaldoTdc(
   futuros: MesCicloTdc[];
 } {
   const total = Math.round((Number(cuenta.saldoActual) || 0) * 100) / 100;
-  const ciclo = proximoCorte(cuenta, hoy);
+  const diaCorteNum = Number(cuenta.diaCorte);
+  const h = aMedianoche(hoy);
+  const pasadoElCorte =
+    Number.isFinite(diaCorteNum) && diaCorteNum >= 1 && h.getDate() > diaCorteNum;
+  // Umbral del “a pagar ahora”: corte cerrado si ya pasó; si no, el corte de este mes.
+  const ciclo = pasadoElCorte
+    ? ultimoCorteCerrado(cuenta, hoy)
+    : proximoCorte(cuenta, hoy);
   if (!ciclo) {
     return {
       total,
@@ -540,7 +548,7 @@ export function desgloseSaldoTdc(
   let msiFuturo = 0;
   for (const f of futuros) msiFuturo += f.monto;
   msiFuturo = Math.round(msiFuturo * 100) / 100;
-  // Deuda de hoy = todo lo pendiente menos cuotas que caen en cortes posteriores.
+  // Deuda a pagar ahora = pendiente menos lo que cae en cortes posteriores al cerrado/actual.
   const alCorte = Math.max(0, Math.min(total, Math.round((total - msiFuturo) * 100) / 100));
   return {
     total,

@@ -704,8 +704,10 @@ public class FinanzasService {
     }
 
     /**
-     * Desglose TDC: saldoAlCorte = deuda de hoy (total − MSI de cortes posteriores).
-     * Si no se pagó el corte pasado, ya va incluido. saldoDespuesCorte = cuotas futuras.
+     * Desglose TDC: saldoAlCorte = a pagar del corte cerrado/actual
+     * (total − MSI / compras de cortes posteriores).
+     * Pasado el día de corte, el umbral es el corte recién cerrado (p. ej. 14-oct
+     * con corte 13 → octubre), no el siguiente mes.
      */
     private void enriquecerSaldoAlCorte(Cuenta c) {
         if (c == null || c.getId() == null || !esCuentaTdc(c) || c.getDiaCorte() == null) {
@@ -713,7 +715,10 @@ public class FinanzasService {
             c.setSaldoDespuesCorte(null);
             return;
         }
-        LocalDate ciclo = proximoCorte(c.getDiaCorte(), LocalDate.now());
+        LocalDate hoy = LocalDate.now();
+        LocalDate ciclo = hoy.getDayOfMonth() > c.getDiaCorte()
+                ? ultimoCorteCerrado(c.getDiaCorte(), hoy)
+                : proximoCorte(c.getDiaCorte(), hoy);
         if (ciclo == null) {
             c.setSaldoAlCorte(null);
             c.setSaldoDespuesCorte(null);
@@ -776,6 +781,20 @@ public class FinanzasService {
         LocalDate corte = DiaCobroMes.fechaEnMes(ym, diaCorte);
         if (hoy.getDayOfMonth() > diaCorte) {
             ym = ym.plusMonths(1);
+            corte = DiaCobroMes.fechaEnMes(ym, diaCorte);
+        }
+        return corte;
+    }
+
+    /** Último corte ya cerrado (fecha ≤ hoy). */
+    private static LocalDate ultimoCorteCerrado(Integer diaCorte, LocalDate hoy) {
+        if (diaCorte == null || diaCorte < 1 || diaCorte > 31 || hoy == null) {
+            return null;
+        }
+        YearMonth ym = YearMonth.from(hoy);
+        LocalDate corte = DiaCobroMes.fechaEnMes(ym, diaCorte);
+        if (corte.isAfter(hoy)) {
+            ym = ym.minusMonths(1);
             corte = DiaCobroMes.fechaEnMes(ym, diaCorte);
         }
         return corte;

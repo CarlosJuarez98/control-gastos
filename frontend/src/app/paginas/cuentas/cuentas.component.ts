@@ -262,8 +262,8 @@ export class CuentasComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * TDC: deuda total, monto del mes (deuda de hoy) y cuotas MSI futuras.
-   * Si no pagaste el corte pasado, ya va en el monto del mes.
+   * TDC: deuda total, a pagar del corte cerrado/actual y MSI/compras de cortes siguientes.
+   * Pasado el día de corte, la etiqueta es ese mes (p. ej. 14-oct con corte 13 → octubre).
    */
   get resumenTdc(): {
     total: number;
