@@ -120,9 +120,9 @@ public interface MovimientoCuentaRepository extends JpaRepository<MovimientoCuen
               and upper(m.tipo) = 'ABONO'
               and m.cuenta.tipo <> 'PRESTAMO_OTORGADO'
               and m.cuenta.id in (
-                  select distinct g.cuentaId from Gasto g
+                  select distinct g.cuenta.id from Gasto g
                   where g.propietario = ?1
-                    and g.cuentaId is not null
+                    and g.cuenta is not null
                     and lower(g.motivo) like 'compartido%'
                     and upper(g.formaPago) = 'TARJETA'
               )
@@ -136,9 +136,9 @@ public interface MovimientoCuentaRepository extends JpaRepository<MovimientoCuen
               and m.cuenta.tipo <> 'PRESTAMO_OTORGADO'
               and m.id > ?2
               and m.cuenta.id in (
-                  select distinct g.cuentaId from Gasto g
+                  select distinct g.cuenta.id from Gasto g
                   where g.propietario = ?1
-                    and g.cuentaId is not null
+                    and g.cuenta is not null
                     and lower(g.motivo) like 'compartido%'
                     and upper(g.formaPago) = 'TARJETA'
               )
