@@ -286,7 +286,7 @@
                   }
                   @if (abono.medio === 'EFECTIVO') {
                     Suma solo en «De compartidos» (no mueve tu nómina).
-                    Al pagar esa TDC/servicio, baja de ese mismo pool.
+                    Si luego pagas la TDC con ese dinero, baja compartidos; si la pagas de tu bolsa, resta tu dinero.
                   }
                   @if (abono.medio === 'GUARDADO') {
                     Sale de su caja ({{ (p.efectivoGuardado || 0) | currency:'MXN':'symbol-narrow':moneyDigits }}).
