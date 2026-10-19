@@ -17,7 +17,11 @@ describe('repartirPesosEnteros', () => {
 });
 
 describe('repartirPesosPonderado', () => {
-  it('streaming 1+3+1 sobre 399', () => {
+  it('streaming 1+3+1 sobre 399 (enteros)', () => {
     expect(repartirPesosPonderado(399, [1, 3, 1])).toEqual([79, 240, 80]);
+  });
+
+  it('Netflix 370 con perfiles 1+2+1 en centavos', () => {
+    expect(repartirPesosPonderado(370, [1, 2, 1], true)).toEqual([92.5, 185, 92.5]);
   });
 });

@@ -259,7 +259,7 @@ export class CompartidoComponent implements OnInit, OnDestroy {
     const monto = this.redondearEntero(parseDinero(this.gastoForm.monto));
     if (monto <= 0 || this.nParticipantes < 1) return [];
     try {
-      return repartirPesosPonderado(monto, this.pesosGastoActual());
+      return repartirPesosPonderado(monto, this.pesosGastoActual(), true);
     } catch {
       return [];
     }
@@ -755,7 +755,7 @@ export class CompartidoComponent implements OnInit, OnDestroy {
       ...ids.map((id) => this.perfilesDe(this.fijoPerfiles, id)),
     ];
     try {
-      return repartirPesosPonderado(monto, pesos)[0] ?? 0;
+      return repartirPesosPonderado(monto, pesos, true)[0] ?? 0;
     } catch {
       return 0;
     }
@@ -1259,7 +1259,7 @@ export class CompartidoComponent implements OnInit, OnDestroy {
         ? [Math.max(1, Number(s.perfilesPrincipal) || 1), ...otros]
         : otros;
     try {
-      const partes = repartirPesosPonderado(Math.round(Number(s.monto) || 0), pesos);
+      const partes = repartirPesosPonderado(Number(s.monto) || 0, pesos, true);
       return partes[s.incluyePrincipal !== false ? idx + 1 : idx] ?? 0;
     } catch {
       return 0;
