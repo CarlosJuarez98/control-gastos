@@ -56,6 +56,32 @@ export class CompartidoComponent implements OnInit, OnDestroy {
     return (this.auth.usuario || '').trim().toLowerCase() === 'mon';
   }
 
+  /**
+   * A favor / abonos / anticipos: centavos para todos.
+   * Gastos y fijos siguen en pesos enteros.
+   */
+  get moneyDigits(): string {
+    return '1.0-2';
+  }
+
+  /** Centavos (2 decimales) — a favor y movimientos de caja. */
+  redondearCentavos(n: number): number {
+    return Math.round((Number(n) || 0) * 100) / 100;
+  }
+
+  /** Pesos enteros — gastos / fijos / repartos. */
+  redondearEntero(n: number): number {
+    return Math.round(Number(n) || 0);
+  }
+
+  formatoMontoInput(n: number): string {
+    const v = this.redondearCentavos(n);
+    if (Math.abs(v - Math.round(v)) < 1e-9) {
+      return String(Math.round(v));
+    }
+    return formatDineroInput(v.toFixed(2));
+  }
+
   tab: Tab = 'resumen';
   readonly tabs = TABS;
   personas: PersonaCompartida[] = [];
@@ -230,7 +256,7 @@ export class CompartidoComponent implements OnInit, OnDestroy {
   }
 
   get previewPartes(): number[] {
-    const monto = Math.round(parseDinero(this.gastoForm.monto));
+    const monto = this.redondearEntero(parseDinero(this.gastoForm.monto));
     if (monto <= 0 || this.nParticipantes < 1) return [];
     try {
       return repartirPesosPonderado(monto, this.pesosGastoActual());
@@ -567,7 +593,7 @@ export class CompartidoComponent implements OnInit, OnDestroy {
     if (!this.puedeRegistrarGasto) return;
     this.error = '';
     this.ok = '';
-    const monto = Math.round(parseDinero(this.gastoForm.monto));
+    const monto = this.redondearEntero(parseDinero(this.gastoForm.monto));
     const meses =
       this.gastoForm.formaPago === 'TARJETA' && this.gastoForm.aMeses
         ? Math.max(2, Math.round(Number(this.gastoForm.meses) || 0))
@@ -1043,6 +1069,22 @@ export class CompartidoComponent implements OnInit, OnDestroy {
     this.error = '';
     this.ok = '';
     this.tab = 'resumen';
+    // Encabezado de la persona arriba; el form muestra otra vez “Debe $…”.
+    const id = p.id;
+    if (id != null) {
+      this.cdr.detectChanges();
+      this.scrollA(`#persona-comp-${id}`);
+      // Segundo pase cuando el panel ya midió alto (evita que el scroll quede a mitad).
+      setTimeout(() => this.scrollA(`#persona-comp-${id}`), 80);
+    }
+  }
+
+  /** Texto corto de deudas por cuenta (para el resumen al abonar). */
+  detalleCuentasDeuda(p: PersonaResumenCompartido): string {
+    const parts = (p.porCuenta || [])
+      .filter((c) => (c.pendiente || 0) > 0)
+      .map((c) => `${c.concepto} $${this.formatoMontoInput(c.pendiente)}`);
+    return parts.join(', ');
   }
 
   abrirAplicarAnticipo(p: PersonaResumenCompartido): void {
@@ -1054,7 +1096,7 @@ export class CompartidoComponent implements OnInit, OnDestroy {
     this.prestarPersonaId = null;
     this.anticipoForm = {
       conceptoDestino: destinos[0] || '',
-      monto: p.aFavor > 0 ? String(Math.round(p.aFavor)) : '',
+      monto: p.aFavor > 0 ? this.formatoMontoInput(p.aFavor) : '',
     };
     this.error = '';
     this.ok = '';
@@ -1119,23 +1161,24 @@ export class CompartidoComponent implements OnInit, OnDestroy {
   }
 
   get montoFavorNum(): number {
-    return Math.max(0, Math.round(parseDinero(this.prestarForm.montoFavor)));
+    return Math.max(0, this.redondearCentavos(parseDinero(this.prestarForm.montoFavor)));
   }
 
+  /** Máximo a favor usable (con centavos en Mon). */
   aFavorEntero(p: { aFavor?: number } | null | undefined): number {
-    return Math.round(Number(p?.aFavor) || 0);
+    return this.redondearCentavos(Number(p?.aFavor) || 0);
   }
 
   get montoPrestarTotal(): number {
-    return this.montoFavorNum + this.montoPrestamoPreview;
+    return this.redondearCentavos(this.montoFavorNum + this.montoPrestamoPreview);
   }
 
   get montoPrestamoPreview(): number {
-    return Math.max(0, Math.round(parseDinero(this.prestarForm.montoPrestamo)));
+    return Math.max(0, this.redondearCentavos(parseDinero(this.prestarForm.montoPrestamo)));
   }
 
   get avisoPrestar(): boolean {
-    const favor = Math.max(0, Math.round(parseDinero(this.prestarForm.montoFavor)));
+    const favor = Math.max(0, this.redondearCentavos(parseDinero(this.prestarForm.montoFavor)));
     if (this.prestarForm.formaPago === 'EFECTIVO') {
       return this.superaDisponibleEfectivo('' + this.montoPrestarTotal);
     }
@@ -1148,11 +1191,11 @@ export class CompartidoComponent implements OnInit, OnDestroy {
 
   async enviarPrestar(p: PersonaResumenCompartido): Promise<void> {
     if (!this.prestarPersonaId) return;
-    const montoFavor = Math.max(0, Math.round(parseDinero(this.prestarForm.montoFavor)));
-    const montoPrestamo = Math.max(0, Math.round(parseDinero(this.prestarForm.montoPrestamo)));
+    const montoFavor = Math.max(0, this.redondearCentavos(parseDinero(this.prestarForm.montoFavor)));
+    const montoPrestamo = Math.max(0, this.redondearCentavos(parseDinero(this.prestarForm.montoPrestamo)));
     if (montoFavor + montoPrestamo <= 0) return;
-    if (montoFavor > Math.round(p.aFavor) + 1e-9) {
-      this.error = `Solo tiene a favor $${Math.round(p.aFavor)}`;
+    if (montoFavor > this.aFavorEntero(p) + 1e-9) {
+      this.error = `Solo tiene a favor $${this.formatoMontoInput(p.aFavor)}`;
       return;
     }
     if (montoPrestamo > 0 && this.prestarForm.formaPago === 'TARJETA' && !this.prestarForm.cuentaId) {
@@ -1259,7 +1302,7 @@ export class CompartidoComponent implements OnInit, OnDestroy {
 
   async enviarAbono(): Promise<void> {
     if (!this.abonoPersonaId) return;
-    const monto = Math.round(parseDinero(this.abono.monto));
+    const monto = this.redondearCentavos(parseDinero(this.abono.monto));
     if (monto <= 0) return;
     if (this.abono.medio === 'PRESTADO' && this.abono.formaPagoPrestamo === 'TARJETA' && !this.abono.cuentaId) {
       this.error = 'Elige la TDC con la que prestas';
@@ -1321,25 +1364,30 @@ export class CompartidoComponent implements OnInit, OnDestroy {
 
   /** Preview FIFO del abono general según cuentas pendientes de la persona. */
   previewAbonoGeneral(p: PersonaResumenCompartido): string[] {
-    const monto = Math.round(parseDinero(this.abono.monto));
+    const monto = this.redondearCentavos(parseDinero(this.abono.monto));
     const cuentas = (p.porCuenta || []).filter((c) => (c.pendiente || 0) > 0);
     if (!cuentas.length) return [];
     if (monto <= 0) {
       return cuentas.map(
-        (c) => `${c.concepto}: debe ${Math.round(c.pendiente)}` + (c.detalle ? ` (${c.detalle})` : '')
+        (c) =>
+          `${c.concepto}: debe ${this.formatoMontoInput(c.pendiente)}` +
+          (c.detalle ? ` (${c.detalle})` : '')
       );
     }
     let resto = monto;
     const lines: string[] = [];
     for (const c of cuentas) {
       if (resto <= 0) break;
-      const pend = Math.round(c.pendiente);
-      const aplica = Math.min(resto, pend);
-      lines.push(`${c.concepto}: $${aplica}` + (aplica < pend ? ` (queda $${pend - aplica})` : ' (queda en 0)'));
-      resto -= aplica;
+      const pend = this.redondearCentavos(c.pendiente);
+      const aplica = this.redondearCentavos(Math.min(resto, pend));
+      lines.push(
+        `${c.concepto}: $${this.formatoMontoInput(aplica)}` +
+          (aplica < pend ? ` (queda $${this.formatoMontoInput(pend - aplica)})` : ' (queda en 0)')
+      );
+      resto = this.redondearCentavos(resto - aplica);
     }
     if (resto > 0) {
-      lines.push(`Sobra $${resto} → a favor`);
+      lines.push(`Sobra $${this.formatoMontoInput(resto)} → a favor`);
     }
     return lines;
   }
@@ -1347,7 +1395,7 @@ export class CompartidoComponent implements OnInit, OnDestroy {
   async enviarAplicarAnticipo(p: PersonaResumenCompartido): Promise<void> {
     if (!this.anticipoPersonaId) return;
     const destino = (this.anticipoForm.conceptoDestino || '').trim();
-    const monto = Math.round(parseDinero(this.anticipoForm.monto));
+    const monto = this.redondearCentavos(parseDinero(this.anticipoForm.monto));
     if (!destino || monto <= 0) return;
     this.error = '';
     this.ok = '';
@@ -1367,9 +1415,9 @@ export class CompartidoComponent implements OnInit, OnDestroy {
         (c) => c.concepto.toLowerCase() === destino.toLowerCase()
       );
       if (cuenta && cuenta.pendiente > 0) {
-        this.ok = `A favor mandado a ${destino}. Todavía debe $${Math.round(cuenta.pendiente)} de esa cuenta.`;
+        this.ok = `A favor mandado a ${destino}. Todavía debe $${this.formatoMontoInput(cuenta.pendiente)} de esa cuenta.`;
       } else if (cuenta && (cuenta.anticipo || 0) > 0) {
-        this.ok = `A favor en ${destino}: $${Math.round(cuenta.anticipo || 0)} (cuando cobres, se aplica solo ahí).`;
+        this.ok = `A favor en ${destino}: $${this.formatoMontoInput(cuenta.anticipo || 0)} (cuando cobres, se aplica solo ahí).`;
       } else {
         this.ok = `A favor aplicado a ${destino}.`;
       }
@@ -1380,7 +1428,7 @@ export class CompartidoComponent implements OnInit, OnDestroy {
 
   async enviarGuardado(): Promise<void> {
     if (!this.guardadoPersonaId) return;
-    const monto = Math.round(parseDinero(this.guardadoForm.monto));
+    const monto = this.redondearCentavos(parseDinero(this.guardadoForm.monto));
     if (monto <= 0) return;
     this.error = '';
     this.ok = '';
@@ -1429,20 +1477,20 @@ export class CompartidoComponent implements OnInit, OnDestroy {
 
   superaDisponibleEfectivo(montoStr: string): boolean {
     if (this.saldoDisponible == null) return false;
-    const monto = Math.round(parseDinero(montoStr));
+    const monto = this.redondearCentavos(parseDinero(montoStr));
     return monto > 0 && monto > this.saldoDisponible + 1e-9;
   }
 
   superaCreditoTdc(montoStr: string, cuentaId: number | null | undefined): boolean {
     const libre = this.creditoLibre(cuentaId);
     if (libre == null) return false;
-    const monto = Math.round(parseDinero(montoStr));
+    const monto = this.redondearCentavos(parseDinero(montoStr));
     return monto > 0 && monto > libre + 1e-9;
   }
 
   superaGuardadoPersona(guardado: number | null | undefined, montoStr: string): boolean {
     const caja = Number(guardado) || 0;
-    const monto = Math.round(parseDinero(montoStr));
+    const monto = this.redondearCentavos(parseDinero(montoStr));
     return monto > 0 && monto > caja + 1e-9;
   }
 
@@ -1480,7 +1528,7 @@ export class CompartidoComponent implements OnInit, OnDestroy {
     if (!this.esAbonoEditable(m)) return;
     this.editandoAbonoId = m.id!;
     this.editAbono = {
-      monto: String(Math.round(Number(m.monto) || 0)),
+      monto: this.formatoMontoInput(Number(m.monto) || 0),
       fecha: m.fecha || fechaHoyLocal(),
       medio: this.medioInferidoAbono(m),
       concepto: m.concepto || '',
@@ -1508,7 +1556,7 @@ export class CompartidoComponent implements OnInit, OnDestroy {
 
   async guardarAbonoEditado(m: MovimientoPersonaCompartida): Promise<void> {
     if (!m.id || this.editandoAbonoId !== m.id) return;
-    const monto = Math.round(parseDinero(this.editAbono.monto));
+    const monto = this.redondearCentavos(parseDinero(this.editAbono.monto));
     if (monto <= 0) {
       this.error = 'El monto debe ser mayor a cero';
       return;
@@ -1555,7 +1603,7 @@ export class CompartidoComponent implements OnInit, OnDestroy {
       ? 'Se quita del historial compartido (no toca tus Ingresos).'
       : 'Se deshace el efecto en disponible / guardado / préstamo.';
     const ok = await this.confirmDlg.ask(
-      `¿Eliminar el abono de ${quien} por $${Math.round(Number(m.monto) || 0)}? ${efecto}`,
+      `¿Eliminar el abono de ${quien} por $${this.formatoMontoInput(Number(m.monto) || 0)}? ${efecto}`,
       { titulo: 'Eliminar abono', confirmarTexto: 'Eliminar', cancelarTexto: 'Cancelar' }
     );
     if (!ok) return;

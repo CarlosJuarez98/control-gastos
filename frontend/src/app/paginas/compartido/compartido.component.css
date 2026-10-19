@@ -586,6 +586,7 @@
   grid-column: 1 / -1;
   height: auto;
   overflow: visible;
+  scroll-margin-top: 0.5rem;
 }
 
 .lista-personas .fila-top {
@@ -594,6 +595,35 @@
   align-items: stretch;
   gap: 0.4rem;
   min-width: 0;
+}
+
+/* Al abrir Abono/Dar/etc.: nombre + Debe se quedan a la vista aunque baje el scroll */
+.lista-personas .fila.abierta .fila-top {
+  position: sticky;
+  top: 0;
+  z-index: 4;
+  align-self: flex-start;
+  width: 100%;
+  box-sizing: border-box;
+  background: var(--superficie);
+  padding-bottom: 0.4rem;
+  margin-bottom: 0.15rem;
+  box-shadow: 0 8px 12px -8px color-mix(in srgb, #000 45%, transparent);
+}
+
+.abono-deuda-resumen {
+  margin: 0 0 0.15rem;
+  padding: 0.4rem 0.55rem;
+  border-radius: 0.55rem;
+  border: 1px solid color-mix(in srgb, var(--peligro, #c44) 35%, var(--linea));
+  background: color-mix(in srgb, var(--peligro, #c44) 10%, var(--superficie));
+  font-size: 0.86rem;
+  line-height: 1.35;
+}
+
+.abono-deuda-resumen .meta {
+  display: inline;
+  font-size: 0.78rem;
 }
 
 .lista-personas .info {

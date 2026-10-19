@@ -59,10 +59,11 @@ export function scrollCampoEnVista(
 
     const rect = el.getBoundingClientRect();
     const dentro = rect.top >= top && rect.bottom <= bottom;
-    if (dentro && !forzar) {
-      // Un poco bajo o alto pero aún visible: centrar solo si queda muy al borde
-      const margen = 28;
-      if (rect.top >= top + margen && rect.bottom <= bottom - margen) return;
+    // Si ya está cómodo en pantalla, no recentrar (evita bajar el scroll al clic en Tipo/Fecha).
+    // `forzar` solo mueve cuando el campo está fuera o pegado al borde.
+    const margen = forzar ? 10 : 28;
+    if (dentro && rect.top >= top + margen && rect.bottom <= bottom - margen) {
+      return;
     }
 
     const centroBanda = (top + bottom) / 2;

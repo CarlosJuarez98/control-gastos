@@ -32,13 +32,24 @@ public final class RepartoEnteros {
      * Los pesos deben ser &gt; 0. Suma exacta; extras de $1 van primero a los no-principal.
      */
     public static List<BigDecimal> repartirPesosPonderado(BigDecimal total, List<Integer> pesos) {
+        return repartirUnidades(total, pesos, false);
+    }
+
+    /** Igual que {@link #repartirPesosPonderado} pero en centavos (Monse / a favor con decimales). */
+    public static List<BigDecimal> repartirPesosPonderadoCentavos(BigDecimal total, List<Integer> pesos) {
+        return repartirUnidades(total, pesos, true);
+    }
+
+    private static List<BigDecimal> repartirUnidades(BigDecimal total, List<Integer> pesos, boolean centavos) {
         if (pesos == null || pesos.isEmpty()) {
             throw new IllegalArgumentException("Se necesita al menos 1 persona");
         }
         if (total == null || total.compareTo(BigDecimal.ZERO) < 0) {
             throw new IllegalArgumentException("El monto debe ser cero o mayor");
         }
-        long monto = total.setScale(0, RoundingMode.HALF_UP).longValue();
+        long monto = centavos
+                ? total.setScale(2, RoundingMode.HALF_UP).movePointRight(2).longValue()
+                : total.setScale(0, RoundingMode.HALF_UP).longValue();
         if (monto < 0) {
             throw new IllegalArgumentException("El monto no puede ser negativo");
         }
@@ -67,12 +78,12 @@ public final class RepartoEnteros {
             parts[0] += rem;
         }
 
-        // Si el principal quedó con más que algún otro por el residual extremo, no tocamos más:
-        // la regla de “tú pagas el piso” en ponderado = no recibir extras antes que los demás (ya aplicado).
-
         List<BigDecimal> out = new ArrayList<>(n);
         for (long p : parts) {
-            out.add(BigDecimal.valueOf(p).setScale(2, RoundingMode.UNNECESSARY));
+            BigDecimal v = centavos
+                    ? BigDecimal.valueOf(p).movePointLeft(2)
+                    : BigDecimal.valueOf(p);
+            out.add(v.setScale(2, RoundingMode.UNNECESSARY));
         }
         return out;
     }

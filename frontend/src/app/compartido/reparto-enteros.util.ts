@@ -14,13 +14,15 @@ export function repartirPesosEnteros(total: number, personas: number): number[] 
 
 /**
  * Reparto ponderado (perfiles / días). Índice 0 = principal si aplica.
- * Extras de $1 van primero a los no-principal.
+ * Extras van primero a los no-principal ($1 o $0.01 si centavos).
  */
-export function repartirPesosPonderado(total: number, pesos: number[]): number[] {
+export function repartirPesosPonderado(total: number, pesos: number[], centavos = false): number[] {
   if (!pesos?.length) {
     throw new Error('Se necesita al menos 1 persona');
   }
-  const monto = Math.round(Math.abs(Number(total) || 0));
+  const monto = centavos
+    ? Math.round(Math.abs(Number(total) || 0) * 100)
+    : Math.round(Math.abs(Number(total) || 0));
   const n = pesos.length;
   let sumW = 0;
   const w = pesos.map((p) => {
@@ -42,5 +44,5 @@ export function repartirPesosPonderado(total: number, pesos: number[]): number[]
   if (rem > 0) {
     parts[0] += rem;
   }
-  return parts;
+  return centavos ? parts.map((p) => Math.round(p) / 100) : parts;
 }

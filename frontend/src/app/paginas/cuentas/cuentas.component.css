@@ -478,6 +478,13 @@ button.bloqueo-activo {
 }
 .card-prestamo .resumen-prestamo {
   margin: 0;
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  padding-bottom: 0.25rem;
+  background:
+    linear-gradient(160deg, color-mix(in srgb, #fff 3%, transparent), transparent 45%),
+    linear-gradient(160deg, var(--superficie) 0%, var(--superficie-2) 100%);
 }
 .card-prestamo .btns-redito {
   margin: 0;
@@ -507,6 +514,10 @@ button.bloqueo-activo {
   background:
     linear-gradient(160deg, color-mix(in srgb, var(--aviso, #e0a85c) 8%, transparent), transparent 50%),
     linear-gradient(160deg, var(--superficie) 0%, var(--superficie-2) 100%);
+  /* Al enfocar Tipo/Monto del form, la deuda no se va arriba del panel */
+  position: sticky;
+  top: 0;
+  z-index: 3;
 }
 .card-tdc-corte .rp-item.total {
   border-color: color-mix(in srgb, var(--aviso, #e0a85c) 40%, var(--linea));

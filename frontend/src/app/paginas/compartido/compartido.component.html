@@ -17,15 +17,15 @@
   <div class="totales">
     <div>
       <span class="lbl">Me deben</span>
-      <strong>{{ (resumen?.totalMeDeben || 0) | currency:'MXN':'symbol-narrow':'1.0-0' }}</strong>
+      <strong>{{ (resumen?.totalMeDeben || 0) | currency:'MXN':'symbol-narrow':moneyDigits }}</strong>
     </div>
     <div>
       <span class="lbl">A favor</span>
-      <strong>{{ (resumen?.totalAFavor || 0) | currency:'MXN':'symbol-narrow':'1.0-0' }}</strong>
+      <strong>{{ (resumen?.totalAFavor || 0) | currency:'MXN':'symbol-narrow':moneyDigits }}</strong>
     </div>
     <div>
       <span class="lbl">Guardado</span>
-      <strong>{{ (resumen?.totalGuardado || 0) | currency:'MXN':'symbol-narrow':'1.0-0' }}</strong>
+      <strong>{{ (resumen?.totalGuardado || 0) | currency:'MXN':'symbol-narrow':moneyDigits }}</strong>
     </div>
   </div>
 
@@ -44,7 +44,7 @@
               } @else {
                 hoy
               }
-              · {{ f.monto | currency:'MXN':'symbol-narrow':'1.0-0' }}
+              · {{ f.monto | currency:'MXN':'symbol-narrow':moneyDigits }}
             </span>
             <button type="button" class="chip-btn on" (click)="irCobrarFijo(f.id)">Cobrar</button>
           </li>
@@ -61,7 +61,7 @@
           <li [class.proximo]="a.estado === 'PROXIMO'" [class.urgente]="a.estado === 'URGENTE' || a.estado === 'VENCIDO'">
             <span>
               {{ a.concepto }} · {{ a.tdcNombre }} ·
-              te deben {{ a.pendiente | currency:'MXN':'symbol-narrow':'1.0-0' }}
+              te deben {{ a.pendiente | currency:'MXN':'symbol-narrow':moneyDigits }}
               @if ((a.dias ?? 0) < 0) {
                 · límite pasó hace {{ -(a.dias ?? 0) }} {{ -(a.dias ?? 0) === 1 ? 'día' : 'días' }}
               } @else if ((a.dias ?? 0) === 0) {
@@ -99,12 +99,12 @@
               </header>
               <p class="card-totales">
                 @if ((c.total || 0) > 0) {
-                  <span>Total {{ c.total | currency:'MXN':'symbol-narrow':'1.0-0' }}</span>
+                  <span>Total {{ c.total | currency:'MXN':'symbol-narrow':moneyDigits }}</span>
                 }
                 @if (c.pendiente > 0) {
-                  <span class="falta">Falta {{ c.pendiente | currency:'MXN':'symbol-narrow':'1.0-0' }}</span>
+                  <span class="falta">Falta {{ c.pendiente | currency:'MXN':'symbol-narrow':moneyDigits }}</span>
                 } @else if (c.anticipo > 0) {
-                  <span class="favor-lbl">Anticipo {{ c.anticipo | currency:'MXN':'symbol-narrow':'1.0-0' }}</span>
+                  <span class="favor-lbl">Anticipo {{ c.anticipo | currency:'MXN':'symbol-narrow':moneyDigits }}</span>
                 }
               </p>
               <p class="card-meta">
@@ -132,7 +132,7 @@
             <article class="card-cuenta tdc">
               <header>
                 <strong>{{ t.nombre }}</strong>
-                <span class="card-monto">{{ t.monto | currency:'MXN':'symbol-narrow':'1.0-0' }}</span>
+                <span class="card-monto">{{ t.monto | currency:'MXN':'symbol-narrow':moneyDigits }}</span>
               </header>
               <p class="card-meta">
                 {{ t.gastos }} {{ t.gastos === 1 ? 'cargo' : 'cargos' }} compartido{{ t.gastos === 1 ? '' : 's' }}
@@ -157,19 +157,23 @@
     } @else {
       <ul class="lista lista-personas">
         @for (p of resumen!.personas; track p.id) {
-          <li class="fila" [class.abierta]="abonoPersonaId === p.id || guardadoPersonaId === p.id || adelantoPersonaId === p.id || anticipoPersonaId === p.id || prestarPersonaId === p.id">
+          <li
+            class="fila"
+            [attr.id]="'persona-comp-' + p.id"
+            [class.abierta]="abonoPersonaId === p.id || guardadoPersonaId === p.id || adelantoPersonaId === p.id || anticipoPersonaId === p.id || prestarPersonaId === p.id"
+          >
             <div class="fila-top">
               <div class="info">
                 <strong>{{ p.nombre }}</strong>
                 <div class="chips">
                   @if (p.debe > 0) {
-                    <span class="chip debe">Debe {{ p.debe | currency:'MXN':'symbol-narrow':'1.0-0' }}</span>
+                    <span class="chip debe">Debe {{ p.debe | currency:'MXN':'symbol-narrow':moneyDigits }}</span>
                   }
                   @if (p.aFavor > 0) {
-                    <span class="chip favor">A favor {{ p.aFavor | currency:'MXN':'symbol-narrow':'1.0-0' }}</span>
+                    <span class="chip favor">A favor {{ p.aFavor | currency:'MXN':'symbol-narrow':moneyDigits }}</span>
                   }
                   @if (p.efectivoGuardado > 0) {
-                    <span class="chip guardado">Guardado {{ p.efectivoGuardado | currency:'MXN':'symbol-narrow':'1.0-0' }}</span>
+                    <span class="chip guardado">Guardado {{ p.efectivoGuardado | currency:'MXN':'symbol-narrow':moneyDigits }}</span>
                   }
                   @if (p.debe <= 0 && p.aFavor <= 0 && p.efectivoGuardado <= 0) {
                     <span class="chip neutro">Al corriente</span>
@@ -181,10 +185,10 @@
                       <li>
                         <span class="cuenta-nom">{{ c.concepto }}</span>
                         @if (c.pendiente > 0) {
-                          <strong>debe {{ c.pendiente | currency:'MXN':'symbol-narrow':'1.0-0' }}</strong>
+                          <strong>debe {{ c.pendiente | currency:'MXN':'symbol-narrow':moneyDigits }}</strong>
                         }
                         @if ((c.anticipo || 0) > 0) {
-                          <span class="cuenta-ant">a favor {{ c.anticipo | currency:'MXN':'symbol-narrow':'1.0-0' }}</span>
+                          <span class="cuenta-ant">a favor {{ c.anticipo | currency:'MXN':'symbol-narrow':moneyDigits }}</span>
                         }
                         @if (c.detalle) {
                           <span class="cuenta-det">{{ c.detalle }}</span>
@@ -218,7 +222,15 @@
             </div>
 
             @if (abonoPersonaId === p.id) {
-              <form class="panel-inline" enterAvance (ngSubmit)="enviarAbono()">
+              <form id="form-abono-persona" class="panel-inline" enterAvance (ngSubmit)="enviarAbono()">
+                @if (p.debe > 0) {
+                  <p class="abono-deuda-resumen span-all">
+                    Debe <strong>{{ p.debe | currency:'MXN':'symbol-narrow':moneyDigits }}</strong>
+                    @if (detalleCuentasDeuda(p); as det) {
+                      <span class="meta"> · {{ det }}</span>
+                    }
+                  </p>
+                }
                 <label>Monto
                   <input [(ngModel)]="abono.monto" name="abonoMonto" inputmode="decimal" required />
                 </label>
@@ -280,18 +292,18 @@
                     }
                   }
                   @if (abono.medio === 'GUARDADO') {
-                    Sale de su caja ({{ (p.efectivoGuardado || 0) | currency:'MXN':'symbol-narrow':'1.0-0' }}).
+                    Sale de su caja ({{ (p.efectivoGuardado || 0) | currency:'MXN':'symbol-narrow':moneyDigits }}).
                     @if (superaGuardadoPersona(p.efectivoGuardado, abono.monto)) { No alcanza. }
                   }
                   @if (abono.medio === 'PRESTADO') {
                     Tú cubres el abono prestándole: se pone al corriente y te queda debiendo el préstamo.
                     @if (abono.formaPagoPrestamo === 'EFECTIVO') {
                       @if (saldoDisponible != null) {
-                        Disponible: {{ saldoDisponible | currency:'MXN':'symbol-narrow':'1.0-0' }}.
+                        Disponible: {{ saldoDisponible | currency:'MXN':'symbol-narrow':moneyDigits }}.
                       }
                     } @else {
                       @if (creditoLibre(abono.cuentaId); as libre) {
-                        Crédito libre: {{ libre | currency:'MXN':'symbol-narrow':'1.0-0' }}.
+                        Crédito libre: {{ libre | currency:'MXN':'symbol-narrow':moneyDigits }}.
                       }
                     }
                   }
@@ -306,7 +318,7 @@
             @if (anticipoPersonaId === p.id) {
               <form class="panel-inline" enterAvance (ngSubmit)="enviarAplicarAnticipo(p)">
                 <p class="hint-pago span-all">
-                  Tiene a favor {{ p.aFavor | currency:'MXN':'symbol-narrow':'1.0-0' }}.
+                  Tiene a favor {{ p.aFavor | currency:'MXN':'symbol-narrow':moneyDigits }}.
                   Elige a qué cuenta mandarlo (ej. Spotify). No es dinero nuevo.
                 </p>
                 <label class="span-all">Cuenta
@@ -332,11 +344,11 @@
                   <span class="lbl-line">
                     De su a favor
                     @if (montoFavorNum > aFavorEntero(p)) {
-                      <small class="campo-aviso">máx. {{ p.aFavor | currency:'MXN':'symbol-narrow':'1.0-0' }}</small>
+                      <small class="campo-aviso">máx. {{ p.aFavor | currency:'MXN':'symbol-narrow':moneyDigits }}</small>
                     } @else if (montoFavorNum > 0 && superaDisponibleEfectivo('' + montoFavorNum)) {
                       <small class="campo-aviso">no alcanza disponible</small>
                     } @else if (p.aFavor > 0) {
-                      <small class="campo-hint">tiene {{ p.aFavor | currency:'MXN':'symbol-narrow':'1.0-0' }}</small>
+                      <small class="campo-hint">tiene {{ p.aFavor | currency:'MXN':'symbol-narrow':moneyDigits }}</small>
                     }
                   </span>
                   <input
@@ -392,7 +404,7 @@
                 }
                 <p class="hint-pago span-all" [class.aviso]="avisoPrestar">
                   Total a entregar:
-                  <strong>{{ montoPrestarTotal | currency:'MXN':'symbol-narrow':'1.0-0' }}</strong>
+                  <strong>{{ montoPrestarTotal | currency:'MXN':'symbol-narrow':moneyDigits }}</strong>
                 </p>
                 <div class="acciones span-all">
                   <button
@@ -409,7 +421,7 @@
                 <label class="span-all">Servicio fijo
                   <select [(ngModel)]="adelantoForm.servicioFijoId" name="adelFijo" required>
                     @for (s of fijosDePersona(p.id); track s.id) {
-                      <option [ngValue]="s.id">{{ s.concepto }} ({{ s.monto | currency:'MXN':'symbol-narrow':'1.0-0' }}/mes)</option>
+                      <option [ngValue]="s.id">{{ s.concepto }} ({{ s.monto | currency:'MXN':'symbol-narrow':moneyDigits }}/mes)</option>
                     }
                   </select>
                 </label>
@@ -433,16 +445,16 @@
                   class="hint-pago span-all"
                   [class.aviso]="adelantoForm.medio === 'GUARDADO' && superaGuardadoPersona(p.efectivoGuardado, '' + montoAdelantoPreview)"
                 >
-                  Cuota {{ cuotaAdelanto(p.id) | currency:'MXN':'symbol-narrow':'1.0-0' }}/mes
+                  Cuota {{ cuotaAdelanto(p.id) | currency:'MXN':'symbol-narrow':moneyDigits }}/mes
                   × {{ adelantoForm.meses || 0 }}
-                  = <strong>{{ montoAdelantoPreview | currency:'MXN':'symbol-narrow':'1.0-0' }}</strong>.
+                  = <strong>{{ montoAdelantoPreview | currency:'MXN':'symbol-narrow':moneyDigits }}</strong>.
                   @if (adelantoForm.medio === 'EFECTIVO') {
                     @if (saldoDisponible != null) {
-                      Disponible: {{ saldoDisponible | currency:'MXN':'symbol-narrow':'1.0-0' }}.
+                      Disponible: {{ saldoDisponible | currency:'MXN':'symbol-narrow':moneyDigits }}.
                     }
                   } @else {
                     De su caja:
-                    <strong>{{ (p.efectivoGuardado || 0) | currency:'MXN':'symbol-narrow':'1.0-0' }}</strong>.
+                    <strong>{{ (p.efectivoGuardado || 0) | currency:'MXN':'symbol-narrow':moneyDigits }}</strong>.
                     @if (superaGuardadoPersona(p.efectivoGuardado, '' + montoAdelantoPreview)) {
                       No alcanza.
                     }
@@ -485,7 +497,7 @@
                   [class.aviso]="guardadoForm.tipo === 'DEVOLVER' && superaGuardadoPersona(p.efectivoGuardado, guardadoForm.monto)"
                 >
                   Ya tiene guardados:
-                  <strong>{{ (p.efectivoGuardado || 0) | currency:'MXN':'symbol-narrow':'1.0-0' }}</strong>.
+                  <strong>{{ (p.efectivoGuardado || 0) | currency:'MXN':'symbol-narrow':moneyDigits }}</strong>.
                   @if (guardadoForm.tipo === 'DEJAR') {
                     Al registrar, suma a su caja.
                   } @else {
@@ -548,14 +560,14 @@
     <p class="hint-pago span-all" [class.aviso]="gastoForm.formaPago === 'EFECTIVO' ? superaDisponibleEfectivo(gastoForm.monto) : superaCreditoTdc(gastoForm.monto, gastoForm.cuentaId)">
       @if (gastoForm.formaPago === 'EFECTIVO') {
         @if (saldoDisponible != null) {
-          Disponible: <strong>{{ saldoDisponible | currency:'MXN':'symbol-narrow':'1.0-0' }}</strong>
+          Disponible: <strong>{{ saldoDisponible | currency:'MXN':'symbol-narrow':moneyDigits }}</strong>
           @if (superaDisponibleEfectivo(gastoForm.monto)) {
             — no te alcanza
           }
         }
       } @else {
         @if (creditoLibre(gastoForm.cuentaId); as libre) {
-          Crédito libre: <strong>{{ libre | currency:'MXN':'symbol-narrow':'1.0-0' }}</strong>
+          Crédito libre: <strong>{{ libre | currency:'MXN':'symbol-narrow':moneyDigits }}</strong>
           @if (superaCreditoTdc(gastoForm.monto, gastoForm.cuentaId)) {
             — no alcanza
           }
@@ -634,7 +646,7 @@
               @if (previewPerfilesLabels[$index] > 1) {
                 <small>×{{ previewPerfilesLabels[$index] }}</small>
               }
-              {{ parte | currency:'MXN':'symbol-narrow':'1.0-0' }}
+              {{ parte | currency:'MXN':'symbol-narrow':moneyDigits }}
             </span>
           }
         </div>
@@ -658,7 +670,7 @@
               <div class="info col">
                 <strong>{{ g.concepto }}</strong>
                 <span class="meta">
-                  {{ g.tipo }} · {{ fechaTxt(g.fecha) }} · {{ g.montoTotal | currency:'MXN':'symbol-narrow':'1.0-0' }}
+                  {{ g.tipo }} · {{ fechaTxt(g.fecha) }} · {{ g.montoTotal | currency:'MXN':'symbol-narrow':moneyDigits }}
                   · {{ g.formaPago }}
                   @if (g.periodo) { · {{ g.periodo }} }
                 </span>
@@ -869,7 +881,7 @@
         <p class="hint-pago">
           Tu parte se mete sola en <strong>Mensuales</strong> como fijo
           @if (previewCuotaFijoYo > 0) {
-            ({{ previewCuotaFijoYo | currency:'MXN':'symbol-narrow':'1.0-0' }}/mes)
+            ({{ previewCuotaFijoYo | currency:'MXN':'symbol-narrow':moneyDigits }}/mes)
           }.
         </p>
       }
@@ -935,7 +947,7 @@
               <div class="info col">
                 <strong>{{ s.concepto }}</strong>
                 <span class="meta">
-                  {{ s.monto | currency:'MXN':'symbol-narrow':'1.0-0' }}/mes
+                  {{ s.monto | currency:'MXN':'symbol-narrow':moneyDigits }}/mes
                   · día {{ s.diaCobro || 1 }}
                   @if (s.vigenteDesde) {
                     · desde {{ formatFechaCorta(s.vigenteDesde) }}
@@ -1050,14 +1062,14 @@
                 >
                   @if (cobroForm.formaPago === 'EFECTIVO') {
                     @if (saldoDisponible != null) {
-                      Disponible: <strong>{{ saldoDisponible | currency:'MXN':'symbol-narrow':'1.0-0' }}</strong>
+                      Disponible: <strong>{{ saldoDisponible | currency:'MXN':'symbol-narrow':moneyDigits }}</strong>
                       @if (superaDisponibleEfectivo('' + s.monto)) {
                         — no te alcanza
                       }
                     }
                   } @else {
                     @if (creditoLibre(cobroForm.cuentaId); as libre) {
-                      Crédito libre: <strong>{{ libre | currency:'MXN':'symbol-narrow':'1.0-0' }}</strong>
+                      Crédito libre: <strong>{{ libre | currency:'MXN':'symbol-narrow':moneyDigits }}</strong>
                       @if (superaCreditoTdc('' + s.monto, cobroForm.cuentaId)) {
                         — no alcanza
                       }
@@ -1193,7 +1205,7 @@
                   <div class="chips">
                     @if (!p.activa) { <span class="chip neutro">Inactiva</span> }
                     @if ((p.efectivoGuardado || 0) > 0) {
-                      <span class="chip guardado">Guardado {{ p.efectivoGuardado | currency:'MXN':'symbol-narrow':'1.0-0' }}</span>
+                      <span class="chip guardado">Guardado {{ p.efectivoGuardado | currency:'MXN':'symbol-narrow':moneyDigits }}</span>
                     }
                   </div>
                 </div>
@@ -1277,7 +1289,7 @@
               <div class="info col">
                 <strong>{{ m.persona?.nombre || '?' }} · {{ tipoMovLabel(m.tipo) }}</strong>
                 <span class="meta">
-                  {{ fechaTxt(m.fecha) }} · {{ m.monto | currency:'MXN':'symbol-narrow':'1.0-0' }}
+                  {{ fechaTxt(m.fecha) }} · {{ m.monto | currency:'MXN':'symbol-narrow':moneyDigits }}
                   @if (m.desdeGuardado) { · guardado }
                   @if (m.desdeAnticipo) { · de a favor }
                   @if (m.conceptoDestino) { · → {{ m.conceptoDestino }} }

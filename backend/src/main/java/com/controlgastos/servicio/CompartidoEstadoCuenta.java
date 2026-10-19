@@ -356,7 +356,15 @@ public final class CompartidoEstadoCuenta {
         }
     }
 
+    /** Entero si no hay centavos; si hay, muestra hasta 2 decimales. */
     private static String entero(BigDecimal v) {
-        return v.setScale(0, RoundingMode.HALF_UP).toPlainString();
+        if (v == null) {
+            return "0";
+        }
+        BigDecimal s = v.setScale(2, RoundingMode.HALF_UP);
+        if (s.remainder(BigDecimal.ONE).compareTo(BigDecimal.ZERO) == 0) {
+            return s.setScale(0, RoundingMode.UNNECESSARY).toPlainString();
+        }
+        return s.stripTrailingZeros().toPlainString();
     }
 }

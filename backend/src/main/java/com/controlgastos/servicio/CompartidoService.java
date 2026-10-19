@@ -72,6 +72,29 @@ public class CompartidoService {
         return !abonosSinIngreso.contains(usuario.trim().toLowerCase(Locale.ROOT));
     }
 
+    /**
+     * Saldo a favor / abonos / anticipos: todos los usuarios respetan centavos.
+     * Gastos y fijos se siguen repartiendo en pesos enteros.
+     */
+    private BigDecimal normalizarCentavos(BigDecimal monto) {
+        if (monto == null) {
+            return BigDecimal.ZERO.setScale(2, RoundingMode.UNNECESSARY);
+        }
+        return monto.setScale(2, RoundingMode.HALF_UP);
+    }
+
+    /** Gastos / fijos / repartos: pesos enteros (misma regla para todos). */
+    private BigDecimal normalizarEntero(BigDecimal monto) {
+        if (monto == null) {
+            return BigDecimal.ZERO.setScale(2, RoundingMode.UNNECESSARY);
+        }
+        return monto.setScale(0, RoundingMode.HALF_UP).setScale(2, RoundingMode.UNNECESSARY);
+    }
+
+    private List<BigDecimal> repartirMonto(BigDecimal monto, List<Integer> pesos) {
+        return RepartoEnteros.repartirPesosPonderado(normalizarEntero(monto), pesos);
+    }
+
     public List<PersonaCompartida> listarPersonas(boolean incluirInactivas) {
         String u = Sesion.usuario();
         return incluirInactivas
@@ -196,7 +219,7 @@ public class CompartidoService {
         int perfilesYo = normalizarPerfiles(req.perfilesPrincipal());
         List<Integer> perfilesOtros = alinearPerfiles(personaIds.size(), req.perfiles());
         List<Integer> pesos = pesosReparto(incluyePrincipal, perfilesYo, perfilesOtros);
-        List<BigDecimal> partes = RepartoEnteros.repartirPesosPonderado(req.monto(), pesos);
+        List<BigDecimal> partes = repartirMonto(req.monto(), pesos);
         BigDecimal partePrincipal = incluyePrincipal
                 ? partes.get(0)
                 : BigDecimal.ZERO.setScale(2, RoundingMode.UNNECESSARY);
@@ -407,11 +430,11 @@ public class CompartidoService {
                 int dias = (int) (java.time.temporal.ChronoUnit.DAYS.between(inicioMes, hasta) + 1);
                 pesos.add(Math.max(1, dias) * perfilesSalientes.get(i));
             }
-            partes = RepartoEnteros.repartirPesosPonderado(gc.getMontoTotal(), pesos);
+            partes = repartirMonto(gc.getMontoTotal(), pesos);
             sufijoConcepto = " (reparto por días)";
         } else {
             List<Integer> pesos = pesosReparto(incluyePrincipal, perfilesYo, perfilesOtros);
-            partes = RepartoEnteros.repartirPesosPonderado(gc.getMontoTotal(), pesos);
+            partes = repartirMonto(gc.getMontoTotal(), pesos);
             // sin salientes en partes iguales / perfiles
             n = nBase;
             salientes = List.of();
@@ -523,7 +546,7 @@ public class CompartidoService {
             }
         }
         s.setConcepto(concepto);
-        s.setMonto(req.monto().setScale(0, RoundingMode.HALF_UP).setScale(2, RoundingMode.UNNECESSARY));
+        s.setMonto(normalizarEntero(req.monto()));
         s.setPersonaIds(personaIds);
         s.setPersonaPerfiles(alinearPerfiles(personaIds.size(), req.perfiles()));
         s.setPerfilesPrincipal(normalizarPerfiles(req.perfilesPrincipal()));
@@ -808,9 +831,9 @@ public class CompartidoService {
         if (req == null || req.monto() == null || req.monto().compareTo(BigDecimal.ZERO) <= 0) {
             throw new IllegalArgumentException("El monto debe ser mayor a cero");
         }
-        BigDecimal monto = req.monto().setScale(0, RoundingMode.HALF_UP).setScale(2, RoundingMode.UNNECESSARY);
-        if (monto.compareTo(BigDecimal.ZERO) <= 0) {
-            throw new IllegalArgumentException("El monto debe ser al menos $1");
+        BigDecimal monto = normalizarCentavos(req.monto());
+        if (monto.compareTo(new BigDecimal("0.01")) < 0) {
+            throw new IllegalArgumentException("El monto debe ser al menos $0.01");
         }
         LocalDate fecha = req.fecha() == null ? LocalDate.now() : req.fecha();
         if (fecha.isAfter(LocalDate.now())) {
@@ -968,7 +991,7 @@ public class CompartidoService {
         if (destino == null) {
             throw new IllegalArgumentException("Elige a qué cuenta mandar el a favor");
         }
-        BigDecimal monto = req.monto().setScale(0, RoundingMode.HALF_UP).setScale(2, RoundingMode.UNNECESSARY);
+        BigDecimal monto = normalizarCentavos(req.monto());
         LocalDate fecha = req.fecha() == null ? m.getFecha() : req.fecha();
         if (fecha.isAfter(LocalDate.now())) {
             throw new IllegalArgumentException("La fecha no puede ser mayor a hoy");
@@ -1105,10 +1128,10 @@ public class CompartidoService {
         PersonaCompartida persona = obtenerPersona(personaId);
         BigDecimal favor = req == null || req.montoFavor() == null
                 ? BigDecimal.ZERO
-                : req.montoFavor().setScale(0, RoundingMode.HALF_UP).setScale(2, RoundingMode.UNNECESSARY);
+                : normalizarCentavos(req.montoFavor());
         BigDecimal prestamo = req == null || req.montoPrestamo() == null
                 ? BigDecimal.ZERO
-                : req.montoPrestamo().setScale(0, RoundingMode.HALF_UP).setScale(2, RoundingMode.UNNECESSARY);
+                : normalizarCentavos(req.montoPrestamo());
         if (favor.compareTo(BigDecimal.ZERO) < 0 || prestamo.compareTo(BigDecimal.ZERO) < 0) {
             throw new IllegalArgumentException("Los montos no pueden ser negativos");
         }
@@ -1245,7 +1268,7 @@ public class CompartidoService {
         if (destino == null) {
             throw new IllegalArgumentException("Elige a qué cuenta mandar el a favor (ej. Spotify)");
         }
-        BigDecimal monto = req.monto().setScale(0, RoundingMode.HALF_UP).setScale(2, RoundingMode.UNNECESSARY);
+        BigDecimal monto = normalizarCentavos(req.monto());
 
         List<MovimientoPersonaCompartida> movs = movimientoRepository.findActivosByPropietario(u);
         List<GastoCompartido> gastos = gastoCompartidoRepository.findActivosByPropietario(u);
@@ -1293,9 +1316,7 @@ public class CompartidoService {
         }
 
         BigDecimal cuota = cuotaPersonaEnFijo(s, personaId);
-        BigDecimal total = cuota.multiply(BigDecimal.valueOf(meses))
-                .setScale(0, RoundingMode.HALF_UP)
-                .setScale(2, RoundingMode.UNNECESSARY);
+        BigDecimal total = normalizarEntero(cuota.multiply(BigDecimal.valueOf(meses)));
         if (total.compareTo(BigDecimal.ZERO) <= 0) {
             throw new IllegalArgumentException("La cuota calculada es cero");
         }
@@ -1376,9 +1397,9 @@ public class CompartidoService {
         if (req == null || req.monto() == null || req.monto().compareTo(BigDecimal.ZERO) <= 0) {
             throw new IllegalArgumentException("El monto debe ser mayor a cero");
         }
-        BigDecimal monto = req.monto().setScale(0, RoundingMode.HALF_UP).setScale(2, RoundingMode.UNNECESSARY);
-        if (monto.compareTo(BigDecimal.ZERO) <= 0) {
-            throw new IllegalArgumentException("El monto debe ser al menos $1");
+        BigDecimal monto = normalizarCentavos(req.monto());
+        if (monto.compareTo(new BigDecimal("0.01")) < 0) {
+            throw new IllegalArgumentException("El monto debe ser al menos $0.01");
         }
         LocalDate fecha = req.fecha() == null ? LocalDate.now() : req.fecha();
         if (fecha.isAfter(LocalDate.now())) {
@@ -1674,7 +1695,7 @@ public class CompartidoService {
                 pendientePorGasto.merge(gid, pp.pendiente(), BigDecimal::add);
                 String etiqueta = fila.nombre()
                         + " "
-                        + pp.pendiente().setScale(0, RoundingMode.HALF_UP).toPlainString();
+                        + normalizarCentavos(pp.pendiente()).stripTrailingZeros().toPlainString();
                 deudoresPorGasto.computeIfAbsent(gid, k -> new ArrayList<>()).add(etiqueta);
             }
         }

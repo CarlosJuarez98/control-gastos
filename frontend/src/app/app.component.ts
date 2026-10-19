@@ -223,12 +223,18 @@ export class AppComponent implements AfterViewInit, AfterViewChecked, OnDestroy 
     this.actualizarInsetTeclado(false);
     this.sondearInsetTeclado();
     if (this.focusScrollTimer != null) clearTimeout(this.focusScrollTimer);
-    // Al enfocar: llevar el campo a la vista; repetir tras abrir teclado / subir dock
-    scrollCampoEnVista(t, { behavior: 'auto', forzar: true });
+    // Select/fecha no abren teclado: no recentrar si ya se ven (evita bajar el scroll en Cuentas).
+    const sinTeclado =
+      t.tagName === 'SELECT' ||
+      (t instanceof HTMLInputElement && (t.type || '').toLowerCase() === 'date');
+    const forzar = !sinTeclado;
+    scrollCampoEnVista(t, { behavior: 'auto', forzar });
     this.focusScrollTimer = setTimeout(() => {
       // Solo medir; NO forzar fallback aquí (si el teclado no abrió, no levantar el dock)
       this.actualizarInsetTeclado(false);
-      scrollCampoEnVista(t!, { behavior: 'smooth', forzar: true });
+      if (!sinTeclado) {
+        scrollCampoEnVista(t!, { behavior: 'smooth', forzar: true });
+      }
     }, 320);
   }
 

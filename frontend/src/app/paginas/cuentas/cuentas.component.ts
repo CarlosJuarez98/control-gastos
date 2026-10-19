@@ -561,8 +561,13 @@ export class CuentasComponent implements OnInit, OnDestroy {
       const input = hostEl.querySelector(
         'form.alta-mov input[name="mmonto"]',
       ) as HTMLInputElement | null;
-      if (form) {
-        this.scrollAElemento(form);
+      // Anclar con la deuda visible (no centrar solo el form y tapar “Deuda total” / “Te deben”).
+      const ancla =
+        (hostEl.querySelector('.card-prestamo') as HTMLElement | null) ||
+        (hostEl.querySelector('.card-tdc-corte') as HTMLElement | null) ||
+        form;
+      if (ancla) {
+        this.scrollAElemento(ancla);
       }
       if (input) {
         input.focus({ preventScroll: true });
