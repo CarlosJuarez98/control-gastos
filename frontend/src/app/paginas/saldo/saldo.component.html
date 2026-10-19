@@ -19,6 +19,9 @@
   <article>
     <span>Debería</span>
     <strong class="mono">{{ deberia | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
+    @if (esperadoCompartido > 0.005) {
+      <small>Tu dinero {{ esperadoPropios | currency:'MXN':'symbol-narrow':'1.2-2' }} · Compartidos {{ esperadoCompartido | currency:'MXN':'symbol-narrow':'1.2-2' }}</small>
+    }
   </article>
   <article>
     <span>Tuve</span>

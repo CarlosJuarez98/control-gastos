@@ -120,12 +120,16 @@ export class ApiService {
     denominaciones: Denominacion[];
     historial: SaldoSnapshot[];
     esperado?: number;
+    esperadoPropios?: number;
+    esperadoCompartido?: number;
   }> {
     return this.http.get<{
       saldo: SaldoSnapshot;
       denominaciones: Denominacion[];
       historial: SaldoSnapshot[];
       esperado?: number;
+      esperadoPropios?: number;
+      esperadoCompartido?: number;
     }>(`${this.base}/saldo`);
   }
 

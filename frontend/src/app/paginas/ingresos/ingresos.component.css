@@ -26,6 +26,42 @@
   gap: 0.4rem;
 }
 
+.desglose-cards {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.4rem;
+  margin-top: 0.45rem;
+}
+
+.desglose-cards article {
+  padding: 0.45rem 0.6rem;
+  border-radius: 0.75rem;
+  border: 1px solid var(--linea);
+  background: color-mix(in srgb, var(--superficie-2) 80%, transparent);
+}
+
+.desglose-cards article.total-suma {
+  border-color: color-mix(in srgb, var(--acento) 40%, var(--linea));
+  background: color-mix(in srgb, var(--acento) 10%, var(--superficie));
+}
+
+.desglose-cards span {
+  display: block;
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--texto-suave);
+  font-weight: 600;
+  margin-bottom: 0.1rem;
+}
+
+.desglose-cards strong {
+  font-family: var(--fuente-display);
+  font-size: 0.95rem;
+  font-weight: 800;
+  line-height: 1.15;
+}
+
 button.total-btn {
   display: block;
   min-width: 0;
@@ -447,6 +483,9 @@ button:disabled { opacity: 0.65; cursor: not-allowed; transform: none; filter: n
     letter-spacing: -0.03em;
   }
   .totales small { font-size: 0.68rem; }
+  .desglose-cards {
+    grid-template-columns: 1fr;
+  }
   .alta {
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);

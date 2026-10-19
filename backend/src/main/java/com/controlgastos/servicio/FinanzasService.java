@@ -1257,6 +1257,49 @@ public class FinanzasService {
         return calcularEsperadoActual(Sesion.usuario());
     }
 
+    /**
+     * Desglose del disponible para cuadrar sin mezclar nómina y compartidos:
+     * {@code total} = debería actual;
+     * {@code compartido} = ingresos Compartido − pagos a TDC/servicios de esos cargos − gastos líquidos Compartido;
+     * {@code propios} = total − compartido.
+     */
+    public record EsperadoDesglose(BigDecimal total, BigDecimal propios, BigDecimal compartido) {}
+
+    @Transactional
+    public EsperadoDesglose calcularEsperadoDesglose() {
+        String u = Sesion.usuario();
+        BigDecimal total = calcularEsperadoActual(u);
+        SaldoSnapshot corte = saldoRepository.findFirstByPropietarioOrderByFechaDescIdDesc(u).orElse(null);
+        long ingId = 0L;
+        long gasId = 0L;
+        long movId = 0L;
+        if (corte != null) {
+            asegurarMarcasCorte(u, corte);
+            ingId = corte.getUltimoIngresoId() == null ? 0L : corte.getUltimoIngresoId();
+            gasId = corte.getUltimoGastoId() == null ? 0L : corte.getUltimoGastoId();
+            movId = corte.getUltimoMovimientoId() == null ? 0L : corte.getUltimoMovimientoId();
+        }
+        BigDecimal ingComp = ingId <= 0
+                ? nullSafe(ingresoRepository.sumaCompartidoTotal(u))
+                : nullSafe(ingresoRepository.sumaCompartidoDespuesDeId(u, ingId));
+        BigDecimal gasComp = gasId <= 0
+                ? nullSafe(gastoRepository.sumaLiquidaCompartidoTotal(u))
+                : nullSafe(gastoRepository.sumaLiquidaCompartidoDespuesDeId(u, gasId));
+        BigDecimal abonosComp = movId <= 0
+                ? nullSafe(movimientoRepository.sumaAbonosCuentasCompartidoTotal(u))
+                : nullSafe(movimientoRepository.sumaAbonosCuentasCompartidoDespuesDeId(u, movId));
+        BigDecimal compartido = ingComp.subtract(gasComp).subtract(abonosComp);
+        if (compartido.compareTo(BigDecimal.ZERO) < 0) {
+            compartido = BigDecimal.ZERO;
+        }
+        // No puede superar el total (si el pool ya se gastó de más, propios absorbe).
+        if (compartido.compareTo(total) > 0) {
+            compartido = total.max(BigDecimal.ZERO);
+        }
+        BigDecimal propios = total.subtract(compartido);
+        return new EsperadoDesglose(total, propios, compartido);
+    }
+
     private BigDecimal calcularEsperadoActual(String u) {
         SaldoSnapshot corte = saldoRepository.findFirstByPropietarioOrderByFechaDescIdDesc(u).orElse(null);
         if (corte == null) {

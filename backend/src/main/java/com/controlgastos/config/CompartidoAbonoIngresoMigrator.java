@@ -1,26 +1,23 @@
 package com.controlgastos.config;
 
+import com.controlgastos.modelo.Ingreso;
 import com.controlgastos.modelo.MovimientoPersonaCompartida;
 import com.controlgastos.repositorio.IngresoRepository;
 import com.controlgastos.repositorio.MovimientoPersonaCompartidaRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.Arrays;
 import java.util.List;
-import java.util.Locale;
-import java.util.Set;
-import java.util.stream.Collectors;
 
 /**
- * Usuarios con abonos-sin-ingreso (p. ej. Mon): quita ingresos que se hayan
- * creado por error al registrar abonos de Compartido. El ledger compartido se conserva.
+ * Restaura ingresos faltantes de abonos en efectivo de Compartido
+ * (antes Mon los tenía desligados). Prefijo {@code Compartido - } para
+ * separarlas en las cards de Ingresos/Saldo.
  */
 @Component
 @Order(25)
@@ -30,48 +27,47 @@ public class CompartidoAbonoIngresoMigrator implements ApplicationRunner {
 
     private final MovimientoPersonaCompartidaRepository movimientoRepository;
     private final IngresoRepository ingresoRepository;
-    private final Set<String> abonosSinIngreso;
 
     public CompartidoAbonoIngresoMigrator(
             MovimientoPersonaCompartidaRepository movimientoRepository,
-            IngresoRepository ingresoRepository,
-            @Value("${app.compartido.abonos-sin-ingreso:Mon}") String abonosSinIngresoCsv) {
+            IngresoRepository ingresoRepository) {
         this.movimientoRepository = movimientoRepository;
         this.ingresoRepository = ingresoRepository;
-        this.abonosSinIngreso = Arrays.stream(abonosSinIngresoCsv.split(","))
-                .map(String::trim)
-                .filter(s -> !s.isEmpty())
-                .map(s -> s.toLowerCase(Locale.ROOT))
-                .collect(Collectors.toUnmodifiableSet());
     }
 
     @Override
     @Transactional
     public void run(ApplicationArguments args) {
-        if (abonosSinIngreso.isEmpty()) {
-            return;
-        }
         List<MovimientoPersonaCompartida> todos = movimientoRepository.findAll();
-        int limpios = 0;
+        int restaurados = 0;
         for (MovimientoPersonaCompartida m : todos) {
             if (m.isAnulado()) continue;
             if (!MovimientoPersonaCompartida.ABONO.equals(m.getTipo())) continue;
-            if (m.getIngresoId() == null) continue;
+            if (m.getIngresoId() != null) continue;
+            if (m.isDesdeGuardado() || m.isDesdeAnticipo()) continue;
+            if (m.getGastoId() != null) continue;
+            if (m.getPersona() == null) continue;
             String u = m.getPropietario();
-            if (u == null || !abonosSinIngreso.contains(u.trim().toLowerCase(Locale.ROOT))) continue;
+            if (u == null || u.isBlank()) continue;
+            if (m.getMonto() == null || m.getMonto().signum() <= 0) continue;
 
-            Long ingresoId = m.getIngresoId();
-            ingresoRepository.findById(ingresoId).ifPresent(ing -> {
-                if (u.equalsIgnoreCase(ing.getPropietario())) {
-                    ingresoRepository.delete(ing);
-                }
-            });
-            m.setIngresoId(null);
+            String concepto = m.getConcepto();
+            if (concepto == null || concepto.isBlank()) {
+                concepto = "Abono";
+            }
+            String quien = m.getPersona().getNombre() == null ? "?" : m.getPersona().getNombre().trim();
+            Ingreso ingreso = new Ingreso();
+            ingreso.setPropietario(u);
+            ingreso.setFecha(m.getFecha());
+            ingreso.setMonto(m.getMonto());
+            ingreso.setConcepto("Compartido - " + quien + ": " + concepto);
+            Ingreso saved = ingresoRepository.save(ingreso);
+            m.setIngresoId(saved.getId());
             movimientoRepository.save(m);
-            limpios++;
+            restaurados++;
         }
-        if (limpios > 0) {
-            log.info("Compartido: {} abono(s) de {} desligados de Ingresos", limpios, abonosSinIngreso);
+        if (restaurados > 0) {
+            log.info("Compartido: {} abono(s) restaurados como Ingreso (cards De compartidos)", restaurados);
         }
     }
 }
