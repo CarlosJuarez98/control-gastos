@@ -112,7 +112,7 @@ public interface GastoRepository extends JpaRepository<Gasto, Long> {
             where g.propietario = ?1
               and lower(g.motivo) like 'compartido%'
               and upper(g.formaPago) = 'TARJETA'
-              and g.cuentaId is not null
+              and g.cuenta is not null
             """)
     BigDecimal sumaTarjetaCompartidoTotal(String propietario);
 
@@ -122,7 +122,7 @@ public interface GastoRepository extends JpaRepository<Gasto, Long> {
               and g.id > ?2
               and lower(g.motivo) like 'compartido%'
               and upper(g.formaPago) = 'TARJETA'
-              and g.cuentaId is not null
+              and g.cuenta is not null
             """)
     BigDecimal sumaTarjetaCompartidoDespuesDeId(String propietario, Long id);
 }
