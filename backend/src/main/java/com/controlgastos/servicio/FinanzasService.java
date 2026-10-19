@@ -1258,13 +1258,15 @@ public class FinanzasService {
     }
 
     /**
-     * Dos ledgers independientes (misma base del último corte):
-     * <ul>
-     *   <li>{@code propios}: ingresos/gastos/abonos que NO son Compartido</li>
-     *   <li>{@code compartido}: ingresos «Compartido - …» − pagos a esas TDC (solo hasta lo cobrado)</li>
-     *   <li>{@code total}: propios + compartido (= disponible real / efectivo contado)</li>
-     * </ul>
-     * Si pagas la TDC de tu dinero, el excedente (o el pago entero si aún no te abonaron) resta de {@code propios}.
+     * Dos ledgers independientes (misma base del último corte).
+     * <p>
+     * Al pagar una TDC de $500 con cargos mixtos, el pago se parte así:
+     * <ol>
+     *   <li>Hasta el total de cargos «Compartido - …» en esa tarjeta → lado compartidos</li>
+     *   <li>El resto del pago → tu dinero (gastos personales en la misma TDC)</li>
+     * </ol>
+     * Del lado compartidos, el efectivo solo baja hasta lo que te hayan abonado;
+     * si cubriste tú su parte, eso resta de propios.
      */
     public record EsperadoDesglose(BigDecimal total, BigDecimal propios, BigDecimal compartido) {}
 
@@ -1296,14 +1298,17 @@ public class FinanzasService {
         BigDecimal gasComp = gasId <= 0
                 ? nullSafe(gastoRepository.sumaLiquidaCompartidoTotal(u))
                 : nullSafe(gastoRepository.sumaLiquidaCompartidoDespuesDeId(u, gasId));
+        // Cargos Compartido en TDC: total histórico (pueden ser de cortes previos).
+        BigDecimal cargosCompTdc = nullSafe(gastoRepository.sumaTarjetaCompartidoTotal(u));
         BigDecimal disposiciones = gasId <= 0
                 ? nullSafe(gastoRepository.sumaDisposicionesTotal(u))
                 : nullSafe(gastoRepository.sumaDisposicionesDespuesDeId(u, gasId));
         BigDecimal abonosAll = movId <= 0
                 ? nullSafe(movimientoRepository.sumaAbonosTotal(u))
                 : nullSafe(movimientoRepository.sumaAbonosDespuesDeId(u, movId));
-        BigDecimal abonosComp = movId <= 0
-                ? nullSafe(movimientoRepository.sumaAbonosCuentasCompartidoTotal(u))
+        BigDecimal abonosACuentasCompTotal = nullSafe(movimientoRepository.sumaAbonosCuentasCompartidoTotal(u));
+        BigDecimal abonosACuentasComp = movId <= 0
+                ? abonosACuentasCompTotal
                 : nullSafe(movimientoRepository.sumaAbonosCuentasCompartidoDespuesDeId(u, movId));
         BigDecimal prestamos = movId <= 0
                 ? nullSafe(movimientoRepository.sumaPrestamosOtorgadosTotal(u))
@@ -1312,15 +1317,28 @@ public class FinanzasService {
                 ? nullSafe(movimientoRepository.sumaCobrosPrestamoOtorgadoTotal(u))
                 : nullSafe(movimientoRepository.sumaCobrosPrestamoOtorgadoDespuesDeId(u, movId));
 
-        // Del pool compartido solo se “gasta” hasta lo cobrado a personas.
-        // Si pagas la TDC de tu dinero (sin abonos / de más), el excedente resta de propios.
+        // Pago a la TDC: solo la parte que cubre cargos Compartido aún no cubiertos.
+        // Ej. TDC $500 = $300 Netflix compartido + $200 tuyos → del pago, máx. $300 a compartidos.
+        BigDecimal abonosPreviosACuentas = abonosACuentasCompTotal.subtract(abonosACuentasComp);
+        if (abonosPreviosACuentas.compareTo(BigDecimal.ZERO) < 0) {
+            abonosPreviosACuentas = BigDecimal.ZERO;
+        }
+        BigDecimal cargosCompPendientes = cargosCompTdc.subtract(abonosPreviosACuentas);
+        if (cargosCompPendientes.compareTo(BigDecimal.ZERO) < 0) {
+            cargosCompPendientes = BigDecimal.ZERO;
+        }
+        BigDecimal pagoHaciaCargosComp = abonosACuentasComp.min(cargosCompPendientes);
+
+        // Efectivo de personas: solo baja el pool hasta lo abonado.
         BigDecimal poolBruto = ingComp.subtract(gasComp);
         if (poolBruto.compareTo(BigDecimal.ZERO) < 0) {
             poolBruto = BigDecimal.ZERO;
         }
-        BigDecimal abonosDesdeCompartido = abonosComp.min(poolBruto);
-        BigDecimal compartido = poolBruto.subtract(abonosDesdeCompartido);
-        BigDecimal abonosDesdePropios = abonosAll.subtract(abonosDesdeCompartido);
+        BigDecimal pagadoConDineroCompartido = pagoHaciaCargosComp.min(poolBruto);
+        BigDecimal compartido = poolBruto.subtract(pagadoConDineroCompartido);
+
+        // Tu dinero paga: abonos personales + parte personal de la TDC + lo que flotaste de compartidos
+        BigDecimal abonosDesdePropios = abonosAll.subtract(pagadoConDineroCompartido);
 
         BigDecimal propios = base
                 .add(ingAll.subtract(ingComp))
