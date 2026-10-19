@@ -209,7 +209,8 @@ export class AppComponent implements AfterViewInit, AfterViewChecked, OnDestroy 
   @HostListener('focusin', ['$event'])
   onFocusIn(ev: FocusEvent): void {
     const t = ev.target as HTMLElement | null;
-    if (!this.esCampoEditable(t)) return;
+    if (!t || !this.esCampoEditable(t)) return;
+    const campo = t;
     if (this.focusOutTimer != null) {
       clearTimeout(this.focusOutTimer);
       this.focusOutTimer = null;
@@ -225,15 +226,15 @@ export class AppComponent implements AfterViewInit, AfterViewChecked, OnDestroy 
     if (this.focusScrollTimer != null) clearTimeout(this.focusScrollTimer);
     // Select/fecha no abren teclado: no recentrar si ya se ven (evita bajar el scroll en Cuentas).
     const sinTeclado =
-      t.tagName === 'SELECT' ||
-      (t instanceof HTMLInputElement && (t.type || '').toLowerCase() === 'date');
+      campo.tagName === 'SELECT' ||
+      (campo instanceof HTMLInputElement && (campo.type || '').toLowerCase() === 'date');
     const forzar = !sinTeclado;
-    scrollCampoEnVista(t, { behavior: 'auto', forzar });
+    scrollCampoEnVista(campo, { behavior: 'auto', forzar });
     this.focusScrollTimer = setTimeout(() => {
       // Solo medir; NO forzar fallback aquí (si el teclado no abrió, no levantar el dock)
       this.actualizarInsetTeclado(false);
       if (!sinTeclado) {
-        scrollCampoEnVista(t!, { behavior: 'smooth', forzar: true });
+        scrollCampoEnVista(campo, { behavior: 'smooth', forzar: true });
       }
     }, 320);
   }
