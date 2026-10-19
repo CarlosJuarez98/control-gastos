@@ -49,11 +49,11 @@ export class CompartidoComponent implements OnInit, OnDestroy {
   private readonly host = inject(ElementRef<HTMLElement>);
 
   /**
-   * Monse: abonos en efectivo solo bajan la deuda compartida (no crean Ingreso).
-   * Debe coincidir con app.compartido.abonos-sin-ingreso del backend.
+   * Si el backend tiene al usuario en abonos-sin-ingreso, el abono no crea Ingreso.
+   * Por defecto vacío: todos suman a Ingresos (card «De compartidos»).
    */
   get abonoSoloLedger(): boolean {
-    return (this.auth.usuario || '').trim().toLowerCase() === 'mon';
+    return false;
   }
 
   /**
@@ -1599,9 +1599,7 @@ export class CompartidoComponent implements OnInit, OnDestroy {
   async anularAbonoHistorial(m: MovimientoPersonaCompartida): Promise<void> {
     if (!this.esAbonoEditable(m)) return;
     const quien = m.persona?.nombre || 'la persona';
-    const efecto = this.abonoSoloLedger
-      ? 'Se quita del historial compartido (no toca tus Ingresos).'
-      : 'Se deshace el efecto en disponible / guardado / préstamo.';
+    const efecto = 'Se deshace el efecto en Ingresos (De compartidos) / disponible / guardado / préstamo.';
     const ok = await this.confirmDlg.ask(
       `¿Eliminar el abono de ${quien} por $${this.formatoMontoInput(Number(m.monto) || 0)}? ${efecto}`,
       { titulo: 'Eliminar abono', confirmarTexto: 'Eliminar', cancelarTexto: 'Cancelar' }

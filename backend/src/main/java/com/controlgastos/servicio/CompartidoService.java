@@ -50,7 +50,7 @@ public class CompartidoService {
             ServicioFijoCompartidoRepository servicioFijoRepository,
             GastoRepository gastoRepository,
             FinanzasService finanzasService,
-            @Value("${app.compartido.abonos-sin-ingreso:Mon}") String abonosSinIngresoCsv) {
+            @Value("${app.compartido.abonos-sin-ingreso:}") String abonosSinIngresoCsv) {
         this.personaRepository = personaRepository;
         this.gastoCompartidoRepository = gastoCompartidoRepository;
         this.movimientoRepository = movimientoRepository;
@@ -232,7 +232,7 @@ public class CompartidoService {
         gastoReal.setFecha(fecha);
         gastoReal.setCategoria("Compartido");
         gastoReal.setMonto(montoRedondeado);
-        gastoReal.setMotivo("Compartido: " + concepto);
+        gastoReal.setMotivo("Compartido - " + concepto);
         gastoReal.setFormaPago(forma);
         if ("TARJETA".equals(forma)) {
             if (req.cuentaId() == null) {
@@ -918,7 +918,7 @@ public class CompartidoService {
             deuda = movimientoRepository.save(deuda);
             mov.setMovRelacionadoId(deuda.getId());
         } else {
-            // Efectivo: Carlos sí crea ingreso; Mon (y lista config) solo ledger compartido.
+            // Efectivo: crea Ingreso con prefijo "Compartido - " (cards aparte en Ingresos/Saldo).
             mov.setDesdeGuardado(false);
             if (abonoCreaIngreso(u)) {
                 Ingreso ingreso = new Ingreso();

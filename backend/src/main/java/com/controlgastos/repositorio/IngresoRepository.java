@@ -27,4 +27,20 @@ public interface IngresoRepository extends JpaRepository<Ingreso, Long> {
 
     @Query("select coalesce(sum(i.monto), 0) from Ingreso i where i.propietario = ?1 and i.id > ?2")
     BigDecimal sumaDespuesDeId(String propietario, Long id);
+
+    /** Ingresos de abonos Compartido (concepto "Compartido - …"). */
+    @Query("""
+            select coalesce(sum(i.monto), 0) from Ingreso i
+            where i.propietario = ?1
+              and lower(i.concepto) like 'compartido -%'
+            """)
+    BigDecimal sumaCompartidoTotal(String propietario);
+
+    @Query("""
+            select coalesce(sum(i.monto), 0) from Ingreso i
+            where i.propietario = ?1
+              and i.id > ?2
+              and lower(i.concepto) like 'compartido -%'
+            """)
+    BigDecimal sumaCompartidoDespuesDeId(String propietario, Long id);
 }

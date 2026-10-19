@@ -39,7 +39,11 @@ export class IngresosComponent implements OnInit, OnDestroy {
   items: Ingreso[] = [];
   grupos: GrupoQuincena[] = [];
   total = 0;
+  totalPropios = 0;
+  totalCompartido = 0;
   totalQuincenaActual = 0;
+  totalQuincenaPropios = 0;
+  totalQuincenaCompartido = 0;
   etiquetaQuincenaActual = '';
 
   hoy = fechaHoyLocal();
@@ -207,16 +211,29 @@ export class IngresosComponent implements OnInit, OnDestroy {
       : this.items.filter((i) => (i.concepto || '').toLowerCase().includes(q));
 
     let total = 0;
+    let totalProp = 0;
+    let totalComp = 0;
     let totalQ = 0;
+    let totalQProp = 0;
+    let totalQComp = 0;
     for (const i of base) {
       const monto = Number(i.monto) || 0;
+      const esComp = this.esIngresoCompartido(i.concepto);
       total += monto;
+      if (esComp) totalComp += monto;
+      else totalProp += monto;
       if (this.claveQuincena(i.fecha || '') === this.claveHoy) {
         totalQ += monto;
+        if (esComp) totalQComp += monto;
+        else totalQProp += monto;
       }
     }
     this.total = total;
+    this.totalPropios = totalProp;
+    this.totalCompartido = totalComp;
     this.totalQuincenaActual = totalQ;
+    this.totalQuincenaPropios = totalQProp;
+    this.totalQuincenaCompartido = totalQComp;
 
     const list =
       this.vista === 'quincena'
@@ -327,6 +344,11 @@ export class IngresosComponent implements OnInit, OnDestroy {
     this.form = { fecha: this.hoy, concepto: '', monto: '' };
     if (this.esMovil) this.altaAbierta = false;
     this.cdr.markForCheck();
+  }
+
+  /** Abonos de Compartido (concepto "Compartido - …"). */
+  esIngresoCompartido(concepto: string | null | undefined): boolean {
+    return (concepto || '').trim().toLowerCase().startsWith('compartido');
   }
 
   get puedeGuardarMonto(): boolean {

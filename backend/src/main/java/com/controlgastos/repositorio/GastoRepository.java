@@ -85,4 +85,24 @@ public interface GastoRepository extends JpaRepository<Gasto, Long> {
               and upper(g.formaPago) = 'DISPOSICION'
             """)
     BigDecimal sumaDisposicionesDespuesDeId(String propietario, Long id);
+
+    /** Gastos líquidos con motivo Compartido (restan del pool de compartidos). */
+    @Query("""
+            select coalesce(sum(g.monto), 0) from Gasto g
+            where g.propietario = ?1
+              and lower(g.motivo) like 'compartido%'
+              and (g.formaPago is null
+                   or (upper(g.formaPago) <> 'TARJETA' and upper(g.formaPago) <> 'DISPOSICION'))
+            """)
+    BigDecimal sumaLiquidaCompartidoTotal(String propietario);
+
+    @Query("""
+            select coalesce(sum(g.monto), 0) from Gasto g
+            where g.propietario = ?1
+              and g.id > ?2
+              and lower(g.motivo) like 'compartido%'
+              and (g.formaPago is null
+                   or (upper(g.formaPago) <> 'TARJETA' and upper(g.formaPago) <> 'DISPOSICION'))
+            """)
+    BigDecimal sumaLiquidaCompartidoDespuesDeId(String propietario, Long id);
 }

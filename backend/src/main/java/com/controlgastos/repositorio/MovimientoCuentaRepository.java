@@ -109,4 +109,39 @@ public interface MovimientoCuentaRepository extends JpaRepository<MovimientoCuen
               and m.id > ?2
             """)
     BigDecimal sumaCobrosPrestamoOtorgadoDespuesDeId(String propietario, Long id);
+
+    /**
+     * Abonos a cuentas donde hubo cargos Compartido (TDC/tienda).
+     * Se descuentan del pool «De compartidos» al pagar la tarjeta/servicio.
+     */
+    @Query("""
+            select coalesce(sum(m.monto), 0) from MovimientoCuenta m
+            where m.propietario = ?1
+              and upper(m.tipo) = 'ABONO'
+              and m.cuenta.tipo <> 'PRESTAMO_OTORGADO'
+              and m.cuenta.id in (
+                  select distinct g.cuentaId from Gasto g
+                  where g.propietario = ?1
+                    and g.cuentaId is not null
+                    and lower(g.motivo) like 'compartido%'
+                    and upper(g.formaPago) = 'TARJETA'
+              )
+            """)
+    BigDecimal sumaAbonosCuentasCompartidoTotal(String propietario);
+
+    @Query("""
+            select coalesce(sum(m.monto), 0) from MovimientoCuenta m
+            where m.propietario = ?1
+              and upper(m.tipo) = 'ABONO'
+              and m.cuenta.tipo <> 'PRESTAMO_OTORGADO'
+              and m.id > ?2
+              and m.cuenta.id in (
+                  select distinct g.cuentaId from Gasto g
+                  where g.propietario = ?1
+                    and g.cuentaId is not null
+                    and lower(g.motivo) like 'compartido%'
+                    and upper(g.formaPago) = 'TARJETA'
+              )
+            """)
+    BigDecimal sumaAbonosCuentasCompartidoDespuesDeId(String propietario, Long id);
 }

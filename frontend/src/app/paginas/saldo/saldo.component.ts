@@ -72,6 +72,10 @@ export class SaldoComponent implements OnInit, OnDestroy {
 
   /** Saldo teórico según ingresos − gastos − abonos (no editable). */
   esperado = 0;
+  /** Parte del debería que no viene de Compartido. */
+  esperadoPropios = 0;
+  /** Pool Compartido neto (abonos − pagos a TDC/servicios de esos cargos). */
+  esperadoCompartido = 0;
 
   /** Últimos totales guardados (solo pista en el encabezado). */
   ultimoTotalDigital = 0;
@@ -126,7 +130,7 @@ export class SaldoComponent implements OnInit, OnDestroy {
         this.iniciarFormularioVacio();
         this.restaurarBorrador();
         if (r.esperado != null && Number.isFinite(Number(r.esperado))) {
-          this.esperado = this.redondear(this.n(r.esperado));
+          this.aplicarEsperado(r);
           this.cargandoEsperado = false;
         } else {
           this.recalcularEsperado();
@@ -195,18 +199,38 @@ export class SaldoComponent implements OnInit, OnDestroy {
     this.cargandoEsperado = true;
     this.api.saldo().subscribe({
       next: (r) => {
-        if (r.esperado != null && Number.isFinite(Number(r.esperado))) {
-          this.esperado = this.redondear(this.n(r.esperado));
-        } else {
-          this.esperado = 0;
-        }
+        this.aplicarEsperado(r);
         this.cargandoEsperado = false;
       },
       error: () => {
         this.esperado = 0;
+        this.esperadoPropios = 0;
+        this.esperadoCompartido = 0;
         this.cargandoEsperado = false;
       },
     });
+  }
+
+  private aplicarEsperado(r: {
+    esperado?: number;
+    esperadoPropios?: number;
+    esperadoCompartido?: number;
+  }): void {
+    if (r.esperado != null && Number.isFinite(Number(r.esperado))) {
+      this.esperado = this.redondear(this.n(r.esperado));
+    } else {
+      this.esperado = 0;
+    }
+    if (r.esperadoPropios != null && Number.isFinite(Number(r.esperadoPropios))) {
+      this.esperadoPropios = this.redondear(this.n(r.esperadoPropios));
+    } else {
+      this.esperadoPropios = this.esperado;
+    }
+    if (r.esperadoCompartido != null && Number.isFinite(Number(r.esperadoCompartido))) {
+      this.esperadoCompartido = this.redondear(this.n(r.esperadoCompartido));
+    } else {
+      this.esperadoCompartido = 0;
+    }
   }
 
   /** Mismo valor que disponible (backend ya incluye el Tuve del último corte). */

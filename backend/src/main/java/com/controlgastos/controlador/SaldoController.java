@@ -21,11 +21,14 @@ public class SaldoController {
     @GetMapping
     public Map<String, Object> actual() {
         SaldoSnapshot s = service.saldoActual();
+        var desglose = service.calcularEsperadoDesglose();
         java.util.HashMap<String, Object> out = new java.util.HashMap<>();
         out.put("saldo", s == null ? Map.of() : s);
         out.put("denominaciones", service.listarDenominaciones());
         out.put("historial", service.listarSaldos());
-        out.put("esperado", service.calcularEsperadoActual());
+        out.put("esperado", desglose.total());
+        out.put("esperadoPropios", desglose.propios());
+        out.put("esperadoCompartido", desglose.compartido());
         return out;
     }
 
