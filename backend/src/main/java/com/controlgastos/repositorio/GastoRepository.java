@@ -105,4 +105,24 @@ public interface GastoRepository extends JpaRepository<Gasto, Long> {
                    or (upper(g.formaPago) <> 'TARJETA' and upper(g.formaPago) <> 'DISPOSICION'))
             """)
     BigDecimal sumaLiquidaCompartidoDespuesDeId(String propietario, Long id);
+
+    /** Cargos a TDC/tienda hechos desde Compartido (para partir el pago de la tarjeta). */
+    @Query("""
+            select coalesce(sum(g.monto), 0) from Gasto g
+            where g.propietario = ?1
+              and lower(g.motivo) like 'compartido%'
+              and upper(g.formaPago) = 'TARJETA'
+              and g.cuentaId is not null
+            """)
+    BigDecimal sumaTarjetaCompartidoTotal(String propietario);
+
+    @Query("""
+            select coalesce(sum(g.monto), 0) from Gasto g
+            where g.propietario = ?1
+              and g.id > ?2
+              and lower(g.motivo) like 'compartido%'
+              and upper(g.formaPago) = 'TARJETA'
+              and g.cuentaId is not null
+            """)
+    BigDecimal sumaTarjetaCompartidoDespuesDeId(String propietario, Long id);
 }
