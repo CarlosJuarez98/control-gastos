@@ -28,7 +28,8 @@ class CompartidoFijoVigenteTest {
                 mock(MovimientoPersonaCompartidaRepository.class),
                 fijoRepo,
                 mock(GastoRepository.class),
-                mock(FinanzasService.class));
+                mock(FinanzasService.class),
+                "Mon");
 
         LocalDate hoy = LocalDate.now();
         int diaPasado = Math.max(1, hoy.getDayOfMonth() - 5);

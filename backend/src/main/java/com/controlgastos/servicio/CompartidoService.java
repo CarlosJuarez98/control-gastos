@@ -8,6 +8,7 @@ import com.controlgastos.repositorio.MovimientoPersonaCompartidaRepository;
 import com.controlgastos.repositorio.PersonaCompartidaRepository;
 import com.controlgastos.repositorio.ServicioFijoCompartidoRepository;
 import com.controlgastos.seguridad.Sesion;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -17,6 +18,7 @@ import java.time.LocalDate;
 import java.time.YearMonth;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -25,6 +27,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 public class CompartidoService {
@@ -35,6 +38,7 @@ public class CompartidoService {
     private final ServicioFijoCompartidoRepository servicioFijoRepository;
     private final GastoRepository gastoRepository;
     private final FinanzasService finanzasService;
+    private final Set<String> abonosSinIngreso;
 
     /** Avisar fijos próximos hasta N días antes del día de cobro. */
     private static final int DIAS_AVISO_PREVIO = 3;
@@ -45,13 +49,27 @@ public class CompartidoService {
             MovimientoPersonaCompartidaRepository movimientoRepository,
             ServicioFijoCompartidoRepository servicioFijoRepository,
             GastoRepository gastoRepository,
-            FinanzasService finanzasService) {
+            FinanzasService finanzasService,
+            @Value("${app.compartido.abonos-sin-ingreso:Mon}") String abonosSinIngresoCsv) {
         this.personaRepository = personaRepository;
         this.gastoCompartidoRepository = gastoCompartidoRepository;
         this.movimientoRepository = movimientoRepository;
         this.servicioFijoRepository = servicioFijoRepository;
         this.gastoRepository = gastoRepository;
         this.finanzasService = finanzasService;
+        this.abonosSinIngreso = Arrays.stream(abonosSinIngresoCsv.split(","))
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .map(s -> s.toLowerCase(Locale.ROOT))
+                .collect(Collectors.toUnmodifiableSet());
+    }
+
+    /** Monse y similares: abono en efectivo solo mueve el ledger compartido. */
+    public boolean abonoCreaIngreso(String usuario) {
+        if (usuario == null || usuario.isBlank()) {
+            return true;
+        }
+        return !abonosSinIngreso.contains(usuario.trim().toLowerCase(Locale.ROOT));
     }
 
     public List<PersonaCompartida> listarPersonas(boolean incluirInactivas) {
@@ -879,13 +897,16 @@ public class CompartidoService {
             deuda = movimientoRepository.save(deuda);
             mov.setMovRelacionadoId(deuda.getId());
         } else {
+            // Efectivo: Carlos sí crea ingreso; Mon (y lista config) solo ledger compartido.
             mov.setDesdeGuardado(false);
-            Ingreso ingreso = new Ingreso();
-            ingreso.setFecha(fecha);
-            ingreso.setMonto(monto);
-            ingreso.setConcepto("Compartido - " + persona.getNombre() + ": " + concepto);
-            Ingreso saved = finanzasService.guardarIngreso(ingreso);
-            mov.setIngresoId(saved.getId());
+            if (abonoCreaIngreso(u)) {
+                Ingreso ingreso = new Ingreso();
+                ingreso.setFecha(fecha);
+                ingreso.setMonto(monto);
+                ingreso.setConcepto("Compartido - " + persona.getNombre() + ": " + concepto);
+                Ingreso saved = finanzasService.guardarIngreso(ingreso);
+                mov.setIngresoId(saved.getId());
+            }
         }
 
         return movimientoRepository.save(mov);
@@ -1006,7 +1027,12 @@ public class CompartidoService {
             return;
         }
 
-        boolean eraPrestado = gastoId != null || deudaId != null || (!teniaIngreso && !eraGuardado);
+        // Prestado = hay gasto/deuda ligada. Sin eso (p. ej. Mon ledger-only) no tocar finanzas.
+        boolean eraPrestado = gastoId != null || deudaId != null;
+        if (!eraPrestado && !teniaIngreso && !eraGuardado) {
+            // Legacy: abonos prestados sin FK; solo si encontramos marca en gastos.
+            eraPrestado = buscarGastoPrestamoLegacy(m).isPresent() || buscarDeudaPrestamoLegacy(m).isPresent();
+        }
         if (!eraPrestado) {
             return;
         }

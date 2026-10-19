@@ -3,6 +3,7 @@ import { CurrencyPipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { firstValueFrom } from 'rxjs';
 import { ApiService } from '../../api.service';
+import { AuthService } from '../../auth.service';
 import { AvisosCobroService } from '../../avisos-cobro.service';
 import { ConfirmDialogService } from '../../confirm-dialog.service';
 import { LoadingDialogService } from '../../loading-dialog.service';
@@ -40,11 +41,20 @@ const TABS: { id: Tab; label: string }[] = [
 })
 export class CompartidoComponent implements OnInit, OnDestroy {
   private readonly api = inject(ApiService);
+  private readonly auth = inject(AuthService);
   private readonly avisosCobro = inject(AvisosCobroService);
   private readonly confirmDlg = inject(ConfirmDialogService);
   private readonly loading = inject(LoadingDialogService);
   private readonly cdr = inject(ChangeDetectorRef);
   private readonly host = inject(ElementRef<HTMLElement>);
+
+  /**
+   * Monse: abonos en efectivo solo bajan la deuda compartida (no crean Ingreso).
+   * Debe coincidir con app.compartido.abonos-sin-ingreso del backend.
+   */
+  get abonoSoloLedger(): boolean {
+    return (this.auth.usuario || '').trim().toLowerCase() === 'mon';
+  }
 
   tab: Tab = 'resumen';
   readonly tabs = TABS;
@@ -1461,9 +1471,9 @@ export class CompartidoComponent implements OnInit, OnDestroy {
 
   medioInferidoAbono(m: MovimientoPersonaCompartida): 'EFECTIVO' | 'GUARDADO' | 'PRESTADO' {
     if (m.desdeGuardado) return 'GUARDADO';
-    if (m.ingresoId != null) return 'EFECTIVO';
-    if (m.desdeAnticipo) return 'EFECTIVO';
-    return 'PRESTADO';
+    if (m.gastoId != null || m.movRelacionadoId != null) return 'PRESTADO';
+    // Efectivo con ingreso, anticipo, o ledger-only (Mon sin ingreso).
+    return 'EFECTIVO';
   }
 
   abrirEditarAbono(m: MovimientoPersonaCompartida): void {
@@ -1541,8 +1551,11 @@ export class CompartidoComponent implements OnInit, OnDestroy {
   async anularAbonoHistorial(m: MovimientoPersonaCompartida): Promise<void> {
     if (!this.esAbonoEditable(m)) return;
     const quien = m.persona?.nombre || 'la persona';
+    const efecto = this.abonoSoloLedger
+      ? 'Se quita del historial compartido (no toca tus Ingresos).'
+      : 'Se deshace el efecto en disponible / guardado / préstamo.';
     const ok = await this.confirmDlg.ask(
-      `¿Eliminar el abono de ${quien} por $${Math.round(Number(m.monto) || 0)}? Se deshace el efecto en disponible / guardado / préstamo.`,
+      `¿Eliminar el abono de ${quien} por $${Math.round(Number(m.monto) || 0)}? ${efecto}`,
       { titulo: 'Eliminar abono', confirmarTexto: 'Eliminar', cancelarTexto: 'Cancelar' }
     );
     if (!ok) return;
@@ -1582,7 +1595,7 @@ export class CompartidoComponent implements OnInit, OnDestroy {
   }
 
 
-  /** Scroll al formulario de edicion (PC: lista-scroll; movil: host). */
+  /** Scroll al formulario de edición (contenedor global = :host). */
   private scrollA(selector: string): void {
     const aplicar = () => {
       const hostEl = this.host.nativeElement;

@@ -5,7 +5,11 @@
   max-height: 100%;
   min-height: 0;
   overflow-x: hidden;
-  overflow-y: hidden;
+  /* Scroll de toda la página (PC y móvil) para llegar a todas las personas */
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+  touch-action: pan-y;
 }
 
 .cab {
@@ -440,6 +444,13 @@
   line-height: 1.35;
 }
 
+.cab-hint {
+  margin: 0 0 0.55rem;
+  font-size: 0.78rem;
+  color: var(--texto-suave);
+  line-height: 1.35;
+}
+
 .hint-pago.aviso {
   color: color-mix(in srgb, var(--peligro, #c44) 75%, var(--texto));
 }
@@ -489,38 +500,38 @@
 }
 
 .lista-scroll {
-  flex: 1 1 0;
-  min-height: 0;
-  overflow: auto;
-  -webkit-overflow-scrolling: touch;
+  /* Crece con el contenido; el scroll lo hace :host (global) */
+  flex: 0 0 auto;
+  min-height: unset;
+  max-height: none;
+  overflow: visible;
 }
 
-/* PC: barra más gruesa y visible en la lista de personas */
+/* PC: barra del scroll global más visible */
 @media (hover: hover) and (pointer: fine) {
-  .lista-scroll {
-    min-height: 14rem;
+  :host {
     scrollbar-width: auto;
     scrollbar-color: color-mix(in srgb, var(--acento) 70%, var(--superficie-2))
       color-mix(in srgb, var(--superficie-2) 80%, transparent);
   }
 
-  .lista-scroll::-webkit-scrollbar {
+  :host::-webkit-scrollbar {
     width: 12px;
   }
 
-  .lista-scroll::-webkit-scrollbar-track {
+  :host::-webkit-scrollbar-track {
     background: color-mix(in srgb, var(--superficie-2) 70%, transparent);
     border-radius: 999px;
   }
 
-  .lista-scroll::-webkit-scrollbar-thumb {
+  :host::-webkit-scrollbar-thumb {
     background: color-mix(in srgb, var(--acento) 55%, var(--superficie-2));
     border-radius: 999px;
     border: 2px solid color-mix(in srgb, var(--fondo, #111) 40%, transparent);
     background-clip: padding-box;
   }
 
-  .lista-scroll::-webkit-scrollbar-thumb:hover {
+  :host::-webkit-scrollbar-thumb:hover {
     background: color-mix(in srgb, var(--acento) 80%, var(--superficie-2));
   }
 }
@@ -833,21 +844,7 @@ button.peligro.btn-mini {
 
 @media (max-width: 720px) {
   :host {
-    height: 100%;
-    max-height: 100%;
-    overflow-x: hidden;
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
-    overscroll-behavior-y: contain;
     padding-bottom: max(1.25rem, env(safe-area-inset-bottom));
-  }
-
-  .lista-scroll {
-    flex: 0 0 auto;
-    overflow: visible;
-    min-height: unset;
-    overscroll-behavior-y: auto;
-    touch-action: auto;
   }
 
   .cab .hint {

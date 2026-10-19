@@ -272,6 +272,13 @@
                       }
                     }
                   }
+                  @if (abono.medio === 'EFECTIVO') {
+                    @if (abonoSoloLedger) {
+                      Baja su deuda en Compartido. No suma a tus Ingresos (va aparte).
+                    } @else {
+                      Entra como ingreso y sube tu disponible.
+                    }
+                  }
                   @if (abono.medio === 'GUARDADO') {
                     Sale de su caja ({{ (p.efectivoGuardado || 0) | currency:'MXN':'symbol-narrow':'1.0-0' }}).
                     @if (superaGuardadoPersona(p.efectivoGuardado, abono.monto)) { No alcanza. }
@@ -1254,6 +1261,12 @@
 
 @if (tab === 'historial') {
   <div class="lista-scroll">
+    <p class="hint cab-hint">
+      Los abonos se pueden editar o eliminar aquí si te equivocaste.
+      @if (abonoSoloLedger) {
+        En tu cuenta no suman a Ingresos.
+      }
+    </p>
     @if (!movimientos.length) {
       <p class="vacio">Sin movimientos aún.</p>
     } @else {
@@ -1275,27 +1288,16 @@
                 <div class="acciones">
                   <button
                     type="button"
-                    class="icono"
+                    class="btn-mini"
                     title="Editar abono"
-                    aria-label="Editar abono"
                     (click)="abrirEditarAbono(m)"
-                  >
-                    <svg viewBox="0 0 24 24" aria-hidden="true">
-                      <path d="M4 20h4.5L19 9.5 14.5 5 4 15.5V20z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
-                      <path d="M12.5 7l4.5 4.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
-                    </svg>
-                  </button>
+                  >Editar</button>
                   <button
                     type="button"
-                    class="icono peligro"
+                    class="btn-mini peligro"
                     title="Eliminar abono"
-                    aria-label="Eliminar abono"
                     (click)="anularAbonoHistorial(m)"
-                  >
-                    <svg viewBox="0 0 24 24" aria-hidden="true">
-                      <path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                    </svg>
-                  </button>
+                  >Eliminar</button>
                 </div>
               }
             </div>

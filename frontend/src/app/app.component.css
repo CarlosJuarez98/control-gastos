@@ -513,7 +513,9 @@ main {
   overflow-y: hidden;
 }
 
-/* La pantalla activa llena el alto disponible */
+/* La pantalla activa llena el alto disponible.
+   overflow-y lo define cada :host (si aquí forzamos hidden, en móvil
+   pisa el overflow-y:auto de Compartido/Gastos/etc. y el scroll se traba). */
 main > *:not(router-outlet) {
   flex: 1 1 auto;
   min-height: 0;
@@ -521,7 +523,6 @@ main > *:not(router-outlet) {
   display: flex;
   flex-direction: column;
   overflow-x: hidden;
-  overflow-y: hidden;
   animation: pagina-entrar var(--dur-lenta) var(--ease-out) forwards;
 }
 
