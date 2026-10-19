@@ -12,6 +12,10 @@ public record ResumenResponse(
         BigDecimal deudaTotal,
         BigDecimal meDebenTotal,
         BigDecimal saldoDisponible,
+        /** Parte del disponible que es tuya (nómina / gastos propios). */
+        BigDecimal saldoDisponiblePropios,
+        /** Parte del disponible de abonos compartidos (apartados). */
+        BigDecimal saldoDisponibleCompartido,
         BigDecimal totalFisico,
         List<Map<String, Object>> gastosPorCategoria,
         List<Map<String, Object>> topCuentas,

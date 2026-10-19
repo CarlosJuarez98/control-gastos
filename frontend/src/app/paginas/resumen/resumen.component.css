@@ -91,6 +91,56 @@
   align-items: start;
 }
 
+.desglose-disp {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.45rem;
+  margin-bottom: 0.65rem;
+}
+
+.desglose-disp article {
+  padding: 0.55rem 0.7rem;
+  border-radius: 0.85rem;
+  border: 1px solid var(--borde-card);
+  background:
+    linear-gradient(160deg, color-mix(in srgb, #fff 3%, transparent), transparent 45%),
+    linear-gradient(160deg, var(--superficie) 0%, var(--superficie-2) 100%);
+  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.12);
+  animation: subir 0.5s ease both;
+}
+
+.desglose-disp article.total-suma {
+  border-color: color-mix(in srgb, var(--pos, #3d9a6a) 40%, var(--borde-card));
+  background: color-mix(in srgb, var(--pos, #3d9a6a) 10%, var(--superficie));
+}
+
+.desglose-disp span {
+  display: block;
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--texto-suave);
+  font-weight: 600;
+  margin-bottom: 0.15rem;
+}
+
+.desglose-disp strong {
+  font-family: var(--fuente-display);
+  font-size: 1.05rem;
+  font-weight: 800;
+  line-height: 1.15;
+}
+
+.desglose-disp .mini {
+  display: block;
+  margin-top: 0.2rem;
+  font-size: 0.68rem;
+  color: var(--texto-suave);
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 500;
+}
+
 .metricas-caja {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -226,6 +276,9 @@
 }
 
 @media (max-width: 640px) {
+  .desglose-disp {
+    grid-template-columns: 1fr;
+  }
   .guardadito-lista {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }

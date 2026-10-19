@@ -52,12 +52,6 @@
       <strong class="neg mono">{{ data.totalGastos | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
     </article>
     <article>
-      <span>Balance</span>
-      <strong class="mono" [class.pos]="data.balance >= 0" [class.neg]="data.balance < 0">
-        {{ data.balance | currency:'MXN':'symbol-narrow':'1.2-2' }}
-      </strong>
-    </article>
-    <article>
       <span>Deuda</span>
       <strong class="mono aviso">{{ data.deudaTotal | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
     </article>
@@ -65,32 +59,43 @@
       <span>Prestamista</span>
       <strong class="mono pos">{{ data.meDebenTotal | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
     </article>
-    @if (!((data.guardaditoTotal || 0) > 0)) {
-      <article>
-        <span>Disponible</span>
-        <strong class="mono pos">{{ data.saldoDisponible | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
-      </article>
-    }
     <article class="destacada-quincena">
       <span>Pagar esta quincena</span>
       <strong class="mono aviso">{{ pagoEstaQuincena | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
     </article>
   </div>
 
+  <div class="desglose-disp" [class.opaco]="cargando" role="group" aria-label="Desglose de disponible">
+    <article>
+      <span>Tu dinero</span>
+      <strong class="mono pos">{{ (data.saldoDisponiblePropios ?? data.saldoDisponible) | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
+      <small class="mini">Disponible mío</small>
+    </article>
+    <article>
+      <span>De compartidos</span>
+      <strong
+        class="mono"
+        [class.pos]="(data.saldoDisponibleCompartido ?? 0) >= -0.005"
+        [class.neg]="(data.saldoDisponibleCompartido ?? 0) < -0.005"
+      >{{ (data.saldoDisponibleCompartido ?? 0) | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
+      <small class="mini">Apartados / abonos</small>
+    </article>
+    <article class="total-suma">
+      <span>Disponible</span>
+      <strong class="mono pos">{{ data.saldoDisponible | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
+      <small class="mini">Tu dinero + compartidos</small>
+    </article>
+  </div>
+
   @if ((data.guardaditoTotal || 0) > 0) {
     <div class="metricas-caja" [class.opaco]="cargando">
       <article class="card-disponible-total">
-        <span>Disponible</span>
-        <strong class="mono pos">{{ data.saldoDisponible | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
+        <span>Disponible + guardadito</span>
+        <strong class="mono pos">{{ (data.saldoDisponible + data.guardaditoTotal!) | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
         <div class="disp-sep" aria-hidden="true"></div>
         <small class="leyenda-disp">
           <span class="leyenda-txt">Guardadito</span>
           <strong class="mono pos">{{ data.guardaditoTotal | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
-        </small>
-        <div class="disp-sep" aria-hidden="true"></div>
-        <small class="leyenda-disp leyenda-suma">
-          <span class="leyenda-txt">Disponible + guardadito</span>
-          <strong class="mono pos">{{ (data.saldoDisponible + data.guardaditoTotal!) | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
         </small>
       </article>
       <article class="card-guardadito">

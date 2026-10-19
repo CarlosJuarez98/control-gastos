@@ -157,6 +157,8 @@ public class FinanzasService {
             guardaditoTotal = guardaditoTotal.add(g);
         }
 
+        EsperadoDesglose disp = calcularEsperadoDesglose();
+
         return new ResumenResponse(
                 ingresos,
                 gastos,
@@ -164,7 +166,9 @@ public class FinanzasService {
                 mensuales,
                 deuda,
                 meDeben,
-                calcularEsperadoActual(u),
+                disp.total(),
+                disp.propios(),
+                disp.compartido(),
                 saldo != null ? saldo.getTotalFisico() : null,
                 porCat,
                 topCuentas,
