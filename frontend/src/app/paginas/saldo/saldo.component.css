@@ -553,6 +553,9 @@ input[type='number'] {
     top: 0;
     z-index: 5;
   }
+  .comparacion.con-desglose {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
   .comparacion.sin-tengo {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
