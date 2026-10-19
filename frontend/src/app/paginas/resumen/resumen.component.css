@@ -109,9 +109,19 @@
   animation: subir 0.5s ease both;
 }
 
+.desglose-disp article.card-guardar {
+  border-color: color-mix(in srgb, var(--aviso, #e0a85c) 40%, var(--borde-card));
+}
+
 .desglose-disp article.total-suma {
   border-color: color-mix(in srgb, var(--pos, #3d9a6a) 40%, var(--borde-card));
   background: color-mix(in srgb, var(--pos, #3d9a6a) 10%, var(--superficie));
+}
+
+.desglose-disp article.total-mano {
+  grid-column: span 2;
+  border-color: color-mix(in srgb, var(--acento) 40%, var(--borde-card));
+  background: color-mix(in srgb, var(--acento) 8%, var(--superficie));
 }
 
 .desglose-disp span {
@@ -143,7 +153,7 @@
 
 .metricas-caja {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr);
   gap: 0.55rem;
   margin-bottom: 0.85rem;
   align-items: start;
@@ -278,6 +288,9 @@
 @media (max-width: 640px) {
   .desglose-disp {
     grid-template-columns: 1fr;
+  }
+  .desglose-disp article.total-mano {
+    grid-column: auto;
   }
   .guardadito-lista {
     grid-template-columns: repeat(2, minmax(0, 1fr));

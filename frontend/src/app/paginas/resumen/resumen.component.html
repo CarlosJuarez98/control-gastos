@@ -65,11 +65,11 @@
     </article>
   </div>
 
-  <div class="desglose-disp" [class.opaco]="cargando" role="group" aria-label="Desglose de disponible">
+  <div class="desglose-disp" [class.opaco]="cargando" role="group" aria-label="De quién es el efectivo">
     <article>
       <span>Tu dinero</span>
       <strong class="mono pos">{{ (data.saldoDisponiblePropios ?? data.saldoDisponible) | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
-      <small class="mini">Disponible mío</small>
+      <small class="mini">Mío · lo puedo gastar</small>
     </article>
     <article>
       <span>De compartidos</span>
@@ -78,40 +78,37 @@
         [class.pos]="(data.saldoDisponibleCompartido ?? 0) >= -0.005"
         [class.neg]="(data.saldoDisponibleCompartido ?? 0) < -0.005"
       >{{ (data.saldoDisponibleCompartido ?? 0) | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
-      <small class="mini">Apartados / abonos</small>
+      <small class="mini">Abonos / apartados</small>
+    </article>
+    <article class="card-guardar">
+      <span>A guardar</span>
+      <strong class="mono aviso">{{ (data.guardaditoTotal || 0) | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
+      <small class="mini">Me lo dejaron · no es mío</small>
     </article>
     <article class="total-suma">
       <span>Disponible</span>
       <strong class="mono pos">{{ data.saldoDisponible | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
       <small class="mini">Tu dinero + compartidos</small>
     </article>
+    <article class="total-mano">
+      <span>En mano</span>
+      <strong class="mono pos">{{ (data.saldoDisponible + (data.guardaditoTotal || 0)) | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
+      <small class="mini">Disponible + a guardar</small>
+    </article>
   </div>
 
-  @if ((data.guardaditoTotal || 0) > 0) {
+  @if ((data.guardaditoTotal || 0) > 0 && data.guardaditoPorPersona?.length) {
     <div class="metricas-caja" [class.opaco]="cargando">
-      <article class="card-disponible-total">
-        <span>Disponible + guardadito</span>
-        <strong class="mono pos">{{ (data.saldoDisponible + data.guardaditoTotal!) | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
-        <div class="disp-sep" aria-hidden="true"></div>
-        <small class="leyenda-disp">
-          <span class="leyenda-txt">Guardadito</span>
-          <strong class="mono pos">{{ data.guardaditoTotal | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
-        </small>
-      </article>
       <article class="card-guardadito">
-        <span>Guardadito por persona</span>
-        @if (data.guardaditoPorPersona?.length) {
-          <ul class="guardadito-lista">
-            @for (g of data.guardaditoPorPersona!; track g.id ?? g.nombre) {
-              <li>
-                <span>{{ g.nombre }}</span>
-                <strong class="mono">{{ g.monto | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
-              </li>
-            }
-          </ul>
-        } @else {
-          <strong class="mono pos">{{ data.guardaditoTotal | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
-        }
+        <span>A guardar por persona</span>
+        <ul class="guardadito-lista">
+          @for (g of data.guardaditoPorPersona!; track g.id ?? g.nombre) {
+            <li>
+              <span>{{ g.nombre }}</span>
+              <strong class="mono">{{ g.monto | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
+            </li>
+          }
+        </ul>
       </article>
     </div>
   }
