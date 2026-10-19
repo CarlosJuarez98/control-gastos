@@ -15,13 +15,25 @@
   </div>
 }
 
-<div class="comparacion" [class.ok-box]="cuadra && !cargandoEsperado && realComparacion > 0" [class.sin-tengo]="!hayCaptura">
-  <article>
-    <span>Debería</span>
+<div class="comparacion con-desglose" [class.ok-box]="cuadra && !cargandoEsperado && realComparacion > 0" [class.sin-tengo]="!hayCaptura">
+  <article class="bucket">
+    <span>Tu dinero</span>
+    <strong class="mono">{{ esperadoPropios | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
+    <small>Nómina y gastos tuyos</small>
+  </article>
+  <article class="bucket">
+    <span>De compartidos</span>
+    <strong
+      class="mono"
+      [class.diff-falta]="esperadoCompartido < -0.005"
+      [class.diff-demas]="esperadoCompartido > 0.005"
+    >{{ esperadoCompartido | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
+    <small>Abonos − pagos TDC/servicios</small>
+  </article>
+  <article class="bucket total-bucket">
+    <span>Debería (suma)</span>
     <strong class="mono">{{ deberia | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
-    @if (esperadoCompartido > 0.005) {
-      <small>Tu dinero {{ esperadoPropios | currency:'MXN':'symbol-narrow':'1.2-2' }} · Compartidos {{ esperadoCompartido | currency:'MXN':'symbol-narrow':'1.2-2' }}</small>
-    }
+    <small>Tu dinero + compartidos</small>
   </article>
   <article>
     <span>Tuve</span>
@@ -46,13 +58,15 @@
       {{ diferencia | currency:'MXN':'symbol-narrow':'1.2-2' }}
     </strong>
     @if (usandoTuve) {
-      <small>vs último tuve</small>
+      <small>vs último tuve (suma)</small>
     } @else if (hayCaptura) {
-      <small>vs tengo</small>
+      <small>vs tengo (suma)</small>
     }
   </article>
   @if (mensajeDiferencia) {
     <p class="hint">{{ mensajeDiferencia }}</p>
+  } @else {
+    <p class="hint">Tu dinero y compartidos llevan suma/resta aparte: un abono compartido no mueve tu nómina, y al pagar esa TDC baja solo compartidos.</p>
   }
 </div>
 

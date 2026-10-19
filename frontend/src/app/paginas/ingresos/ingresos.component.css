@@ -62,6 +62,16 @@
   line-height: 1.15;
 }
 
+.desglose-cards .mini {
+  display: block;
+  margin-top: 0.15rem;
+  font-size: 0.65rem;
+  color: var(--texto-suave);
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 500;
+}
+
 button.total-btn {
   display: block;
   min-width: 0;
