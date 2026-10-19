@@ -285,8 +285,8 @@
                     }
                   }
                   @if (abono.medio === 'EFECTIVO') {
-                    Suma solo en «De compartidos» (no mueve tu nómina).
-                    Si luego pagas la TDC con ese dinero, baja compartidos; si la pagas de tu bolsa, resta tu dinero.
+                    Si aún no has pagado la TDC: suma en «De compartidos».
+                    Si ya pagaste la TDC de tu bolsa: te reembolsa y sube «Tu dinero».
                   }
                   @if (abono.medio === 'GUARDADO') {
                     Sale de su caja ({{ (p.efectivoGuardado || 0) | currency:'MXN':'symbol-narrow':moneyDigits }}).

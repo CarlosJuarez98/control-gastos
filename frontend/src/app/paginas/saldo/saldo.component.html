@@ -66,7 +66,11 @@
   @if (mensajeDiferencia) {
     <p class="hint">{{ mensajeDiferencia }}</p>
   } @else {
-    <p class="hint">Si la TDC tiene cargos mixtos (ej. pago $500 = $300 Netflix compartido + $200 tuyos), solo esos $300 cuentan para compartidos; el resto es tu dinero. Y de esos $300, el efectivo solo baja si ya te abonaron.</p>
+    <p class="hint">
+      Cargos mixtos en la TDC: del pago, solo la parte Compartido (Netflix, etc.) va a compartidos; el resto es tuyo.
+      Si pagas la TDC antes de que te abonen, eso sale de «Tu dinero»; cuando después te den el efectivo, ese ingreso
+      te reembolsa (sube otra vez «Tu dinero») y no se queda inflando compartidos.
+    </p>
   }
 </div>
 
