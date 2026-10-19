@@ -73,8 +73,9 @@ public class CompartidoService {
     }
 
     /**
-     * Saldo a favor / abonos / anticipos: todos los usuarios respetan centavos.
-     * Gastos y fijos se siguen repartiendo en pesos enteros.
+     * Abonos / a favor / anticipos: centavos.
+     * Reparto de gastos/fijos: también en centavos (ej. Netflix 370 → 92.50 / 185 / 92.50),
+     * para que el sobrante del abono coincida con lo esperado (René 7.50, no 8).
      */
     private BigDecimal normalizarCentavos(BigDecimal monto) {
         if (monto == null) {
@@ -83,16 +84,13 @@ public class CompartidoService {
         return monto.setScale(2, RoundingMode.HALF_UP);
     }
 
-    /** Gastos / fijos / repartos: pesos enteros (misma regla para todos). */
+    /** Totales de gasto/fijo capturados: hasta 2 decimales (no fuerza peso entero). */
     private BigDecimal normalizarEntero(BigDecimal monto) {
-        if (monto == null) {
-            return BigDecimal.ZERO.setScale(2, RoundingMode.UNNECESSARY);
-        }
-        return monto.setScale(0, RoundingMode.HALF_UP).setScale(2, RoundingMode.UNNECESSARY);
+        return normalizarCentavos(monto);
     }
 
     private List<BigDecimal> repartirMonto(BigDecimal monto, List<Integer> pesos) {
-        return RepartoEnteros.repartirPesosPonderado(normalizarEntero(monto), pesos);
+        return RepartoEnteros.repartirPesosPonderadoCentavos(normalizarCentavos(monto), pesos);
     }
 
     public List<PersonaCompartida> listarPersonas(boolean incluirInactivas) {
@@ -588,7 +586,7 @@ public class CompartidoService {
             return BigDecimal.ZERO.setScale(2, RoundingMode.UNNECESSARY);
         }
         List<Integer> pesos = pesosReparto(true, s.getPerfilesPrincipal(), s.getPersonaPerfiles());
-        List<BigDecimal> partes = RepartoEnteros.repartirPesosPonderado(s.getMonto(), pesos);
+        List<BigDecimal> partes = RepartoEnteros.repartirPesosPonderadoCentavos(s.getMonto(), pesos);
         return partes.get(0);
     }
 
@@ -1335,7 +1333,7 @@ public class CompartidoService {
     }
 
     /**
-     * Cuota de esa persona en el fijo (mismo reparto entero que al cobrar).
+     * Cuota de esa persona en el fijo (mismo reparto en centavos que al cobrar).
      * Índice 0 = tú; la persona está en personaIds de la plantilla.
      */
     static BigDecimal cuotaPersonaEnFijo(ServicioFijoCompartido s, Long personaId) {
@@ -1353,7 +1351,7 @@ public class CompartidoService {
         }
         List<Integer> pesos = pesosReparto(
                 s.isIncluyePrincipal(), s.getPerfilesPrincipal(), s.getPersonaPerfiles());
-        List<BigDecimal> partes = RepartoEnteros.repartirPesosPonderado(s.getMonto(), pesos);
+        List<BigDecimal> partes = RepartoEnteros.repartirPesosPonderadoCentavos(s.getMonto(), pesos);
         return partes.get(s.isIncluyePrincipal() ? idxEnLista + 1 : idxEnLista);
     }
 

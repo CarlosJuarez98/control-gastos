@@ -23,6 +23,18 @@ class RepartoEnterosTest {
     }
 
     @Test
+    void netflix370EnCentavosPerfiles() {
+        // 370 con pesos 1+2+1 → 92.50 / 185 / 92.50 (René a favor 7.50 si abona 100)
+        List<BigDecimal> partes = RepartoEnteros.repartirPesosPonderadoCentavos(
+                new BigDecimal("370"), List.of(1, 2, 1));
+        assertEquals(List.of(
+                new BigDecimal("92.50"),
+                new BigDecimal("185.00"),
+                new BigDecimal("92.50")
+        ), partes);
+    }
+
+    @Test
     void redondeaYPrincipalConPiso() {
         // 100.40 → 100; base 33, rem 1 → principal 33, otros 34 y 33
         List<BigDecimal> partes = RepartoEnteros.repartirPesos(new BigDecimal("100.40"), 3);

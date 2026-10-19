@@ -40,15 +40,15 @@ class CompartidoCuotaPrincipalTest {
 
     @Test
     void streamingTresPerfilesPagaMas() {
-        // Netflix $399: tú 1, Ana 3, Luis 1 → pesos 1+3+1=5 → [79, 240, 80]
+        // Netflix $399: tú 1, Ana 3, Luis 1 → pesos 1+3+1=5 → [79.80, 239.40, 79.80]
         ServicioFijoCompartido s = new ServicioFijoCompartido();
         s.setMonto(new BigDecimal("399"));
         s.setPersonaIds(List.of(10L, 20L));
         s.setPersonaPerfiles(List.of(3, 1));
         s.setPerfilesPrincipal(1);
         s.setIncluyePrincipal(true);
-        assertEquals(new BigDecimal("79.00"), CompartidoService.cuotaPrincipalEnFijo(s));
-        assertEquals(new BigDecimal("240.00"), CompartidoService.cuotaPersonaEnFijo(s, 10L));
-        assertEquals(new BigDecimal("80.00"), CompartidoService.cuotaPersonaEnFijo(s, 20L));
+        assertEquals(new BigDecimal("79.80"), CompartidoService.cuotaPrincipalEnFijo(s));
+        assertEquals(new BigDecimal("239.40"), CompartidoService.cuotaPersonaEnFijo(s, 10L));
+        assertEquals(new BigDecimal("79.80"), CompartidoService.cuotaPersonaEnFijo(s, 20L));
     }
 }

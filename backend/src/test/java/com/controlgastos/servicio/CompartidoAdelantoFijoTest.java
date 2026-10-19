@@ -20,10 +20,10 @@ class CompartidoAdelantoFijoTest {
 
     @Test
     void cuotaConSobranteAlNoPrincipal() {
-        // $399 / 5 → principal 79, resto 80
+        // $399 / 5 → 79.80 c/u en centavos
         ServicioFijoCompartido s = fijo(399, List.of(1L, 2L, 3L, 4L));
-        assertEquals(0, CompartidoService.cuotaPersonaEnFijo(s, 1L).compareTo(new BigDecimal("80.00")));
-        assertEquals(0, CompartidoService.cuotaPersonaEnFijo(s, 4L).compareTo(new BigDecimal("80.00")));
+        assertEquals(0, CompartidoService.cuotaPersonaEnFijo(s, 1L).compareTo(new BigDecimal("79.80")));
+        assertEquals(0, CompartidoService.cuotaPersonaEnFijo(s, 4L).compareTo(new BigDecimal("79.80")));
     }
 
     @Test
