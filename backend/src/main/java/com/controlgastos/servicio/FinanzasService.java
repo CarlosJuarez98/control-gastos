@@ -1258,45 +1258,73 @@ public class FinanzasService {
     }
 
     /**
-     * Desglose del disponible para cuadrar sin mezclar nómina y compartidos:
-     * {@code total} = debería actual;
-     * {@code compartido} = ingresos Compartido − pagos a TDC/servicios de esos cargos − gastos líquidos Compartido;
-     * {@code propios} = total − compartido.
+     * Dos ledgers independientes (misma base del último corte):
+     * <ul>
+     *   <li>{@code propios}: ingresos/gastos/abonos que NO son Compartido</li>
+     *   <li>{@code compartido}: ingresos «Compartido - …» − pagos a esas TDC/servicios − gastos líquidos Compartido</li>
+     *   <li>{@code total}: propios + compartido (= disponible real / efectivo contado)</li>
+     * </ul>
+     * Un abono en Compartido no mueve {@code propios}; un gasto personal no mueve {@code compartido}.
      */
     public record EsperadoDesglose(BigDecimal total, BigDecimal propios, BigDecimal compartido) {}
 
     @Transactional
     public EsperadoDesglose calcularEsperadoDesglose() {
         String u = Sesion.usuario();
-        BigDecimal total = calcularEsperadoActual(u);
         SaldoSnapshot corte = saldoRepository.findFirstByPropietarioOrderByFechaDescIdDesc(u).orElse(null);
+        BigDecimal base = BigDecimal.ZERO;
         long ingId = 0L;
         long gasId = 0L;
         long movId = 0L;
         if (corte != null) {
             asegurarMarcasCorte(u, corte);
+            base = dineroContadoDelCorte(corte);
             ingId = corte.getUltimoIngresoId() == null ? 0L : corte.getUltimoIngresoId();
             gasId = corte.getUltimoGastoId() == null ? 0L : corte.getUltimoGastoId();
             movId = corte.getUltimoMovimientoId() == null ? 0L : corte.getUltimoMovimientoId();
         }
+
+        BigDecimal ingAll = ingId <= 0
+                ? nullSafe(ingresoRepository.sumaTotal(u))
+                : nullSafe(ingresoRepository.sumaDespuesDeId(u, ingId));
         BigDecimal ingComp = ingId <= 0
                 ? nullSafe(ingresoRepository.sumaCompartidoTotal(u))
                 : nullSafe(ingresoRepository.sumaCompartidoDespuesDeId(u, ingId));
+        BigDecimal gasAll = gasId <= 0
+                ? nullSafe(gastoRepository.sumaLiquidaTotal(u))
+                : nullSafe(gastoRepository.sumaLiquidaDespuesDeId(u, gasId));
         BigDecimal gasComp = gasId <= 0
                 ? nullSafe(gastoRepository.sumaLiquidaCompartidoTotal(u))
                 : nullSafe(gastoRepository.sumaLiquidaCompartidoDespuesDeId(u, gasId));
+        BigDecimal disposiciones = gasId <= 0
+                ? nullSafe(gastoRepository.sumaDisposicionesTotal(u))
+                : nullSafe(gastoRepository.sumaDisposicionesDespuesDeId(u, gasId));
+        BigDecimal abonosAll = movId <= 0
+                ? nullSafe(movimientoRepository.sumaAbonosTotal(u))
+                : nullSafe(movimientoRepository.sumaAbonosDespuesDeId(u, movId));
         BigDecimal abonosComp = movId <= 0
                 ? nullSafe(movimientoRepository.sumaAbonosCuentasCompartidoTotal(u))
                 : nullSafe(movimientoRepository.sumaAbonosCuentasCompartidoDespuesDeId(u, movId));
+        BigDecimal prestamos = movId <= 0
+                ? nullSafe(movimientoRepository.sumaPrestamosOtorgadosTotal(u))
+                : nullSafe(movimientoRepository.sumaPrestamosOtorgadosDespuesDeId(u, movId));
+        BigDecimal cobros = movId <= 0
+                ? nullSafe(movimientoRepository.sumaCobrosPrestamoOtorgadoTotal(u))
+                : nullSafe(movimientoRepository.sumaCobrosPrestamoOtorgadoDespuesDeId(u, movId));
+
+        // Ledger propio: ignora ingresos/gastos/abonos de Compartido
+        BigDecimal propios = base
+                .add(ingAll.subtract(ingComp))
+                .add(disposiciones)
+                .subtract(gasAll.subtract(gasComp))
+                .subtract(abonosAll.subtract(abonosComp))
+                .subtract(prestamos)
+                .add(cobros);
+
+        // Ledger compartido: solo su suma/resta (puede quedar negativo si pagaste de más la TDC)
         BigDecimal compartido = ingComp.subtract(gasComp).subtract(abonosComp);
-        if (compartido.compareTo(BigDecimal.ZERO) < 0) {
-            compartido = BigDecimal.ZERO;
-        }
-        // No puede superar el total (si el pool ya se gastó de más, propios absorbe).
-        if (compartido.compareTo(total) > 0) {
-            compartido = total.max(BigDecimal.ZERO);
-        }
-        BigDecimal propios = total.subtract(compartido);
+
+        BigDecimal total = propios.add(compartido);
         return new EsperadoDesglose(total, propios, compartido);
     }
 

@@ -41,8 +41,28 @@
   transition: border-color var(--dur-rapida) ease, background var(--dur-rapida) ease;
 }
 
+.comparacion.con-desglose {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.comparacion.con-desglose.sin-tengo {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
 .comparacion.sin-tengo {
   grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.comparacion article.bucket {
+  border: 1px solid var(--linea);
+  border-radius: 0.75rem;
+  padding: 0.4rem 0.55rem;
+  background: color-mix(in srgb, var(--superficie-2) 75%, transparent);
+}
+
+.comparacion article.total-bucket {
+  border-color: color-mix(in srgb, var(--acento) 40%, var(--linea));
+  background: color-mix(in srgb, var(--acento) 10%, var(--superficie));
 }
 
 .comparacion.ok-box {

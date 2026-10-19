@@ -285,8 +285,8 @@
                     }
                   }
                   @if (abono.medio === 'EFECTIVO') {
-                    Entra como ingreso en «De compartidos» y sube tu disponible.
-                    Al pagar esa TDC/servicio, se descuenta de ese mismo pool.
+                    Suma solo en «De compartidos» (no mueve tu nómina).
+                    Al pagar esa TDC/servicio, baja de ese mismo pool.
                   }
                   @if (abono.medio === 'GUARDADO') {
                     Sale de su caja ({{ (p.efectivoGuardado || 0) | currency:'MXN':'symbol-narrow':moneyDigits }}).

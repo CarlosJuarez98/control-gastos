@@ -28,22 +28,22 @@
         }
       </button>
     </div>
-    @if ((vista === 'total' ? totalCompartido : totalQuincenaCompartido) > 0.005) {
-      <div class="desglose-cards" role="group" aria-label="Desglose tu dinero y compartidos">
-        <article>
-          <span>Tu dinero</span>
-          <strong class="mono pos">{{ (vista === 'total' ? totalPropios : totalQuincenaPropios) | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
-        </article>
-        <article>
-          <span>De compartidos</span>
-          <strong class="mono pos">{{ (vista === 'total' ? totalCompartido : totalQuincenaCompartido) | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
-        </article>
-        <article class="total-suma">
-          <span>Suma</span>
-          <strong class="mono pos">{{ (vista === 'total' ? total : totalQuincenaActual) | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
-        </article>
-      </div>
-    }
+    <div class="desglose-cards" role="group" aria-label="Desglose tu dinero y compartidos">
+      <article>
+        <span>Tu dinero</span>
+        <strong class="mono pos">{{ (vista === 'total' ? totalPropios : totalQuincenaPropios) | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
+        <small class="mini">Sin compartidos</small>
+      </article>
+      <article>
+        <span>De compartidos</span>
+        <strong class="mono pos">{{ (vista === 'total' ? totalCompartido : totalQuincenaCompartido) | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
+        <small class="mini">Solo abonos compartidos</small>
+      </article>
+      <article class="total-suma">
+        <span>Suma</span>
+        <strong class="mono pos">{{ (vista === 'total' ? total : totalQuincenaActual) | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
+      </article>
+    </div>
   </div>
   <form class="buscar-wrap" enterAvance data-enter-last="search" (ngSubmit)="$event.preventDefault()">
     <input
