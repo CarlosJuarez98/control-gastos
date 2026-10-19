@@ -6,6 +6,10 @@ export interface Resumen {
   deudaTotal: number;
   meDebenTotal: number;
   saldoDisponible: number;
+  /** Disponible tuyo (sin compartidos). */
+  saldoDisponiblePropios?: number;
+  /** Disponible de abonos compartidos (apartados). */
+  saldoDisponibleCompartido?: number;
   totalFisico: number | null;
   gastosPorCategoria: { categoria: string; total: number }[];
   topCuentas: { id: number; nombre: string; tipo: string; saldoActual: number }[];
