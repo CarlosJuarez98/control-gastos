@@ -1261,10 +1261,10 @@ public class FinanzasService {
      * Dos ledgers independientes (misma base del último corte):
      * <ul>
      *   <li>{@code propios}: ingresos/gastos/abonos que NO son Compartido</li>
-     *   <li>{@code compartido}: ingresos «Compartido - …» − pagos a esas TDC/servicios − gastos líquidos Compartido</li>
+     *   <li>{@code compartido}: ingresos «Compartido - …» − pagos a esas TDC (solo hasta lo cobrado)</li>
      *   <li>{@code total}: propios + compartido (= disponible real / efectivo contado)</li>
      * </ul>
-     * Un abono en Compartido no mueve {@code propios}; un gasto personal no mueve {@code compartido}.
+     * Si pagas la TDC de tu dinero, el excedente (o el pago entero si aún no te abonaron) resta de {@code propios}.
      */
     public record EsperadoDesglose(BigDecimal total, BigDecimal propios, BigDecimal compartido) {}
 
@@ -1312,17 +1312,23 @@ public class FinanzasService {
                 ? nullSafe(movimientoRepository.sumaCobrosPrestamoOtorgadoTotal(u))
                 : nullSafe(movimientoRepository.sumaCobrosPrestamoOtorgadoDespuesDeId(u, movId));
 
-        // Ledger propio: ignora ingresos/gastos/abonos de Compartido
+        // Del pool compartido solo se “gasta” hasta lo cobrado a personas.
+        // Si pagas la TDC de tu dinero (sin abonos / de más), el excedente resta de propios.
+        BigDecimal poolBruto = ingComp.subtract(gasComp);
+        if (poolBruto.compareTo(BigDecimal.ZERO) < 0) {
+            poolBruto = BigDecimal.ZERO;
+        }
+        BigDecimal abonosDesdeCompartido = abonosComp.min(poolBruto);
+        BigDecimal compartido = poolBruto.subtract(abonosDesdeCompartido);
+        BigDecimal abonosDesdePropios = abonosAll.subtract(abonosDesdeCompartido);
+
         BigDecimal propios = base
                 .add(ingAll.subtract(ingComp))
                 .add(disposiciones)
                 .subtract(gasAll.subtract(gasComp))
-                .subtract(abonosAll.subtract(abonosComp))
+                .subtract(abonosDesdePropios)
                 .subtract(prestamos)
                 .add(cobros);
-
-        // Ledger compartido: solo su suma/resta (puede quedar negativo si pagaste de más la TDC)
-        BigDecimal compartido = ingComp.subtract(gasComp).subtract(abonosComp);
 
         BigDecimal total = propios.add(compartido);
         return new EsperadoDesglose(total, propios, compartido);

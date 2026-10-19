@@ -28,7 +28,7 @@
       [class.diff-falta]="esperadoCompartido < -0.005"
       [class.diff-demas]="esperadoCompartido > 0.005"
     >{{ esperadoCompartido | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
-    <small>Abonos − pagos TDC/servicios</small>
+    <small>Abonos − pagos TDC (solo hasta lo cobrado)</small>
   </article>
   <article class="bucket total-bucket">
     <span>Debería (suma)</span>
@@ -66,7 +66,7 @@
   @if (mensajeDiferencia) {
     <p class="hint">{{ mensajeDiferencia }}</p>
   } @else {
-    <p class="hint">Tu dinero y compartidos llevan suma/resta aparte: un abono compartido no mueve tu nómina, y al pagar esa TDC baja solo compartidos.</p>
+    <p class="hint">Si pagas la TDC con lo que te abonaron, baja «De compartidos». Si la pagas de tu dinero (o de más), eso resta de «Tu dinero»; compartidos se queda en lo que aún te deben cubrir.</p>
   }
 </div>
 
