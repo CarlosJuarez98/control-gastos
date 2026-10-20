@@ -61,6 +61,11 @@
         />
       </div>
     </label>
+    @if ((nueva.tipo || '').toUpperCase() === 'PRESTAMO') {
+      <p class="hint-alta">Saldo inicial = te prestaron ese dinero: sube tu deuda y tu disponible.</p>
+    } @else if ((nueva.tipo || '').toUpperCase() === 'PRESTAMO_OTORGADO') {
+      <p class="hint-alta">Saldo inicial = tú prestas: sube «te deben» y baja tu disponible.</p>
+    }
     @if (nuevaConCalendario) {
       <label class="campo-corte">Corte
         <input type="text" inputmode="numeric" pattern="[0-9]*" [(ngModel)]="nuevaDiaCorte" (ngModelChange)="refrescarFormNuevaOk()" name="nuevaDiaCorte" placeholder="15" autocomplete="off" />
