@@ -1134,7 +1134,49 @@ public class FinanzasService {
         MovimientoCuenta saved = movimientoRepository.save(mov);
         aplicarSaldo(cuenta, mov.getTipo(), mov.getMonto());
         cuentaRepository.save(cuenta);
+        if ("ABONO".equals(saved.getTipo())) {
+            autoMarcarCuotasTrasPrimerAbonoDelMes(cuenta, saved.getFecha());
+        }
         return saved;
+    }
+
+    /**
+     * Primer abono del mes en esa deuda/TDC: marca 1 cuota en cada plan «a meses»
+     * ligado (disposición/MSI o préstamo). Así no hay que pulsar «Pagué 1 cuota»
+     * si ya registraste el pago de la tarjeta.
+     */
+    private void autoMarcarCuotasTrasPrimerAbonoDelMes(Cuenta cuenta, LocalDate fechaAbono) {
+        if (cuenta == null || cuenta.getId() == null || esPrestamoOtorgado(cuenta.getTipo())) {
+            return;
+        }
+        LocalDate fecha = fechaAbono != null ? fechaAbono : LocalDate.now();
+        YearMonth ym = YearMonth.from(fecha);
+        long abonosMes = movimientoRepository.countAbonosCuentaEntre(
+                Sesion.usuario(), cuenta.getId(), ym.atDay(1), ym.atEndOfMonth());
+        if (abonosMes != 1) {
+            return;
+        }
+        for (GastoMensual plan : planesAMesesDeCuenta(cuenta.getId())) {
+            if (!plan.isActivo() || !plan.isAMeses()) continue;
+            Integer rest = plan.getMesesRestantes();
+            if (rest == null || rest <= 0) continue;
+            marcarCuotaMensual(plan.getId());
+        }
+    }
+
+    private List<GastoMensual> planesAMesesDeCuenta(Long cuentaId) {
+        List<GastoMensual> out = new ArrayList<>(gastoMensualRepository.findByCuentaOrigenId(cuentaId));
+        String u = Sesion.usuario();
+        for (GastoMensual g : gastoMensualRepository.findByPropietarioAndActivoTrueOrderByMotivoAsc(u)) {
+            if (g.getGastoOrigenId() == null || !g.isAMeses()) continue;
+            if (out.stream().anyMatch(x -> Objects.equals(x.getId(), g.getId()))) continue;
+            gastoRepository.findById(g.getGastoOrigenId()).ifPresent(gasto -> {
+                if (cuentaId.equals(gasto.getCuentaId())) {
+                    out.add(g);
+                }
+            });
+        }
+        return out;
     }
 
     @Transactional
