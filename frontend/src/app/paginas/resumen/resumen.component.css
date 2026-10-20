@@ -93,20 +93,27 @@
 
 .desglose-disp {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0.45rem;
-  margin-bottom: 0.65rem;
+  grid-template-columns: repeat(auto-fit, minmax(8.5rem, 1fr));
+  gap: 0.55rem;
+  margin-bottom: 0.55rem;
+  align-items: start;
 }
 
 .desglose-disp article {
-  padding: 0.55rem 0.7rem;
-  border-radius: 0.85rem;
+  padding: 0.7rem 0.8rem;
+  border-radius: 1rem;
   border: 1px solid var(--borde-card);
   background:
-    linear-gradient(160deg, color-mix(in srgb, #fff 3%, transparent), transparent 45%),
+    linear-gradient(160deg, color-mix(in srgb, #fff 3.5%, transparent), transparent 45%),
     linear-gradient(160deg, var(--superficie) 0%, var(--superficie-2) 100%);
-  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.12);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.14);
   animation: subir 0.5s ease both;
+  transition: transform 0.2s var(--ease-out), border-color 0.2s ease;
+}
+
+.desglose-disp article:hover {
+  transform: translateY(-2px);
+  border-color: color-mix(in srgb, var(--acento) 65%, var(--borde-card));
 }
 
 .desglose-disp article.card-guardar {
@@ -115,40 +122,37 @@
 
 .desglose-disp article.total-suma {
   border-color: color-mix(in srgb, var(--pos, #3d9a6a) 40%, var(--borde-card));
-  background: color-mix(in srgb, var(--pos, #3d9a6a) 10%, var(--superficie));
 }
 
 .desglose-disp article.total-mano {
-  grid-column: span 2;
   border-color: color-mix(in srgb, var(--acento) 40%, var(--borde-card));
-  background: color-mix(in srgb, var(--acento) 8%, var(--superficie));
 }
 
 .desglose-disp span {
   display: block;
-  font-size: 0.68rem;
+  color: var(--texto-suave);
+  font-size: 0.72rem;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  color: var(--texto-suave);
-  font-weight: 600;
-  margin-bottom: 0.15rem;
+  margin-bottom: 0.25rem;
 }
 
 .desglose-disp strong {
   font-family: var(--fuente-display);
-  font-size: 1.05rem;
-  font-weight: 800;
+  font-size: 1rem;
+  font-weight: 700;
   line-height: 1.15;
 }
 
 .desglose-disp .mini {
   display: block;
   margin-top: 0.2rem;
-  font-size: 0.68rem;
+  font-size: 0.65rem;
   color: var(--texto-suave);
   text-transform: none;
   letter-spacing: 0;
   font-weight: 500;
+  line-height: 1.25;
 }
 
 .metricas-caja {
@@ -287,10 +291,7 @@
 
 @media (max-width: 640px) {
   .desglose-disp {
-    grid-template-columns: 1fr;
-  }
-  .desglose-disp article.total-mano {
-    grid-column: auto;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   .guardadito-lista {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -524,12 +525,14 @@
 }
 
 @media (max-width: 980px) {
-  .metricas { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .metricas,
+  .desglose-disp { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .charts { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 640px) and (orientation: portrait) {
-  .metricas { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .metricas,
+  .desglose-disp { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .metricas-caja { grid-template-columns: 1fr 1fr; }
   .donut-wrap { grid-template-columns: 1fr; justify-items: center; }
   .leyenda {
