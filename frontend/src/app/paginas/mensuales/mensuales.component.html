@@ -230,6 +230,10 @@
 
   @if (aMeses.length) {
     <h2 class="seccion-tit" id="lista-meses">A meses</h2>
+    <p class="hint-meses-auto">
+      Si ya abonaste la TDC (o el préstamo) este mes, la cuota se marca sola.
+      «Pagué 1 cuota» es solo si quieres adelantar el contador a mano (no vuelve a pagar ni baja la deuda).
+    </p>
     <ul class="lista">
       @for (g of aMesesPagina; track g.id) {
         <li class="msi" [class.editando]="editandoId === g.id">
@@ -244,7 +248,12 @@
             </div>
           </div>
           <div class="acciones">
-            <button type="button" class="cuota" (click)="marcarCuota(g)">Pagué 1 cuota</button>
+            <button
+              type="button"
+              class="cuota"
+              title="Solo baja el contador del plan. Si ya abonaste la TDC este mes, no hace falta."
+              (click)="marcarCuota(g)"
+            >Pagué 1 cuota</button>
             <button type="button" class="icono" title="Editar" aria-label="Editar" (click)="editar(g)">
               <svg viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M4 20h4.5L19 9.5 14.5 5 4 15.5V20z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>

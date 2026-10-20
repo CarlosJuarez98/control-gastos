@@ -62,6 +62,16 @@ public interface MovimientoCuentaRepository extends JpaRepository<MovimientoCuen
     @Query("select coalesce(max(m.id), 0) from MovimientoCuenta m where m.propietario = ?1")
     Long maxId(String propietario);
 
+    /** Abonos a una cuenta en un rango (para marcar 1 cuota MSI solo en el 1.er abono del mes). */
+    @Query("""
+            select count(m) from MovimientoCuenta m
+            where m.propietario = ?1
+              and m.cuenta.id = ?2
+              and upper(m.tipo) = 'ABONO'
+              and m.fecha between ?3 and ?4
+            """)
+    long countAbonosCuentaEntre(String propietario, Long cuentaId, LocalDate desde, LocalDate hasta);
+
     @Query("select coalesce(max(m.id), 0) from MovimientoCuenta m where m.propietario = ?1 and m.fecha < ?2")
     Long maxIdAntesDe(String propietario, LocalDate fecha);
 

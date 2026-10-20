@@ -351,6 +351,14 @@ label.campo-toggle {
   letter-spacing: -0.02em;
 }
 
+.hint-meses-auto {
+  margin: -0.15rem 0 0.55rem;
+  font-size: 0.78rem;
+  color: var(--texto-suave);
+  line-height: 1.35;
+  max-width: 42rem;
+}
+
 .lista + .seccion-tit,
 .seccion-tit + .lista {
   /* spacing handled by margin */
