@@ -52,6 +52,8 @@ export class CuentasComponent implements OnInit, OnDestroy {
   editMovId: number | null = null;
   /** Meses del cargo en edición (plan MSI); null si no aplica. */
   editMovMeses: number | null = null;
+  /** Concepto del movimiento en edición (se conserva al guardar). */
+  private conceptoEdit: string | null = null;
   tipos = ['TDC', 'PRESTAMO', 'TIENDA', 'TERRENO', 'PRESTAMO_OTORGADO', 'OTRO'];
   /** Tipos base; en TDC el CARGO nuevo se registra desde Gastos. */
   private readonly tiposMovBase = ['ABONO', 'CARGO', 'INTERES', 'REEMBOLSO'];
@@ -374,7 +376,10 @@ export class CuentasComponent implements OnInit, OnDestroy {
     const tipo = (t || '').toUpperCase();
     switch (tipo) {
       case 'ABONO': return this.seleccionPrestamista ? 'Cobro' : 'Abono';
-      case 'CARGO': return this.seleccionPrestamista ? 'Préstamo' : 'Cargo';
+      case 'CARGO':
+        if (this.seleccionPrestamista) return 'Préstamo';
+        if (this.seleccionPrestamoRecibido) return 'Desembolso';
+        return 'Cargo';
       case 'INTERES':
         if (this.seleccionPrestamista && monto != null && monto < 0) return 'Ajuste rédito';
         return this.seleccionPrestamista ? 'Rédito' : 'Interés';
@@ -668,8 +673,52 @@ export class CuentasComponent implements OnInit, OnDestroy {
     return (c.tipo || '').toUpperCase() === 'PRESTAMO_OTORGADO';
   }
 
+  private esPrestamoRecibido(c: Cuenta): boolean {
+    return (c.tipo || '').toUpperCase() === 'PRESTAMO';
+  }
+
   get seleccionPrestamista(): boolean {
     return !!this.seleccionada && this.esPrestamista(this.seleccionada);
+  }
+
+  get seleccionPrestamoRecibido(): boolean {
+    return !!this.seleccionada && this.esPrestamoRecibido(this.seleccionada);
+  }
+
+  /** Préstamo (te prestaron) o prestamista (tú prestas): se puede corregir el desembolso. */
+  get puedeCorregirMontoPrestamo(): boolean {
+    return this.seleccionPrestamista || this.seleccionPrestamoRecibido;
+  }
+
+  get editandoDesembolsoPrestamo(): boolean {
+    return this.editMovId != null
+      && (this.mov.tipo || '').toUpperCase() === 'CARGO'
+      && this.puedeCorregirMontoPrestamo;
+  }
+
+  /** CARGO de desembolso (el más antiguo / «Préstamo recibido»). */
+  private movimientoDesembolso(): Movimiento | null {
+    const cargos = this.movimientos.filter((m) => (m.tipo || '').toUpperCase() === 'CARGO');
+    if (!cargos.length) return null;
+    const preferido = cargos.find((m) =>
+      /pr[eé]stamo recibido|desembolso/i.test(m.concepto || ''),
+    );
+    if (preferido) return preferido;
+    return [...cargos].sort((a, b) => {
+      const cmp = (a.fecha || '').localeCompare(b.fecha || '');
+      if (cmp !== 0) return cmp;
+      return (Number(a.id) || 0) - (Number(b.id) || 0);
+    })[0];
+  }
+
+  /** Abre el desembolso en el formulario para corregir monto (deuda + disponible). */
+  corregirMontoPrestamo(): void {
+    const m = this.movimientoDesembolso();
+    if (!m?.id) {
+      this.error = 'No hay desembolso para editar. Registra un Cargo/Préstamo con el monto correcto.';
+      return;
+    }
+    this.editarMovimiento(m);
   }
 
   /** Abono/reembolso a deuda propia: sí resta de tu disponible (efectivo teórico). */
@@ -1089,6 +1138,7 @@ export class CuentasComponent implements OnInit, OnDestroy {
     this.error = '';
     this.editMovId = m.id;
     this.editMovMeses = this.esCargoAMeses(m) ? Number(m.meses) || null : null;
+    this.conceptoEdit = m.concepto?.trim() ? m.concepto.trim() : null;
     this.ajustandoRedito = false;
     this.mov = {
       fecha: (m.fecha || '').slice(0, 10) || fechaHoyLocal(),
@@ -1105,6 +1155,7 @@ export class CuentasComponent implements OnInit, OnDestroy {
   cancelarEdicionMov(): void {
     this.editMovId = null;
     this.editMovMeses = null;
+    this.conceptoEdit = null;
     this.ajustandoRedito = false;
     this.hoy = fechaHoyLocal();
     this.mov = { fecha: this.hoy, tipo: 'ABONO' };
@@ -1210,6 +1261,8 @@ export class CuentasComponent implements OnInit, OnDestroy {
     };
     if (this.ajustandoRedito) {
       body.concepto = 'Ajuste de rédito';
+    } else if (this.editMovId != null && this.conceptoEdit) {
+      body.concepto = this.conceptoEdit;
     }
 
     const cuentaId = this.seleccionada.id;

@@ -266,6 +266,11 @@
             @if (esCreditoCompras(seleccionada) && seleccionada.bloqueada) {
               <span class="pill-bloqueada">Sin compras</span>
             }
+            @if (puedeCorregirMontoPrestamo) {
+              <button type="button" class="secundario btn-corregir-monto" (click)="corregirMontoPrestamo()">
+                Corregir monto
+              </button>
+            }
           </p>
           @if (resumenTdc; as rt) {
             <div class="card-tdc-corte" role="group" aria-label="Deuda total y ciclos de corte">
@@ -366,6 +371,13 @@
           <div class="metrica">
             <span>Saldo</span>
             <strong class="mono">{{ seleccionada.saldoActual | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
+          </div>
+        }
+        @if (puedeCorregirMontoPrestamo) {
+          <div class="metrica metrica-accion">
+            <button type="button" class="secundario btn-corregir-monto" (click)="corregirMontoPrestamo()">
+              Corregir monto
+            </button>
           </div>
         }
         @if (seleccionPrestamista && saldoDisponible != null) {
@@ -536,6 +548,15 @@
               </div>
             </label>
           }
+        }
+        @if (editandoDesembolsoPrestamo) {
+          <p class="hint-alta hint-corregir">
+            @if (seleccionPrestamoRecibido) {
+              Al guardar se actualiza la deuda y tu disponible.
+            } @else {
+              Al guardar se actualiza lo que te deben y tu disponible.
+            }
+          </p>
         }
         <button type="submit" [disabled]="!formMovOk">
           {{ editMovId ? 'Guardar cambios' : (ajustandoRedito ? 'Guardar rédito' : (cobrandoRedito ? 'Cargar rédito' : (seleccionPrestamista && mov.tipo === 'ABONO' ? 'Registrar cobro' : 'Registrar movimiento'))) }}
