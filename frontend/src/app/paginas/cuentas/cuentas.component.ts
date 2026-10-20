@@ -263,7 +263,7 @@ export class CuentasComponent implements OnInit, OnDestroy {
     return Math.max(0, Math.round((total - recibido) * 100) / 100);
   }
 
-  get cuotaPrestamoPreview(): number {
+  get disponiblePrestamoPreview(): number {
     if (!this.nuevaEsPrestamo) return 0;
     const total = parseDinero(this.saldoNueva) || 0;
     const recRaw = (this.recibidoNueva || '').trim();
