@@ -52,8 +52,11 @@ echo '--- docker logs (ultimas 80 lineas) ---'
 docker logs --tail 80 control-gastos-api 2>&1 || true
 exit 1
 "@
-$remote = ($remote -replace "`r`n", "`n" -replace "`r", "`n")
-$remote | ssh @SshOpts $VmHost "bash -s"
+# Sin BOM ni CRLF: un BOM (﻿set) hace fallar "set -e" en bash remoto.
+$remote = ($remote -replace "`r`n", "`n" -replace "`r", "`n").TrimStart([char]0xFEFF)
+$remoteBytes = [System.Text.UTF8Encoding]::new($false).GetBytes($remote)
+$remoteB64 = [Convert]::ToBase64String($remoteBytes)
+ssh @SshOpts $VmHost "echo $remoteB64 | base64 -d | bash -s"
 if ($LASTEXITCODE -ne 0) {
   throw "Health check en contenedor fallo (la API no arranco o reinicia; revisa el log de arriba)"
 }
