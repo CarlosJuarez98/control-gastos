@@ -41,6 +41,10 @@ public class GastoMensual {
     @Column(name = "GASTO_ORIGEN_ID")
     private Long gastoOrigenId;
 
+    /** Cuenta PRESTAMO que originó este plan a meses. */
+    @Column(name = "CUENTA_ORIGEN_ID")
+    private Long cuentaOrigenId;
+
     /**
      * Servicio fijo compartido donde otro paga y tú solo tienes tu parte
      * (espejo en Mensuales).
@@ -70,6 +74,8 @@ public class GastoMensual {
     public void setMontoTotal(BigDecimal montoTotal) { this.montoTotal = montoTotal; }
     public Long getGastoOrigenId() { return gastoOrigenId; }
     public void setGastoOrigenId(Long gastoOrigenId) { this.gastoOrigenId = gastoOrigenId; }
+    public Long getCuentaOrigenId() { return cuentaOrigenId; }
+    public void setCuentaOrigenId(Long cuentaOrigenId) { this.cuentaOrigenId = cuentaOrigenId; }
     public Long getServicioFijoCompartidoId() { return servicioFijoCompartidoId; }
     public void setServicioFijoCompartidoId(Long servicioFijoCompartidoId) {
         this.servicioFijoCompartidoId = servicioFijoCompartidoId;
