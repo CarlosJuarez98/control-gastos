@@ -1180,7 +1180,7 @@ public class FinanzasService {
             throw new IllegalArgumentException("El tipo de movimiento es obligatorio");
         }
         String tipo = mov.getTipo().trim().toUpperCase(Locale.ROOT);
-        if (!Set.of("ABONO", "CARGO", "INTERES", "REEMBOLSO").contains(tipo)) {
+        if (!Set.of("ABONO", "CARGO", "INTERES", "REEMBOLSO", "CONDONACION").contains(tipo)) {
             throw new IllegalArgumentException("Tipo de movimiento inválido");
         }
         // INTERES puede ser negativo (ajuste/condonación de rédito); el resto debe ser > 0.
@@ -1239,7 +1239,8 @@ public class FinanzasService {
     private void aplicarSaldo(Cuenta cuenta, String tipo, BigDecimal monto) {
         if (tipo == null) return;
         switch (tipo.toUpperCase(Locale.ROOT)) {
-            case "ABONO", "REEMBOLSO" -> cuenta.setSaldoActual(cuenta.getSaldoActual().subtract(monto));
+            case "ABONO", "REEMBOLSO", "CONDONACION" ->
+                    cuenta.setSaldoActual(cuenta.getSaldoActual().subtract(monto));
             case "CARGO", "INTERES" -> cuenta.setSaldoActual(cuenta.getSaldoActual().add(monto));
             default -> { }
         }
@@ -1248,10 +1249,82 @@ public class FinanzasService {
     private void revertirSaldo(Cuenta cuenta, String tipo, BigDecimal monto) {
         if (tipo == null) return;
         switch (tipo.toUpperCase(Locale.ROOT)) {
-            case "ABONO", "REEMBOLSO" -> cuenta.setSaldoActual(cuenta.getSaldoActual().add(monto));
+            case "ABONO", "REEMBOLSO", "CONDONACION" ->
+                    cuenta.setSaldoActual(cuenta.getSaldoActual().add(monto));
             case "CARGO", "INTERES" -> cuenta.setSaldoActual(cuenta.getSaldoActual().subtract(monto));
             default -> { }
         }
+    }
+
+    /**
+     * Liquidación anticipada (estilo Coppel): pagas menos que el saldo;
+     * el resto se condona (baja deuda, no toca disponible).
+     */
+    @Transactional
+    public Map<String, Object> liquidarCuenta(Long cuentaId, LocalDate fecha, BigDecimal montoPago) {
+        String u = Sesion.usuario();
+        Cuenta cuenta = obtenerCuenta(cuentaId);
+        if (esPrestamoOtorgado(cuenta.getTipo())) {
+            throw new IllegalArgumentException("Usa cobros normales en cuentas prestamista");
+        }
+        BigDecimal saldo = nullSafe(cuenta.getSaldoActual());
+        if (saldo.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException("Esta deuda ya está en $0");
+        }
+        if (fecha == null) {
+            fecha = LocalDate.now();
+        }
+        if (fecha.isAfter(LocalDate.now())) {
+            throw new IllegalArgumentException("La fecha no puede ser mayor a hoy");
+        }
+        BigDecimal pago = nullSafe(montoPago);
+        if (pago.compareTo(BigDecimal.ZERO) < 0) {
+            throw new IllegalArgumentException("El monto a pagar no puede ser negativo");
+        }
+        if (pago.compareTo(saldo) > 0) {
+            throw new IllegalArgumentException("El monto a pagar no puede ser mayor al saldo");
+        }
+        BigDecimal condona = saldo.subtract(pago);
+        MovimientoCuenta abonoMov = null;
+        MovimientoCuenta condonaMov = null;
+
+        if (pago.compareTo(new BigDecimal("0.005")) > 0) {
+            MovimientoCuenta mov = new MovimientoCuenta();
+            mov.setCuenta(cuenta);
+            mov.setPropietario(u);
+            mov.setFecha(fecha);
+            mov.setTipo("ABONO");
+            mov.setMonto(pago);
+            mov.setConcepto("Liquidación");
+            abonoMov = movimientoRepository.save(mov);
+            aplicarSaldo(cuenta, "ABONO", pago);
+        }
+        if (condona.compareTo(new BigDecimal("0.005")) > 0) {
+            MovimientoCuenta mov = new MovimientoCuenta();
+            mov.setCuenta(cuenta);
+            mov.setPropietario(u);
+            mov.setFecha(fecha);
+            mov.setTipo("CONDONACION");
+            mov.setMonto(condona);
+            mov.setConcepto("Condonación por liquidación");
+            condonaMov = movimientoRepository.save(mov);
+            aplicarSaldo(cuenta, "CONDONACION", condona);
+        }
+        if (abonoMov == null && condonaMov == null) {
+            throw new IllegalArgumentException("Indica un monto a pagar o condona el saldo");
+        }
+        // Cierre limpio a $0 (evita residuos de centavos).
+        cuenta.setSaldoActual(BigDecimal.ZERO.setScale(2));
+        cuentaRepository.save(cuenta);
+        enriquecerSaldoAlCorte(cuenta);
+
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("cuenta", cuenta);
+        out.put("montoPagado", pago);
+        out.put("montoCondonado", condona.max(BigDecimal.ZERO));
+        out.put("abonoId", abonoMov != null ? abonoMov.getId() : null);
+        out.put("condonacionId", condonaMov != null ? condonaMov.getId() : null);
+        return out;
     }
 
     public SaldoSnapshot saldoActual() {

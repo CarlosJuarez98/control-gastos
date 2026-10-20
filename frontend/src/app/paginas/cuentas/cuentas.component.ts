@@ -54,6 +54,10 @@ export class CuentasComponent implements OnInit, OnDestroy {
   editMovMeses: number | null = null;
   /** Concepto del movimiento en edición (se conserva al guardar). */
   private conceptoEdit: string | null = null;
+  /** Liquidación anticipada (pagas menos; el resto se condona). */
+  liquidando = false;
+  montoLiquidar = '';
+  fechaLiquidar = fechaHoyLocal();
   tipos = ['TDC', 'PRESTAMO', 'TIENDA', 'TERRENO', 'PRESTAMO_OTORGADO', 'OTRO'];
   /** Tipos base; en TDC el CARGO nuevo se registra desde Gastos. */
   private readonly tiposMovBase = ['ABONO', 'CARGO', 'INTERES', 'REEMBOLSO'];
@@ -384,6 +388,7 @@ export class CuentasComponent implements OnInit, OnDestroy {
         if (this.seleccionPrestamista && monto != null && monto < 0) return 'Ajuste rédito';
         return this.seleccionPrestamista ? 'Rédito' : 'Interés';
       case 'REEMBOLSO': return 'Reembolso';
+      case 'CONDONACION': return 'Condonación';
       default: return t;
     }
   }
@@ -721,6 +726,88 @@ export class CuentasComponent implements OnInit, OnDestroy {
     this.editarMovimiento(m);
   }
 
+  /** Deudas propias con saldo: liquidar pagando menos (condona el resto). */
+  get puedeLiquidar(): boolean {
+    return !!this.seleccionada
+      && !this.seleccionPrestamista
+      && Number(this.seleccionada.saldoActual) > 0.005;
+  }
+
+  get montoLiquidarNum(): number {
+    return parseDinero(this.montoLiquidar) || 0;
+  }
+
+  get montoCondonacionPreview(): number {
+    const saldo = Number(this.seleccionada?.saldoActual) || 0;
+    return Math.max(0, Math.round((saldo - this.montoLiquidarNum) * 100) / 100);
+  }
+
+  prepararLiquidar(): void {
+    if (!this.puedeLiquidar) return;
+    this.cancelarEdicionMov();
+    this.liquidando = true;
+    this.error = '';
+    this.hoy = fechaHoyLocal();
+    this.fechaLiquidar = this.hoy;
+    this.montoLiquidar = '';
+    this.enfocarMontoLiquidar();
+  }
+
+  cancelarLiquidar(): void {
+    this.liquidando = false;
+    this.montoLiquidar = '';
+    this.fechaLiquidar = this.hoy;
+  }
+
+  alEscribirMontoLiquidar(v: string): void {
+    this.montoLiquidar = formatDineroInput(v);
+  }
+
+  private enfocarMontoLiquidar(): void {
+    setTimeout(() => {
+      const el = this.host.nativeElement.querySelector(
+        'input[name="montoLiquidar"]',
+      ) as HTMLInputElement | null;
+      el?.focus();
+      el?.select();
+    }, 40);
+  }
+
+  async confirmarLiquidar(): Promise<void> {
+    if (!this.seleccionada?.id || !this.puedeLiquidar) return;
+    this.error = '';
+    this.hoy = fechaHoyLocal();
+    if (!this.fechaLiquidar) this.fechaLiquidar = this.hoy;
+    if (this.fechaLiquidar > this.hoy) {
+      this.error = 'La fecha no puede ser mayor a hoy';
+      return;
+    }
+    const pago = this.montoLiquidarNum;
+    const saldo = Number(this.seleccionada.saldoActual) || 0;
+    if (pago < 0 || pago > saldo + 1e-9) {
+      this.error = 'El monto a pagar debe estar entre $0 y el saldo';
+      return;
+    }
+    const condona = this.montoCondonacionPreview;
+    const ok = await this.confirmDlg.ask(
+      condona > 0.005
+        ? `¿Liquidar pagando ${formatDineroNumero(pago)}? Se condona ${formatDineroNumero(condona)} (no sale de tu disponible).`
+        : `¿Liquidar pagando el saldo completo (${formatDineroNumero(pago)})?`,
+      { titulo: 'Liquidar deuda', confirmarTexto: 'Liquidar' },
+    );
+    if (!ok) return;
+    const cuentaId = this.seleccionada.id;
+    this.api.liquidarCuenta(cuentaId, { fecha: this.fechaLiquidar, montoPago: pago }).subscribe({
+      next: () => {
+        this.cancelarLiquidar();
+        this.abrir(cuentaId);
+        this.cargarCuentas();
+        this.cargarSaldoDisponible();
+      },
+      error: (e) => (this.error = e?.error?.error || 'No se pudo liquidar'),
+    });
+  }
+
   /** Abono/reembolso a deuda propia: sí resta de tu disponible (efectivo teórico). */
   get esPagoConDisponible(): boolean {
     if (!this.seleccionada || this.seleccionPrestamista) return false;
@@ -855,6 +942,7 @@ export class CuentasComponent implements OnInit, OnDestroy {
 
   abrir(id: number): void {
     this.cancelarEdicionMov();
+    this.cancelarLiquidar();
     this.movilOpcionesAbiertas = true;
     this.movilCalendarioAbierto = true;
     this.movilHistorialAbierto = true;
@@ -1135,6 +1223,7 @@ export class CuentasComponent implements OnInit, OnDestroy {
       this.error = 'Este cargo viene de Gastos; edítalo ahí para que se actualicen Deudas y Mensuales.';
       return;
     }
+    this.cancelarLiquidar();
     this.error = '';
     this.editMovId = m.id;
     this.editMovMeses = this.esCargoAMeses(m) ? Number(m.meses) || null : null;
