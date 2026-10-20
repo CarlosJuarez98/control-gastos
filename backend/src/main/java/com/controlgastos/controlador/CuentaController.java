@@ -5,7 +5,10 @@ import com.controlgastos.modelo.MovimientoCuenta;
 import com.controlgastos.servicio.FinanzasService;
 import org.springframework.web.bind.annotation.*;
 
+import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/cuentas")
@@ -16,6 +19,8 @@ public class CuentaController {
     public CuentaController(FinanzasService service) {
         this.service = service;
     }
+
+    public record LiquidarRequest(LocalDate fecha, BigDecimal montoPago) {}
 
     @GetMapping
     public List<Cuenta> listar() {
@@ -65,5 +70,13 @@ public class CuentaController {
     @DeleteMapping("/{id}/movimientos/{movimientoId}")
     public void eliminarMovimiento(@PathVariable Long id, @PathVariable Long movimientoId) {
         service.eliminarMovimiento(id, movimientoId);
+    }
+
+    /** Pagas un monto; el resto del saldo se condona (no sale de disponible). */
+    @PostMapping("/{id}/liquidar")
+    public Map<String, Object> liquidar(@PathVariable Long id, @RequestBody LiquidarRequest body) {
+        LocalDate fecha = body != null ? body.fecha() : null;
+        BigDecimal pago = body != null ? body.montoPago() : null;
+        return service.liquidarCuenta(id, fecha, pago);
     }
 }

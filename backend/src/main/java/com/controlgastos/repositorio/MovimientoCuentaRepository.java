@@ -35,7 +35,7 @@ public interface MovimientoCuentaRepository extends JpaRepository<MovimientoCuen
     @Query("""
             select coalesce(sum(m.monto), 0) from MovimientoCuenta m
             where m.propietario = ?1
-              and upper(m.tipo) in ('ABONO', 'REEMBOLSO')
+              and upper(m.tipo) in ('ABONO', 'REEMBOLSO', 'CONDONACION')
               and m.cuenta.tipo <> 'PRESTAMO_OTORGADO'
               and m.fecha > ?2
             """)

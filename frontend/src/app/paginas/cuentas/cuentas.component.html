@@ -271,6 +271,11 @@
                 Corregir monto
               </button>
             }
+            @if (puedeLiquidar) {
+              <button type="button" class="secundario btn-corregir-monto" (click)="prepararLiquidar()">
+                Liquidar
+              </button>
+            }
           </p>
           @if (resumenTdc; as rt) {
             <div class="card-tdc-corte" role="group" aria-label="Deuda total y ciclos de corte">
@@ -373,11 +378,18 @@
             <strong class="mono">{{ seleccionada.saldoActual | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
           </div>
         }
-        @if (puedeCorregirMontoPrestamo) {
-          <div class="metrica metrica-accion">
-            <button type="button" class="secundario btn-corregir-monto" (click)="corregirMontoPrestamo()">
-              Corregir monto
-            </button>
+        @if (puedeCorregirMontoPrestamo || puedeLiquidar) {
+          <div class="metrica metrica-accion metrica-acciones">
+            @if (puedeCorregirMontoPrestamo) {
+              <button type="button" class="secundario btn-corregir-monto" (click)="corregirMontoPrestamo()">
+                Corregir monto
+              </button>
+            }
+            @if (puedeLiquidar) {
+              <button type="button" class="secundario btn-corregir-monto" (click)="prepararLiquidar()">
+                Liquidar
+              </button>
+            }
           </div>
         }
         @if (seleccionPrestamista && saldoDisponible != null) {
@@ -439,7 +451,51 @@
       }
     }
 
-    @if (!seleccionPrestamista) {
+    @if (liquidando && seleccionada) {
+      <form class="alta alta-mov panel-liquidar" enterAvance (ngSubmit)="confirmarLiquidar()">
+        <p class="hint-alta hint-corregir">
+          Como Coppel: pagas lo que te piden para liquidar; el resto se condona y
+          <strong>no sale de tu disponible</strong>.
+        </p>
+        <div class="liquidar-resumen">
+          <span>Saldo actual
+            <strong class="mono">{{ seleccionada.saldoActual | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
+          </span>
+          <span>Se condona
+            <strong class="mono aviso">{{ montoCondonacionPreview | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
+          </span>
+          @if (saldoDisponible != null) {
+            <span>Tu disponible
+              <strong class="mono" [class.pill-aviso]="montoLiquidarNum > saldoDisponible + 1e-9">{{ saldoDisponible | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
+            </span>
+          }
+        </div>
+        <label class="campo-saldo">
+          <span class="campo-titulo">Monto a pagar (sale de disponible)</span>
+          <div class="monto-wrap">
+            <span class="simbolo">$</span>
+            <input
+              type="text"
+              inputmode="decimal"
+              autocomplete="off"
+              name="montoLiquidar"
+              [(ngModel)]="montoLiquidar"
+              (ngModelChange)="alEscribirMontoLiquidar($event)"
+              (keydown)="soloMonto($event)"
+              placeholder="0.00"
+              required
+            />
+          </div>
+        </label>
+        <label>Fecha
+          <input type="date" [(ngModel)]="fechaLiquidar" name="fechaLiquidar" [max]="hoy" required />
+        </label>
+        <button type="submit">Liquidar deuda</button>
+        <button type="button" class="secundario" (click)="cancelarLiquidar()">Cancelar</button>
+      </form>
+    }
+
+    @if (!seleccionPrestamista && !liquidando) {
       <ng-container *ngTemplateOutlet="formMovTpl" />
     }
 

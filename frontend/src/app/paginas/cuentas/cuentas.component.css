@@ -64,10 +64,29 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  gap: 0.35rem;
+}
+.metrica.metrica-acciones {
+  flex-direction: column;
 }
 .metrica.metrica-accion .btn-corregir-monto {
   margin-left: 0;
   width: 100%;
+}
+.panel-liquidar {
+  border-color: color-mix(in srgb, var(--aviso, #e0a85c) 45%, var(--borde-card));
+}
+.liquidar-resumen {
+  flex: 1 1 100%;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem 1rem;
+  font-size: 0.8rem;
+  color: var(--texto-suave);
+}
+.liquidar-resumen strong {
+  display: inline-block;
+  margin-left: 0.25rem;
 }
 .alta label {
   display: grid;

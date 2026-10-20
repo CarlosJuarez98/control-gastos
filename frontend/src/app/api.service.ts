@@ -115,6 +115,20 @@ export class ApiService {
     return this.http.delete<void>(`${this.base}/cuentas/${cuentaId}/movimientos/${movimientoId}`);
   }
 
+  /** Liquidación: abono (sale de disponible) + condonación del resto (no toca disponible). */
+  liquidarCuenta(
+    cuentaId: number,
+    body: { fecha: string; montoPago: number },
+  ): Observable<{
+    cuenta: Cuenta;
+    montoPagado: number;
+    montoCondonado: number;
+    abonoId?: number | null;
+    condonacionId?: number | null;
+  }> {
+    return this.http.post(`${this.base}/cuentas/${cuentaId}/liquidar`, body);
+  }
+
   saldo(): Observable<{
     saldo: SaldoSnapshot;
     denominaciones: Denominacion[];
