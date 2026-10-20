@@ -126,7 +126,13 @@ export class ApiService {
     abonoId?: number | null;
     condonacionId?: number | null;
   }> {
-    return this.http.post(`${this.base}/cuentas/${cuentaId}/liquidar`, body);
+    return this.http.post<{
+      cuenta: Cuenta;
+      montoPagado: number;
+      montoCondonado: number;
+      abonoId?: number | null;
+      condonacionId?: number | null;
+    }>(`${this.base}/cuentas/${cuentaId}/liquidar`, body);
   }
 
   saldo(): Observable<{
