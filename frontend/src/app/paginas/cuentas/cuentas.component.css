@@ -49,6 +49,26 @@
   color: var(--texto-suave);
   line-height: 1.35;
 }
+.alta-mov .hint-corregir {
+  flex: 1 1 100%;
+  margin: 0 0 0.15rem;
+  color: color-mix(in srgb, var(--acento) 70%, var(--texto-suave));
+}
+.btn-corregir-monto {
+  margin-left: 0.35rem;
+  padding: 0.28rem 0.65rem;
+  font-size: 0.78rem;
+  white-space: nowrap;
+}
+.metrica.metrica-accion {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.metrica.metrica-accion .btn-corregir-monto {
+  margin-left: 0;
+  width: 100%;
+}
 .alta label {
   display: grid;
   gap: 0.22rem;
