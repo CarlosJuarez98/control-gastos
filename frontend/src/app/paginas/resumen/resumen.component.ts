@@ -1,10 +1,12 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, inject } from '@angular/core';
 import { CurrencyPipe, DecimalPipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { ApiService } from '../../api.service';
 import { PagosQuincenaService } from '../../pagos-quincena.service';
 import { Resumen } from '../../modelos';
+import { AlertDialogService } from '../../alert-dialog.service';
+import { AlertFeedback } from '../../alert-feedback';
 
 @Component({
   selector: 'app-resumen',
@@ -15,7 +17,14 @@ import { Resumen } from '../../modelos';
 })
 export class ResumenComponent implements OnInit {
   data?: Resumen;
-  error = '';
+  private readonly alerts = inject(AlertDialogService);
+  private readonly _errorFb = new AlertFeedback(this.alerts, 'error');
+  get error(): string {
+    return this._errorFb.valor;
+  }
+  set error(v: string) {
+    this._errorFb.valor = v;
+  }
   cargando = false;
   /** A pagar en la quincena actual (fijos, cuotas, TDC de contado / deudas). */
   pagoEstaQuincena = 0;

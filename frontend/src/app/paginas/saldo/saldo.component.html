@@ -3,18 +3,6 @@
 </section>
 
 <div class="pagina-scroll" [class.con-barra-movil]="esMovil">
-@if (error) { <p class="error">{{ error }}</p> }
-
-@if (exitoVisible) {
-  <div class="toast-ok" role="status">
-    <span class="toast-check">✓</span>
-    <div>
-      <strong>Guardado completado</strong>
-      <p>El corte quedó en el historial. Los campos quedan listos para el siguiente conteo.</p>
-    </div>
-  </div>
-}
-
 <div class="comparacion con-desglose" [class.ok-box]="cuadra && !cargandoEsperado && realComparacion > 0" [class.sin-tengo]="!hayCaptura">
   <article class="bucket">
     <span>Tu dinero</span>

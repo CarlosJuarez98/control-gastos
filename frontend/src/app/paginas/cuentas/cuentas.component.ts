@@ -1,9 +1,11 @@
-import { ChangeDetectorRef, Component, ElementRef, OnDestroy, OnInit } from '@angular/core';
+import { ChangeDetectorRef, Component, ElementRef, OnDestroy, OnInit, inject } from '@angular/core';
 import { CurrencyPipe, NgTemplateOutlet } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { ApiService } from '../../api.service';
 import { ConfirmDialogService } from '../../confirm-dialog.service';
+import { AlertDialogService } from '../../alert-dialog.service';
+import { AlertFeedback } from '../../alert-feedback';
 import { Cuenta, Movimiento } from '../../modelos';
 import { formatDineroInput, formatDineroNumero, parseDinero, soloMontoKey, cursorAlFinalTrasUpdate } from '../../dinero.util';
 import { FechaCortaPipe, fechaHoyLocal } from '../../fecha.util';
@@ -69,7 +71,14 @@ export class CuentasComponent implements OnInit, OnDestroy {
   private readonly tiposMovTdc = ['ABONO', 'INTERES', 'REEMBOLSO'];
   /** Misma referencia estable: un array nuevo en cada CD rearmaba el <select> y trababa la UI. */
   private readonly tiposMovTdcEditCargo = ['CARGO', 'ABONO', 'INTERES', 'REEMBOLSO'];
-  error = '';
+  private readonly alerts = inject(AlertDialogService);
+  private readonly _errorFb = new AlertFeedback(this.alerts, 'error');
+  get error(): string {
+    return this._errorFb.valor;
+  }
+  set error(v: string) {
+    this._errorFb.valor = v;
+  }
   hoy = fechaHoyLocal();
   guardandoTipo = false;
   saldoDisponible: number | null = null;
@@ -816,6 +825,10 @@ export class CuentasComponent implements OnInit, OnDestroy {
       this.error = 'El monto a pagar debe estar entre $0 y el saldo';
       return;
     }
+    if (this.saldoDisponible != null && pago > this.saldoDisponible + 1e-9) {
+      this.error = 'No te alcanza el disponible para liquidar';
+      return;
+    }
     const condona = this.montoCondonacionPreview;
     const ok = await this.confirmDlg.ask(
       condona > 0.005
@@ -846,7 +859,16 @@ export class CuentasComponent implements OnInit, OnDestroy {
   get abonoSuperaDisponible(): boolean {
     if (!this.esPagoConDisponible || this.saldoDisponible == null) return false;
     const monto = parseDinero(this.montoMov);
-    return monto != null && monto > 0 && monto > this.saldoDisponible + 1e-9;
+    if (monto == null || !(monto > 0)) return false;
+    const anterior =
+      this.editMovId != null ? this.movimientos.find((x) => x.id === this.editMovId) : null;
+    return !this.disponibleParaPagoDeuda(monto, anterior);
+  }
+
+  get liquidarSuperaDisponible(): boolean {
+    if (this.saldoDisponible == null) return false;
+    const pago = this.montoLiquidarNum;
+    return pago > 0 && pago > this.saldoDisponible + 1e-9;
   }
 
   get misDeudasPendientes(): Cuenta[] {
@@ -922,7 +944,7 @@ export class CuentasComponent implements OnInit, OnDestroy {
     });
   }
 
-  /** Disponible efectivo para un CARGO, deshaciendo el movimiento en edición si aplica. */
+  /** Disponible efectivo para un CARGO prestamista, deshaciendo el movimiento en edición si aplica. */
   private disponibleParaCargo(monto: number, movAnterior?: Movimiento | null): boolean {
     if (this.saldoDisponible == null) return true;
     let disp = this.saldoDisponible;
@@ -935,8 +957,16 @@ export class CuentasComponent implements OnInit, OnDestroy {
     return disp + 1e-9 >= monto;
   }
 
-  private tieneSaldoDisponible(monto: number): boolean {
-    return this.disponibleParaCargo(monto);
+  /** Abono/reembolso a deuda propia: resta de disponible (al editar, se “devuelve” el abono anterior). */
+  private disponibleParaPagoDeuda(monto: number, movAnterior?: Movimiento | null): boolean {
+    if (this.saldoDisponible == null) return true;
+    let disp = this.saldoDisponible;
+    if (movAnterior) {
+      const t = (movAnterior.tipo || '').toUpperCase();
+      const m = Number(movAnterior.monto) || 0;
+      if (t === 'ABONO' || t === 'REEMBOLSO') disp += m;
+    }
+    return disp + 1e-9 >= monto;
   }
 
   cargarCuentas(): void {
@@ -1099,8 +1129,8 @@ export class CuentasComponent implements OnInit, OnDestroy {
     }
     const saldo = parseDinero(this.saldoNueva);
     if ((this.nueva.tipo || '').toUpperCase() === 'PRESTAMO_OTORGADO' && saldo > 0) {
-      if (!this.tieneSaldoDisponible(saldo)) {
-        this.error = 'Saldo insuficiente';
+      if (this.saldoDisponible != null && saldo > this.saldoDisponible + 1e-9) {
+        this.error = 'No te alcanza el disponible para prestar';
         return;
       }
     }
@@ -1399,9 +1429,13 @@ export class CuentasComponent implements OnInit, OnDestroy {
 
     if (this.seleccionPrestamista && this.mov.tipo === 'CARGO') {
       if (!this.disponibleParaCargo(monto, anterior)) {
-        this.error = 'Saldo insuficiente';
+        this.error = 'No te alcanza el disponible para prestar';
         return;
       }
+    }
+    if (this.esPagoConDisponible && !this.disponibleParaPagoDeuda(monto, anterior)) {
+      this.error = 'No te alcanza el disponible para este abono';
+      return;
     }
 
     const body: Movimiento = {

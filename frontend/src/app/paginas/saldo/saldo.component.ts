@@ -1,8 +1,10 @@
-import { ChangeDetectorRef, Component, OnDestroy, OnInit } from '@angular/core';
+import { ChangeDetectorRef, Component, OnDestroy, OnInit, inject } from '@angular/core';
 import { CurrencyPipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ApiService } from '../../api.service';
 import { ConfirmDialogService } from '../../confirm-dialog.service';
+import { AlertDialogService } from '../../alert-dialog.service';
+import { AlertFeedback } from '../../alert-feedback';
 import { Denominacion, SaldoSnapshot } from '../../modelos';
 import { formatDineroInput, formatDineroNumero, parseDinero, soloMontoKey } from '../../dinero.util';
 import { FechaCortaPipe, formatFechaCorta } from '../../fecha.util';
@@ -38,11 +40,16 @@ export class SaldoComponent implements OnInit, OnDestroy {
   denominaciones: Denominacion[] = [];
   historial: SaldoSnapshot[] = [];
   readonly pagHistorial = new EstadoPaginacion();
-  error = '';
+  private readonly alerts = inject(AlertDialogService);
+  private readonly _errorFb = new AlertFeedback(this.alerts, 'error');
+  get error(): string {
+    return this._errorFb.valor;
+  }
+  set error(v: string) {
+    this._errorFb.valor = v;
+  }
   cargandoEsperado = false;
   guardando = false;
-  exitoVisible = false;
-  private exitoTimer: ReturnType<typeof setTimeout> | null = null;
 
   /** Corte en edición (modal). */
   editando: SaldoSnapshot | null = null;
@@ -144,10 +151,6 @@ export class SaldoComponent implements OnInit, OnDestroy {
     this.persistirBorrador();
     if (this.media && this.onMedia) {
       this.media.removeEventListener('change', this.onMedia);
-    }
-    if (this.exitoTimer) {
-      clearTimeout(this.exitoTimer);
-      this.exitoTimer = null;
     }
   }
 
@@ -434,11 +437,6 @@ export class SaldoComponent implements OnInit, OnDestroy {
     if (this.guardando) return;
 
     this.error = '';
-    this.exitoVisible = false;
-    if (this.exitoTimer) {
-      clearTimeout(this.exitoTimer);
-      this.exitoTimer = null;
-    }
 
     for (const { key } of this.camposDigital) {
       this.alEscribirDinero(key);
@@ -579,12 +577,8 @@ export class SaldoComponent implements OnInit, OnDestroy {
         }
         this.editando = null;
         this.guardandoEdit = false;
-        this.exitoVisible = true;
         this.recalcularEsperado();
-        this.exitoTimer = setTimeout(() => {
-          this.exitoVisible = false;
-          this.exitoTimer = null;
-        }, 3500);
+        this.alerts.ok('Corte actualizado. Quedó en el historial.');
       },
       error: (e) => {
         this.guardandoEdit = false;
@@ -644,12 +638,8 @@ export class SaldoComponent implements OnInit, OnDestroy {
     this.limpiarBorrador();
     this.iniciarFormularioVacio();
     this.guardando = false;
-    this.exitoVisible = true;
     this.recalcularEsperado();
-    this.exitoTimer = setTimeout(() => {
-      this.exitoVisible = false;
-      this.exitoTimer = null;
-    }, 3500);
+    this.alerts.ok('Guardado completado. El corte quedó en el historial.');
   }
 
   private recordarUltimosTotales(corte: SaldoSnapshot): void {

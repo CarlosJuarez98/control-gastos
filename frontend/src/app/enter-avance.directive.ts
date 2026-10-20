@@ -10,7 +10,12 @@ import {
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { fromEvent } from 'rxjs';
 import { fechaHoyLocal } from './fecha.util';
-import { cursorAlFinal, cursorAlFinalTrasUpdate } from './dinero.util';
+import {
+  contarSignificativosMonto,
+  cursorAlFinal,
+  cursorAlFinalTrasUpdate,
+  cursorPreservarTrasUpdate,
+} from './dinero.util';
 import { scrollCampoEnVista } from './scroll-campo.util';
 
 /**
@@ -19,7 +24,7 @@ import { scrollCampoEnVista } from './scroll-campo.util';
  * - En inputs de texto/monto, muestra un botón ✕ para vaciar (PC y móvil).
  * - En fechas: no se vacían; si quedan vacías, al enfocar vuelven a hoy.
  * - Pone enterkeyhint=next|done|go|search para que el teclado móvil muestre la acción correcta.
- * - Montos: cursor siempre al final (editar en medio rompe formato/validación).
+ * - Montos: por defecto caret al final al escribir; flechas/clic permiten editar en medio.
  * - El campo activo se mantiene visible al scrollear / con teclado.
  */
 @Directive({
@@ -28,6 +33,15 @@ import { scrollCampoEnVista } from './scroll-campo.util';
 })
 export class EnterAvanceDirective implements AfterViewInit {
   private readonly host = inject(ElementRef) as ElementRef<HTMLFormElement>;
+  /** Significativos (dígitos/punto/+) donde dejar el caret tras formatear el monto. */
+  private caretSigMonto: number | null = null;
+  /**
+   * false = modo normal (caret al final al teclear).
+   * true = el usuario movió el caret con flechas/clic; se preserva al formatear.
+   */
+  private caretLibreMonto = false;
+  /** Clic en el monto: no forzar caret al final en el focusin siguiente. */
+  private skipCaretFinalPorClic = false;
   private readonly destroyRef = inject(DestroyRef);
   private readonly zone = inject(NgZone);
   private readonly clearBtns = new WeakMap<HTMLInputElement, HTMLButtonElement>();
@@ -108,13 +122,9 @@ export class EnterAvanceDirective implements AfterViewInit {
   onKeydown(ev: KeyboardEvent): void {
     const target = ev.target as HTMLElement | null;
 
-    // Montos: no dejar el caret en medio (rompe formato/validación)
+    // Montos: recordar dónde dejar el caret tras el formateo (flechas libres).
     if (target instanceof HTMLInputElement && this.esCampoMonto(target)) {
-      if (ev.key === 'ArrowLeft' || ev.key === 'ArrowUp' || ev.key === 'Home') {
-        ev.preventDefault();
-        cursorAlFinal(target);
-        return;
-      }
+      this.guardarCaretSigAntesDeEditar(target, ev);
     }
 
     if (ev.key === 'Escape') {
@@ -206,7 +216,7 @@ export class EnterAvanceDirective implements AfterViewInit {
     }, 280);
   }
 
-  /** Montos con formato (comas): editar solo desde el final. */
+  /** Montos con formato (comas / inputmode decimal). */
   private esCampoMonto(el: HTMLElement): boolean {
     if (!(el instanceof HTMLInputElement)) return false;
     if (el.closest('.monto-wrap')) return true;
@@ -223,6 +233,87 @@ export class EnterAvanceDirective implements AfterViewInit {
       name.includes('saldo') ||
       name.includes('deuda')
     );
+  }
+
+  private caretEstaAlFinal(el: HTMLInputElement): boolean {
+    const value = String(el.value ?? '');
+    const start = el.selectionStart ?? value.length;
+    const end = el.selectionEnd ?? start;
+    return start === end && start >= value.length;
+  }
+
+  /**
+   * Antes de teclear/borrar en un monto:
+   * - flechas/Home/End: activan o desactivan modo libre;
+   * - en modo libre, guarda la posición a preservar tras el formateo;
+   * - en modo normal (final), no guarda nada → el input vuelve a poner caret al final.
+   */
+  private guardarCaretSigAntesDeEditar(el: HTMLInputElement, ev: KeyboardEvent): void {
+    if (ev.ctrlKey || ev.metaKey || ev.altKey || ev.isComposing) return;
+    const key = ev.key;
+
+    if (
+      key === 'ArrowLeft' ||
+      key === 'ArrowRight' ||
+      key === 'ArrowUp' ||
+      key === 'ArrowDown' ||
+      key === 'Home' ||
+      key === 'End'
+    ) {
+      this.caretSigMonto = null;
+      // Tras el movimiento nativo del browser, ver si quedó en medio o al final.
+      queueMicrotask(() => {
+        if (key === 'End' || this.caretEstaAlFinal(el)) {
+          this.caretLibreMonto = false;
+        } else {
+          this.caretLibreMonto = true;
+        }
+      });
+      return;
+    }
+
+    if (key === 'Tab' || key === 'Escape' || key === 'Enter') {
+      this.caretSigMonto = null;
+      return;
+    }
+
+    const value = String(el.value ?? '');
+    const start = el.selectionStart ?? value.length;
+    const end = el.selectionEnd ?? start;
+    const before = value.slice(0, start);
+    const escribiendoAlFinal = start === end && start >= value.length;
+
+    // Escribir/borrar desde el final → modo normal.
+    if (escribiendoAlFinal) {
+      this.caretLibreMonto = false;
+      this.caretSigMonto = null;
+      return;
+    }
+
+    // Caret en medio (flechas o clic): modo libre.
+    this.caretLibreMonto = true;
+
+    if (key === 'Backspace') {
+      if (start !== end) {
+        this.caretSigMonto = contarSignificativosMonto(before);
+      } else if (start > 0) {
+        this.caretSigMonto = contarSignificativosMonto(value.slice(0, start - 1));
+      } else {
+        this.caretSigMonto = null;
+      }
+      return;
+    }
+    if (key === 'Delete') {
+      this.caretSigMonto = contarSignificativosMonto(before);
+      return;
+    }
+    if (/^\d$/.test(key) || key === '.' || key === '+' || key === ';') {
+      this.caretSigMonto = contarSignificativosMonto(before + key);
+      return;
+    }
+    if (key.length === 1) {
+      this.caretSigMonto = contarSignificativosMonto(before + key);
+    }
   }
 
   private enviarForm(form: HTMLFormElement): void {
@@ -254,38 +345,26 @@ export class EnterAvanceDirective implements AfterViewInit {
     const t = ev.target;
     if (!(t instanceof HTMLInputElement) && !(t instanceof HTMLTextAreaElement)) return;
     if (t instanceof HTMLInputElement) this.syncClearBtn(t);
-    // Montos: caret al final tras formatear. Texto libre: no interferir (autocompletado móvil).
-    if (this.esCampoMonto(t)) {
-      cursorAlFinalTrasUpdate(t);
-    }
-  }
-
-  @HostListener('keyup', ['$event'])
-  onKeyup(ev: KeyboardEvent): void {
-    const t = ev.target;
-    if (!(t instanceof HTMLInputElement)) return;
     if (!this.esCampoMonto(t)) return;
-    // Tras borrar/escribir, el formateo puede mover el caret: forzar final
-    if (ev.key === 'Backspace' || ev.key === 'Delete' || /^\d$/.test(ev.key) || ev.key === '.' || ev.key === '+' || ev.key === ';') {
-      cursorAlFinalTrasUpdate(t);
-    }
-  }
 
-  @HostListener('click', ['$event'])
-  onClick(ev: MouseEvent): void {
-    const t = ev.target;
-    if (!(t instanceof HTMLInputElement)) return;
-    if (!this.esCampoMonto(t)) return;
+    // Modo libre (flechas/clic): preservar posición tras comas.
+    if (this.caretLibreMonto && this.caretSigMonto != null) {
+      cursorPreservarTrasUpdate(t, this.caretSigMonto);
+      this.caretSigMonto = null;
+      return;
+    }
+    if (this.caretLibreMonto) {
+      const start = t.selectionStart ?? String(t.value ?? '').length;
+      cursorPreservarTrasUpdate(
+        t,
+        contarSignificativosMonto(String(t.value ?? '').slice(0, start)),
+      );
+      return;
+    }
+
+    // Modo normal: caret al final (escribir montos como siempre).
+    this.caretSigMonto = null;
     cursorAlFinalTrasUpdate(t);
-  }
-
-  @HostListener('mouseup', ['$event'])
-  onMouseUp(ev: MouseEvent): void {
-    const t = ev.target;
-    if (!(t instanceof HTMLInputElement)) return;
-    if (!this.esCampoMonto(t)) return;
-    // Evita que el usuario deje el caret en medio del monto
-    cursorAlFinal(t);
   }
 
   @HostListener('change', ['$event'])
@@ -294,6 +373,26 @@ export class EnterAvanceDirective implements AfterViewInit {
     if (t instanceof HTMLInputElement) this.syncClearBtn(t);
     // Campos condicionales (TDC, a meses…): refrescar hints
     queueMicrotask(() => this.syncEnterHints());
+  }
+
+  @HostListener('mousedown', ['$event'])
+  onMouseDown(ev: MouseEvent): void {
+    const t = ev.target;
+    if (!(t instanceof HTMLInputElement)) return;
+    if (!this.esCampoMonto(t)) return;
+    // Clic para colocar el caret (p. ej. borrar un dígito): no saltar al final en focusin.
+    this.skipCaretFinalPorClic = true;
+  }
+
+  @HostListener('mouseup', ['$event'])
+  onMouseUp(ev: MouseEvent): void {
+    const t = ev.target;
+    if (!(t instanceof HTMLInputElement)) return;
+    if (!this.esCampoMonto(t)) return;
+    // Tras el clic: si quedó en medio → libre; si al final → modo normal.
+    queueMicrotask(() => {
+      this.caretLibreMonto = !this.caretEstaAlFinal(t);
+    });
   }
 
   @HostListener('focusin', ['$event'])
@@ -320,11 +419,27 @@ export class EnterAvanceDirective implements AfterViewInit {
       return;
     }
 
-    // Solo montos: caret al final. Motivo/concepto: dejar sugerencias del teclado.
+    // Montos: al tabular/entrar → caret al final; si fue clic → respetar posición.
     if (this.esCampoMonto(t)) {
-      cursorAlFinalTrasUpdate(t);
+      if (this.skipCaretFinalPorClic) {
+        this.skipCaretFinalPorClic = false;
+        this.caretLibreMonto = true;
+      } else {
+        this.caretLibreMonto = false;
+        cursorAlFinalTrasUpdate(t);
+      }
     }
     if (this.esClearable(t)) this.syncClearBtn(t);
+  }
+
+  @HostListener('focusout', ['$event'])
+  onFocusOut(ev: FocusEvent): void {
+    const t = ev.target;
+    if (!(t instanceof HTMLInputElement)) return;
+    if (!this.esCampoMonto(t)) return;
+    this.caretLibreMonto = false;
+    this.caretSigMonto = null;
+    this.skipCaretFinalPorClic = false;
   }
 
   /**

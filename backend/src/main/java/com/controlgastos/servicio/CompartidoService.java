@@ -134,6 +134,18 @@ public class CompartidoService {
     public void desactivarPersona(Long id) {
         String u = Sesion.usuario();
         PersonaCompartida persona = obtenerPersona(id);
+        List<MovimientoPersonaCompartida> movs = movimientoRepository.findActivosByPropietario(u);
+        List<GastoCompartido> gastos = gastoCompartidoRepository.findActivosByPropietario(u);
+        PersonaResumen saldo = armarResumenPersona(persona, movs, gastos);
+        BigDecimal debe = saldo.debe() == null ? BigDecimal.ZERO : saldo.debe();
+        BigDecimal aFavor = saldo.aFavor() == null ? BigDecimal.ZERO : saldo.aFavor();
+        BigDecimal guardado = saldo.efectivoGuardado() == null ? BigDecimal.ZERO : saldo.efectivoGuardado();
+        if (debe.compareTo(BigDecimal.ZERO) != 0
+                || aFavor.compareTo(BigDecimal.ZERO) != 0
+                || guardado.compareTo(BigDecimal.ZERO) != 0) {
+            throw new IllegalArgumentException(
+                    "Solo puedes quitar a la persona si no te debe, no tiene saldo a favor y su guardado está en $0");
+        }
         persona.setActiva(false);
         personaRepository.save(persona);
 

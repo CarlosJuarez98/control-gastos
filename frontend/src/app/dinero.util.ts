@@ -119,17 +119,37 @@ export function formatDineroNumero(n: number, decimales = 2): string {
 export function soloMontoKey(ev: KeyboardEvent): void {
   const ok = [
     'Backspace', 'Delete', 'Tab', 'Enter', 'Escape',
-    'ArrowLeft', 'ArrowRight', 'Home', 'End', '.',
+    'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End', '.',
     '+', ';',
   ];
   if (ok.includes(ev.key) || ev.ctrlKey || ev.metaKey) return;
   if (!/^\d$/.test(ev.key)) ev.preventDefault();
 }
 
-/**
- * Cursor al final del valor (montos formateados con comas).
- * Editar en medio rompe el formato y la validación.
- */
+/** Dígitos, punto y separadores de suma (ignora comas de miles). */
+export function contarSignificativosMonto(texto: string): number {
+  let n = 0;
+  for (const ch of texto) {
+    if (/\d/.test(ch) || ch === '.' || ch === '+' || ch === ';') n++;
+  }
+  return n;
+}
+
+/** Posición de caret tras N significativos (comas no cuentan). */
+export function posicionDesdeSignificativosMonto(texto: string, count: number): number {
+  if (count <= 0) return 0;
+  let n = 0;
+  for (let i = 0; i < texto.length; i++) {
+    const ch = texto[i];
+    if (/\d/.test(ch) || ch === '.' || ch === '+' || ch === ';') {
+      n++;
+      if (n >= count) return i + 1;
+    }
+  }
+  return texto.length;
+}
+
+/** Cursor al final del valor (p. ej. al enfocar o avanzar con Enter). */
 export function cursorAlFinal(
   el: HTMLInputElement | HTMLTextAreaElement | null | undefined,
 ): void {
@@ -153,4 +173,28 @@ export function cursorAlFinalTrasUpdate(
   requestAnimationFrame(() => cursorAlFinal(el));
   setTimeout(() => cursorAlFinal(el), 0);
   setTimeout(() => cursorAlFinal(el), 40);
+}
+
+/**
+ * Tras reformatear el monto (comas), deja el caret en el mismo “lugar”
+ * contado por dígitos/punto, para poder borrar un dígito con flechas.
+ */
+export function cursorPreservarTrasUpdate(
+  el: HTMLInputElement | HTMLTextAreaElement | null | undefined,
+  significativos: number,
+): void {
+  if (!el) return;
+  const aplicar = (): void => {
+    const pos = posicionDesdeSignificativosMonto(String(el.value ?? ''), significativos);
+    try {
+      el.setSelectionRange(pos, pos);
+    } catch {
+      /* date/number nativos pueden no soportar selection */
+    }
+  };
+  aplicar();
+  queueMicrotask(aplicar);
+  requestAnimationFrame(aplicar);
+  setTimeout(aplicar, 0);
+  setTimeout(aplicar, 40);
 }

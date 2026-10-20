@@ -1,10 +1,12 @@
-import { ChangeDetectorRef, Component, OnDestroy, OnInit } from '@angular/core';
+import { ChangeDetectorRef, Component, OnDestroy, OnInit, inject } from '@angular/core';
 import { CurrencyPipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { ApiService } from '../../api.service';
 import { AuthService } from '../../auth.service';
 import { ConfirmDialogService } from '../../confirm-dialog.service';
+import { AlertDialogService } from '../../alert-dialog.service';
+import { AlertFeedback } from '../../alert-feedback';
 import { Cuenta, Gasto, GastoMensual } from '../../modelos';
 import { formatDineroInput, parseDinero, soloMontoKey } from '../../dinero.util';
 import { EnterAvanceDirective } from '../../enter-avance.directive';
@@ -58,8 +60,21 @@ export class MensualesComponent implements OnInit, OnDestroy {
     diaPago: string;
   } = { motivo: '', monto: '', aMeses: false, falta: '', diaPago: '' };
   editandoId: number | null = null;
-  error = '';
-  ok = '';
+  private readonly alerts = inject(AlertDialogService);
+  private readonly _errorFb = new AlertFeedback(this.alerts, 'error');
+  private readonly _okFb = new AlertFeedback(this.alerts, 'ok');
+  get error(): string {
+    return this._errorFb.valor;
+  }
+  set error(v: string) {
+    this._errorFb.valor = v;
+  }
+  get ok(): string {
+    return this._okFb.valor;
+  }
+  set ok(v: string) {
+    this._okFb.valor = v;
+  }
   guardando = false;
   /** Flag de formulario listo (se actualiza al teclear). */
   formOk = false;

@@ -13,6 +13,9 @@ import { FormsModule } from '@angular/forms';
 import { NavigationEnd, RouterLink, RouterLinkActive, RouterOutlet, Router } from '@angular/router';
 import { ConfirmDialogComponent } from './confirm-dialog.component';
 import { LoadingDialogComponent } from './loading-dialog.component';
+import { AlertDialogComponent } from './alert-dialog.component';
+import { AlertDialogService } from './alert-dialog.service';
+import { AlertFeedback } from './alert-feedback';
 import { AuthService } from './auth.service';
 import { OfflineService } from './offline/offline.service';
 import { AvisosCobroService } from './avisos-cobro.service';
@@ -39,6 +42,7 @@ type NavLink = {
     RouterLinkActive,
     ConfirmDialogComponent,
     LoadingDialogComponent,
+    AlertDialogComponent,
     FormsModule,
     EnterAvanceDirective,
   ],
@@ -52,6 +56,9 @@ export class AppComponent implements AfterViewInit, AfterViewChecked, OnDestroy 
   private readonly router = inject(Router);
   private readonly zone = inject(NgZone);
   readonly appUpdate = inject(AppUpdateService);
+  private readonly alerts = inject(AlertDialogService);
+  private readonly _perfilError = new AlertFeedback(this.alerts, 'error');
+  private readonly _perfilOk = new AlertFeedback(this.alerts, 'ok');
 
   @ViewChild('navDock') private navDock?: ElementRef<HTMLElement>;
   @ViewChild('dockMeasure') private dockMeasure?: ElementRef<HTMLElement>;
@@ -60,8 +67,18 @@ export class AppComponent implements AfterViewInit, AfterViewChecked, OnDestroy 
   perfilUsuario = '';
   perfilPassword = '';
   perfilPasswordActual = '';
-  perfilError = '';
-  perfilOk = '';
+  get perfilError(): string {
+    return this._perfilError.valor;
+  }
+  set perfilError(v: string) {
+    this._perfilError.valor = v;
+  }
+  get perfilOk(): string {
+    return this._perfilOk.valor;
+  }
+  set perfilOk(v: string) {
+    this._perfilOk.valor = v;
+  }
   perfilCargando = false;
   menuNavAbierto = false;
 

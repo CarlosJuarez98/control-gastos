@@ -10,9 +10,6 @@
   }
 </nav>
 
-@if (error) { <p class="error">{{ error }}</p> }
-@if (ok) { <p class="ok">{{ ok }}</p> }
-
 @if (tab === 'resumen') {
   <div class="totales">
     <div>
@@ -537,19 +534,25 @@
         [(ngModel)]="gastoForm.monto"
         name="gMonto"
         inputmode="decimal"
+        (ngModelChange)="onMontoGastoLive($event)"
         (blur)="onMontoGasto()"
         required
         placeholder="399"
       />
     </label>
     <label>Fecha
-      <input type="date" [(ngModel)]="gastoForm.fecha" name="gFecha" />
+      <input
+        type="date"
+        [(ngModel)]="gastoForm.fecha"
+        name="gFecha"
+        (ngModelChange)="refrescarRecsGasto(true)"
+      />
     </label>
 
     <div class="chip-row span-all">
       <span class="chip-lbl">Pago</span>
-      <button type="button" class="chip-btn" [class.on]="gastoForm.formaPago === 'EFECTIVO'" (click)="gastoForm.formaPago = 'EFECTIVO'">Efectivo</button>
-      <button type="button" class="chip-btn" [class.on]="gastoForm.formaPago === 'TARJETA'" (click)="gastoForm.formaPago = 'TARJETA'">Tarjeta</button>
+      <button type="button" class="chip-btn" [class.on]="gastoForm.formaPago === 'EFECTIVO'" (click)="setGastoFormaPago('EFECTIVO')">Efectivo</button>
+      <button type="button" class="chip-btn" [class.on]="gastoForm.formaPago === 'TARJETA'" (click)="setGastoFormaPago('TARJETA')">Tarjeta</button>
       @if (gastoForm.formaPago === 'TARJETA') {
         <button type="button" class="chip-btn" [class.on]="gastoForm.aMeses" (click)="gastoForm.aMeses = !gastoForm.aMeses">A meses</button>
       }
@@ -573,18 +576,51 @@
     </p>
 
     @if (gastoForm.formaPago === 'TARJETA') {
-      <label class="span2">TDC
-        <select [(ngModel)]="gastoForm.cuentaId" name="gTdc">
-          @for (c of cuentasTdc; track c.id) {
-            <option [ngValue]="c.id">{{ etiquetaTdc(c) }}</option>
-          }
-        </select>
-      </label>
-      @if (gastoForm.aMeses) {
-        <label>Meses
-          <input [(ngModel)]="gastoForm.meses" name="gMeses" inputmode="numeric" placeholder="3" />
-        </label>
-      }
+      <div class="bloque-tarjeta span-all">
+        <span class="etiqueta-tdc">TDC</span>
+        @if (recomendacionesGastoTdc.length) {
+          <div class="hint-tdc-recs" role="list" aria-label="Tarjetas por conveniencia">
+            @for (rec of recomendacionesGastoTdc; track rec.cuenta.id; let i = $index) {
+              <button
+                type="button"
+                class="rec-card"
+                role="listitem"
+                [class.elegida]="gastoForm.cuentaId === rec.cuenta.id"
+                [class.sin-credito]="!rec.cubreMonto"
+                (click)="usarTdcGasto(rec.cuenta.id)"
+              >
+                <span class="rec-rank">{{ i + 1 }}ª</span>
+                <span class="rec-nombre">{{ rec.cuenta.nombre }}</span>
+                <span class="rec-meta">
+                  @if (rec.diasHastaPago >= 0) {
+                    {{ rec.etiquetaPagoCorta }} · {{ rec.diasHastaPago }}d
+                  } @else {
+                    Sin corte
+                  }
+                  @if (!rec.cubreMonto) {
+                    · no cubre
+                  }
+                </span>
+                @if (rec.creditoDisponible != null) {
+                  <span class="rec-libre">{{ rec.creditoDisponible | currency:'MXN':'symbol-narrow':'1.0-0' }}</span>
+                }
+                @if (gastoForm.cuentaId === rec.cuenta.id) {
+                  <span class="rec-ok" aria-label="Elegida">✓</span>
+                }
+              </button>
+            }
+          </div>
+        } @else if (sinTdcGastoParaMonto) {
+          <p class="hint-tdc-rec hint-tdc-aviso">Ninguna TDC con crédito libre para este monto</p>
+        } @else if (!cuentasTdc.length) {
+          <p class="hint-tdc-rec hint-tdc-aviso">No hay TDC activas; en Deudas usa «Volver a usar» si las bloqueaste</p>
+        }
+        @if (gastoForm.aMeses) {
+          <label class="campo-meses">Meses
+            <input [(ngModel)]="gastoForm.meses" name="gMeses" inputmode="numeric" placeholder="3" />
+          </label>
+        }
+      </div>
     }
 
     <fieldset class="participantes span-all">
@@ -717,29 +753,67 @@
               <form id="form-editar-pago" class="panel-inline" enterAvance (ngSubmit)="guardarPagoEditado(g)">
                 <p class="hint-pago span-all">Corrige si cobraste con efectivo y era tarjeta (o al revés). Actualiza el gasto real.</p>
                 <label>Fecha
-                  <input type="date" [(ngModel)]="pagoEditForm.fecha" name="epFecha" />
+                  <input
+                    type="date"
+                    [(ngModel)]="pagoEditForm.fecha"
+                    name="epFecha"
+                    (ngModelChange)="onFechaPagoEditChange(g.montoTotal)"
+                  />
                 </label>
                 <div class="chip-row span-all">
                   <span class="chip-lbl">Pago</span>
-                  <button type="button" class="chip-btn" [class.on]="pagoEditForm.formaPago === 'EFECTIVO'" (click)="pagoEditForm.formaPago = 'EFECTIVO'">Efectivo</button>
-                  <button type="button" class="chip-btn" [class.on]="pagoEditForm.formaPago === 'TARJETA'" (click)="pagoEditForm.formaPago = 'TARJETA'">Tarjeta</button>
+                  <button type="button" class="chip-btn" [class.on]="pagoEditForm.formaPago === 'EFECTIVO'" (click)="setPagoEditFormaPago('EFECTIVO', g.montoTotal)">Efectivo</button>
+                  <button type="button" class="chip-btn" [class.on]="pagoEditForm.formaPago === 'TARJETA'" (click)="setPagoEditFormaPago('TARJETA', g.montoTotal)">Tarjeta</button>
                   @if (pagoEditForm.formaPago === 'TARJETA') {
                     <button type="button" class="chip-btn" [class.on]="pagoEditForm.aMeses" (click)="pagoEditForm.aMeses = !pagoEditForm.aMeses">A meses</button>
                   }
                 </div>
                 @if (pagoEditForm.formaPago === 'TARJETA') {
-                  <label class="span-all">TDC
-                    <select [(ngModel)]="pagoEditForm.cuentaId" name="epTdc">
-                      @for (c of cuentasTdc; track c.id) {
-                        <option [ngValue]="c.id">{{ etiquetaTdc(c) }}</option>
-                      }
-                    </select>
-                  </label>
-                  @if (pagoEditForm.aMeses) {
-                    <label>Meses
-                      <input [(ngModel)]="pagoEditForm.meses" name="epMeses" inputmode="numeric" placeholder="3" />
-                    </label>
-                  }
+                  <div class="bloque-tarjeta span-all">
+                    <span class="etiqueta-tdc">TDC</span>
+                    @if (recomendacionesPagoEditTdc.length) {
+                      <div class="hint-tdc-recs" role="list" aria-label="Tarjetas por conveniencia">
+                        @for (rec of recomendacionesPagoEditTdc; track rec.cuenta.id; let i = $index) {
+                          <button
+                            type="button"
+                            class="rec-card"
+                            role="listitem"
+                            [class.elegida]="pagoEditForm.cuentaId === rec.cuenta.id"
+                            [class.sin-credito]="!rec.cubreMonto"
+                            (click)="usarTdcPagoEdit(rec.cuenta.id)"
+                          >
+                            <span class="rec-rank">{{ i + 1 }}ª</span>
+                            <span class="rec-nombre">{{ rec.cuenta.nombre }}</span>
+                            <span class="rec-meta">
+                              @if (rec.diasHastaPago >= 0) {
+                                {{ rec.etiquetaPagoCorta }} · {{ rec.diasHastaPago }}d
+                              } @else {
+                                Sin corte
+                              }
+                              @if (!rec.cubreMonto) {
+                                · no cubre
+                              }
+                            </span>
+                            @if (rec.creditoDisponible != null) {
+                              <span class="rec-libre">{{ rec.creditoDisponible | currency:'MXN':'symbol-narrow':'1.0-0' }}</span>
+                            }
+                            @if (pagoEditForm.cuentaId === rec.cuenta.id) {
+                              <span class="rec-ok" aria-label="Elegida">✓</span>
+                            }
+                          </button>
+                        }
+                      </div>
+                    } @else if (sinTdcPagoEditParaMonto) {
+                      <p class="hint-tdc-rec hint-tdc-aviso">Ninguna TDC con crédito libre para este monto</p>
+                    } @else if (!cuentasTdc.length) {
+                      <p class="hint-tdc-rec hint-tdc-aviso">No hay TDC activas; en Deudas usa «Volver a usar» si las bloqueaste</p>
+                    }
+                    @if (pagoEditForm.aMeses) {
+                      <label class="campo-meses">Meses
+                        <input [(ngModel)]="pagoEditForm.meses" name="epMeses" inputmode="numeric" placeholder="3" />
+                      </label>
+                    }
+                  </div>
                 }
                 <div class="acciones span-all">
                   <button type="submit" class="primario" [disabled]="pagoEditForm.formaPago === 'TARJETA' && !pagoEditForm.cuentaId">Guardar pago</button>
@@ -1029,29 +1103,67 @@
                   />
                 </label>
                 <label>Fecha de cobro
-                  <input type="date" [(ngModel)]="cobroForm.fecha" name="cFecha" />
+                  <input
+                    type="date"
+                    [(ngModel)]="cobroForm.fecha"
+                    name="cFecha"
+                    (ngModelChange)="onFechaCobroChange(s)"
+                  />
                 </label>
                 <div class="chip-row span-all">
                   <span class="chip-lbl">Pago</span>
-                  <button type="button" class="chip-btn" [class.on]="cobroForm.formaPago === 'EFECTIVO'" (click)="cobroForm.formaPago = 'EFECTIVO'">Efectivo</button>
-                  <button type="button" class="chip-btn" [class.on]="cobroForm.formaPago === 'TARJETA'" (click)="cobroForm.formaPago = 'TARJETA'">Tarjeta</button>
+                  <button type="button" class="chip-btn" [class.on]="cobroForm.formaPago === 'EFECTIVO'" (click)="setCobroFormaPago('EFECTIVO', s.monto)">Efectivo</button>
+                  <button type="button" class="chip-btn" [class.on]="cobroForm.formaPago === 'TARJETA'" (click)="setCobroFormaPago('TARJETA', s.monto)">Tarjeta</button>
                   @if (cobroForm.formaPago === 'TARJETA') {
                     <button type="button" class="chip-btn" [class.on]="cobroForm.aMeses" (click)="cobroForm.aMeses = !cobroForm.aMeses">A meses</button>
                   }
                 </div>
                 @if (cobroForm.formaPago === 'TARJETA') {
-                  <label class="span-all">TDC
-                    <select [(ngModel)]="cobroForm.cuentaId" name="cTdc">
-                      @for (c of cuentasTdc; track c.id) {
-                        <option [ngValue]="c.id">{{ etiquetaTdc(c) }}</option>
-                      }
-                    </select>
-                  </label>
-                  @if (cobroForm.aMeses) {
-                    <label>Meses
-                      <input [(ngModel)]="cobroForm.meses" name="cMeses" inputmode="numeric" placeholder="3" />
-                    </label>
-                  }
+                  <div class="bloque-tarjeta span-all">
+                    <span class="etiqueta-tdc">TDC</span>
+                    @if (recomendacionesCobroTdc.length) {
+                      <div class="hint-tdc-recs" role="list" aria-label="Tarjetas por conveniencia">
+                        @for (rec of recomendacionesCobroTdc; track rec.cuenta.id; let i = $index) {
+                          <button
+                            type="button"
+                            class="rec-card"
+                            role="listitem"
+                            [class.elegida]="cobroForm.cuentaId === rec.cuenta.id"
+                            [class.sin-credito]="!rec.cubreMonto"
+                            (click)="usarTdcCobro(rec.cuenta.id)"
+                          >
+                            <span class="rec-rank">{{ i + 1 }}ª</span>
+                            <span class="rec-nombre">{{ rec.cuenta.nombre }}</span>
+                            <span class="rec-meta">
+                              @if (rec.diasHastaPago >= 0) {
+                                {{ rec.etiquetaPagoCorta }} · {{ rec.diasHastaPago }}d
+                              } @else {
+                                Sin corte
+                              }
+                              @if (!rec.cubreMonto) {
+                                · no cubre
+                              }
+                            </span>
+                            @if (rec.creditoDisponible != null) {
+                              <span class="rec-libre">{{ rec.creditoDisponible | currency:'MXN':'symbol-narrow':'1.0-0' }}</span>
+                            }
+                            @if (cobroForm.cuentaId === rec.cuenta.id) {
+                              <span class="rec-ok" aria-label="Elegida">✓</span>
+                            }
+                          </button>
+                        }
+                      </div>
+                    } @else if (sinTdcCobroParaMonto) {
+                      <p class="hint-tdc-rec hint-tdc-aviso">Ninguna TDC con crédito libre para este monto</p>
+                    } @else if (!cuentasTdc.length) {
+                      <p class="hint-tdc-rec hint-tdc-aviso">No hay TDC activas; en Deudas usa «Volver a usar» si las bloqueaste</p>
+                    }
+                    @if (cobroForm.aMeses) {
+                      <label class="campo-meses">Meses
+                        <input [(ngModel)]="cobroForm.meses" name="cMeses" inputmode="numeric" placeholder="3" />
+                      </label>
+                    }
+                  </div>
                 }
                 <p
                   class="hint-pago span-all"
@@ -1087,29 +1199,67 @@
                     (efectivo ↔ tarjeta). Actualiza el gasto real.
                   </p>
                   <label>Fecha
-                    <input type="date" [(ngModel)]="pagoEditForm.fecha" name="fpFecha" />
+                    <input
+                      type="date"
+                      [(ngModel)]="pagoEditForm.fecha"
+                      name="fpFecha"
+                      (ngModelChange)="onFechaPagoEditChange(uc.montoTotal)"
+                    />
                   </label>
                   <div class="chip-row span-all">
                     <span class="chip-lbl">Pago</span>
-                    <button type="button" class="chip-btn" [class.on]="pagoEditForm.formaPago === 'EFECTIVO'" (click)="pagoEditForm.formaPago = 'EFECTIVO'">Efectivo</button>
-                    <button type="button" class="chip-btn" [class.on]="pagoEditForm.formaPago === 'TARJETA'" (click)="pagoEditForm.formaPago = 'TARJETA'">Tarjeta</button>
+                    <button type="button" class="chip-btn" [class.on]="pagoEditForm.formaPago === 'EFECTIVO'" (click)="setPagoEditFormaPago('EFECTIVO', uc.montoTotal)">Efectivo</button>
+                    <button type="button" class="chip-btn" [class.on]="pagoEditForm.formaPago === 'TARJETA'" (click)="setPagoEditFormaPago('TARJETA', uc.montoTotal)">Tarjeta</button>
                     @if (pagoEditForm.formaPago === 'TARJETA') {
                       <button type="button" class="chip-btn" [class.on]="pagoEditForm.aMeses" (click)="pagoEditForm.aMeses = !pagoEditForm.aMeses">A meses</button>
                     }
                   </div>
                   @if (pagoEditForm.formaPago === 'TARJETA') {
-                    <label class="span-all">TDC
-                      <select [(ngModel)]="pagoEditForm.cuentaId" name="fpTdc">
-                        @for (c of cuentasTdc; track c.id) {
-                          <option [ngValue]="c.id">{{ etiquetaTdc(c) }}</option>
-                        }
-                      </select>
-                    </label>
-                    @if (pagoEditForm.aMeses) {
-                      <label>Meses
-                        <input [(ngModel)]="pagoEditForm.meses" name="fpMeses" inputmode="numeric" placeholder="3" />
-                      </label>
-                    }
+                    <div class="bloque-tarjeta span-all">
+                      <span class="etiqueta-tdc">TDC</span>
+                      @if (recomendacionesPagoEditTdc.length) {
+                        <div class="hint-tdc-recs" role="list" aria-label="Tarjetas por conveniencia">
+                          @for (rec of recomendacionesPagoEditTdc; track rec.cuenta.id; let i = $index) {
+                            <button
+                              type="button"
+                              class="rec-card"
+                              role="listitem"
+                              [class.elegida]="pagoEditForm.cuentaId === rec.cuenta.id"
+                              [class.sin-credito]="!rec.cubreMonto"
+                              (click)="usarTdcPagoEdit(rec.cuenta.id)"
+                            >
+                              <span class="rec-rank">{{ i + 1 }}ª</span>
+                              <span class="rec-nombre">{{ rec.cuenta.nombre }}</span>
+                              <span class="rec-meta">
+                                @if (rec.diasHastaPago >= 0) {
+                                  {{ rec.etiquetaPagoCorta }} · {{ rec.diasHastaPago }}d
+                                } @else {
+                                  Sin corte
+                                }
+                                @if (!rec.cubreMonto) {
+                                  · no cubre
+                                }
+                              </span>
+                              @if (rec.creditoDisponible != null) {
+                                <span class="rec-libre">{{ rec.creditoDisponible | currency:'MXN':'symbol-narrow':'1.0-0' }}</span>
+                              }
+                              @if (pagoEditForm.cuentaId === rec.cuenta.id) {
+                                <span class="rec-ok" aria-label="Elegida">✓</span>
+                              }
+                            </button>
+                          }
+                        </div>
+                      } @else if (sinTdcPagoEditParaMonto) {
+                        <p class="hint-tdc-rec hint-tdc-aviso">Ninguna TDC con crédito libre para este monto</p>
+                      } @else if (!cuentasTdc.length) {
+                        <p class="hint-tdc-rec hint-tdc-aviso">No hay TDC activas; en Deudas usa «Volver a usar» si las bloqueaste</p>
+                      }
+                      @if (pagoEditForm.aMeses) {
+                        <label class="campo-meses">Meses
+                          <input [(ngModel)]="pagoEditForm.meses" name="fpMeses" inputmode="numeric" placeholder="3" />
+                        </label>
+                      }
+                    </div>
                   }
                   <div class="acciones span-all">
                     <button type="submit" class="primario" [disabled]="pagoEditForm.formaPago === 'TARJETA' && !pagoEditForm.cuentaId">Guardar pago</button>
@@ -1155,59 +1305,63 @@
     </form>
   }
 
-  <div class="toolbar">
-    <button type="button" class="btn-mini secundario" (click)="toggleInactivas()">
-      {{ mostrarInactivas ? 'Ocultar inactivas' : 'Ver inactivas' }}
-    </button>
-    <span class="count">{{ personas.length }}</span>
-  </div>
-
-  <div class="lista-scroll">
-    @if (personas.length === 0) {
-      <p class="vacio">Aún no hay personas.</p>
-    } @else {
-      <ul class="lista">
-        @for (p of personas; track p.id) {
-          <li class="fila" [class.inactiva]="!p.activa">
-            @if (editId === p.id) {
-              <form class="edit-row" enterAvance (ngSubmit)="guardarEdit(p)">
-                <input [(ngModel)]="editNombre" name="editNombre" required maxlength="120" autocomplete="off" />
-                <button
-                  type="submit"
-                  class="icono"
-                  title="Guardar"
-                  aria-label="Guardar"
-                  [disabled]="!puedeGuardarEdit"
-                >
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M6 12.5l4 4 8-9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                  </svg>
-                </button>
-                <button
-                  type="button"
-                  class="icono"
-                  title="Cancelar"
-                  aria-label="Cancelar"
-                  (click)="cancelarEdit()"
-                >
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                  </svg>
-                </button>
-              </form>
-            } @else {
-              <div class="fila-top">
-                <div class="info">
-                  <strong>{{ p.nombre }}</strong>
-                  <div class="chips">
-                    @if (!p.activa) { <span class="chip neutro">Inactiva</span> }
-                    @if ((p.efectivoGuardado || 0) > 0) {
-                      <span class="chip guardado">Guardado {{ p.efectivoGuardado | currency:'MXN':'symbol-narrow':moneyDigits }}</span>
-                    }
+  <div class="lista-scroll personas-listas">
+    <section class="bloque-personas">
+      <div class="toolbar">
+        <h3 class="lista-titulo">Activas</h3>
+        <span class="count">{{ personasActivas.length }}</span>
+      </div>
+      @if (personasActivas.length === 0) {
+        <p class="vacio">Aún no hay personas activas.</p>
+      } @else {
+        <ul class="lista">
+          @for (p of personasActivas; track p.id) {
+            <li class="fila">
+              @if (editId === p.id) {
+                <form class="edit-row" enterAvance (ngSubmit)="guardarEdit(p)">
+                  <input [(ngModel)]="editNombre" name="editNombre" required maxlength="120" autocomplete="off" />
+                  <button
+                    type="submit"
+                    class="icono"
+                    title="Guardar"
+                    aria-label="Guardar"
+                    [disabled]="!puedeGuardarEdit"
+                  >
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M6 12.5l4 4 8-9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                  </button>
+                  <button
+                    type="button"
+                    class="icono"
+                    title="Cancelar"
+                    aria-label="Cancelar"
+                    (click)="cancelarEdit()"
+                  >
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                  </button>
+                </form>
+              } @else {
+                <div class="fila-top">
+                  <div class="info">
+                    <strong>{{ p.nombre }}</strong>
+                    <div class="chips">
+                      @if (resumenPersona(p); as rp) {
+                        @if ((rp.debe || 0) > 0.005) {
+                          <span class="chip debe">Debe {{ rp.debe | currency:'MXN':'symbol-narrow':moneyDigits }}</span>
+                        }
+                        @if ((rp.aFavor || 0) > 0.005) {
+                          <span class="chip favor">A favor {{ rp.aFavor | currency:'MXN':'symbol-narrow':moneyDigits }}</span>
+                        }
+                      }
+                      @if ((p.efectivoGuardado || 0) > 0.005) {
+                        <span class="chip guardado">Guardado {{ p.efectivoGuardado | currency:'MXN':'symbol-narrow':moneyDigits }}</span>
+                      }
+                    </div>
                   </div>
-                </div>
-                <div class="acciones">
-                  @if (p.activa) {
+                  <div class="acciones">
                     <button
                       type="button"
                       class="icono"
@@ -1236,35 +1390,65 @@
                     <button
                       type="button"
                       class="icono peligro"
-                      title="Quitar"
-                      aria-label="Quitar"
+                      [disabled]="!puedeQuitarPersona(p)"
+                      [title]="puedeQuitarPersona(p) ? 'Quitar' : motivoNoQuitarPersona(p)"
+                      [attr.aria-label]="puedeQuitarPersona(p) ? 'Quitar' : motivoNoQuitarPersona(p)"
                       (click)="desactivar(p)"
                     >
                       <svg viewBox="0 0 24 24" aria-hidden="true">
                         <path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
                       </svg>
                     </button>
-                  } @else {
-                    <button
-                      type="button"
-                      class="icono"
-                      title="Reactivar"
-                      aria-label="Reactivar"
-                      (click)="reactivar(p)"
-                    >
-                      <svg viewBox="0 0 24 24" aria-hidden="true">
-                        <path d="M19.5 12a7.5 7.5 0 1 1-2.2-5.3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
-                        <path d="M19.5 5.5v4.2h-4.2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-                      </svg>
-                    </button>
-                  }
+                  </div>
+                </div>
+              }
+            </li>
+          }
+        </ul>
+      }
+    </section>
+
+    <section class="bloque-personas bloque-inactivas">
+      <div class="toolbar">
+        <h3 class="lista-titulo">Inactivas</h3>
+        <span class="count">{{ personasInactivas.length }}</span>
+      </div>
+      @if (personasInactivas.length === 0) {
+        <p class="vacio suave">Nadie inactivo.</p>
+      } @else {
+        <ul class="lista">
+          @for (p of personasInactivas; track p.id) {
+            <li class="fila inactiva">
+              <div class="fila-top">
+                <div class="info">
+                  <strong>{{ p.nombre }}</strong>
+                  <div class="chips">
+                    <span class="chip neutro">Inactiva</span>
+                    @if ((p.efectivoGuardado || 0) > 0.005) {
+                      <span class="chip guardado">Guardado {{ p.efectivoGuardado | currency:'MXN':'symbol-narrow':moneyDigits }}</span>
+                    }
+                  </div>
+                </div>
+                <div class="acciones">
+                  <button
+                    type="button"
+                    class="icono"
+                    title="Reactivar"
+                    aria-label="Reactivar"
+                    (click)="reactivar(p)"
+                  >
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M19.5 12a7.5 7.5 0 1 1-2.2-5.3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                      <path d="M19.5 5.5v4.2h-4.2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                  </button>
                 </div>
               </div>
-            }
-          </li>
-        }
-      </ul>
-    }
+            </li>
+          }
+        </ul>
+      }
+    </section>
   </div>
 }
 

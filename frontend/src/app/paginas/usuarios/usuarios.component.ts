@@ -4,6 +4,8 @@ import { FormsModule } from '@angular/forms';
 import { ApiService } from '../../api.service';
 import { AuthService } from '../../auth.service';
 import { ConfirmDialogService } from '../../confirm-dialog.service';
+import { AlertDialogService } from '../../alert-dialog.service';
+import { AlertFeedback } from '../../alert-feedback';
 import { UsuarioAcceso } from '../../modelos';
 import { sha256Hex } from '../../password-digest';
 import { firstValueFrom } from 'rxjs';
@@ -22,12 +24,25 @@ export class UsuariosComponent implements OnInit, OnDestroy {
   private readonly api = inject(ApiService);
   private readonly auth = inject(AuthService);
   private readonly confirmDlg = inject(ConfirmDialogService);
+  private readonly alerts = inject(AlertDialogService);
+  private readonly _errorFb = new AlertFeedback(this.alerts, 'error');
+  private readonly _okFb = new AlertFeedback(this.alerts, 'ok');
   private readonly cdr = inject(ChangeDetectorRef);
 
   items: UsuarioAcceso[] = [];
   readonly pagLista = new EstadoPaginacion();
-  error = '';
-  ok = '';
+  get error(): string {
+    return this._errorFb.valor;
+  }
+  set error(v: string) {
+    this._errorFb.valor = v;
+  }
+  get ok(): string {
+    return this._okFb.valor;
+  }
+  set ok(v: string) {
+    this._okFb.valor = v;
+  }
   cargando = false;
   esMovil = false;
   altaAbierta = false;

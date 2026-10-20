@@ -159,8 +159,6 @@
       <button type="button" class="secundario" (click)="cerrarPerfil()">Cerrar</button>
     </div>
     <p class="perfil-hint">Cambia tu nombre de usuario o contraseña.</p>
-    @if (perfilError) { <p class="error">{{ perfilError }}</p> }
-    @if (perfilOk) { <p class="ok">{{ perfilOk }}</p> }
     <form class="perfil-form" enterAvance (ngSubmit)="guardarPerfil()">
       <label>Usuario
         <input [(ngModel)]="perfilUsuario" name="perfilUsuario" required autocomplete="username" />
@@ -198,3 +196,4 @@
 
 <app-confirm-dialog />
 <app-loading-dialog />
+<app-alert-dialog />

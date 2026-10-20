@@ -7,6 +7,8 @@ import { AuthService } from '../../auth.service';
 import { AvisosCobroService } from '../../avisos-cobro.service';
 import { ConfirmDialogService } from '../../confirm-dialog.service';
 import { LoadingDialogService } from '../../loading-dialog.service';
+import { AlertDialogService } from '../../alert-dialog.service';
+import { AlertFeedback } from '../../alert-feedback';
 import {
   Cuenta,
   GastoCompartido,
@@ -20,7 +22,7 @@ import { EnterAvanceDirective } from '../../enter-avance.directive';
 import { formatDineroInput, parseDinero } from '../../dinero.util';
 import { fechaHoyLocal, formatFechaCorta, fechaCobroEnPeriodo, periodoActual, siguientePeriodo } from '../../fecha.util';
 import { repartirPesosPonderado } from '../../compartido/reparto-enteros.util';
-import { creditoDisponibleDe } from '../../tdc-calendario.util';
+import { creditoDisponibleDe, recomendarTdcs, RecomendacionTdc } from '../../tdc-calendario.util';
 
 type Tab = 'resumen' | 'gasto' | 'fijos' | 'personas' | 'historial';
 
@@ -45,6 +47,9 @@ export class CompartidoComponent implements OnInit, OnDestroy {
   private readonly avisosCobro = inject(AvisosCobroService);
   private readonly confirmDlg = inject(ConfirmDialogService);
   private readonly loading = inject(LoadingDialogService);
+  private readonly alerts = inject(AlertDialogService);
+  private readonly _errorFb = new AlertFeedback(this.alerts, 'error');
+  private readonly _okFb = new AlertFeedback(this.alerts, 'ok');
   private readonly cdr = inject(ChangeDetectorRef);
   private readonly host = inject(ElementRef<HTMLElement>);
 
@@ -90,14 +95,32 @@ export class CompartidoComponent implements OnInit, OnDestroy {
   movimientos: MovimientoPersonaCompartida[] = [];
   serviciosFijos: ServicioFijoCompartido[] = [];
   cuentasTdc: Cuenta[] = [];
+  /** TDC ordenadas por conveniencia (pago con tarjeta en «Yo pagué»). */
+  recomendacionesGastoTdc: RecomendacionTdc[] = [];
+  /** TDC ordenadas al cobrar un fijo con tarjeta. */
+  recomendacionesCobroTdc: RecomendacionTdc[] = [];
+  /** TDC al corregir forma de pago de un gasto. */
+  recomendacionesPagoEditTdc: RecomendacionTdc[] = [];
+  private tdcGastoManual = false;
+  private tdcCobroManual = false;
+  private tdcPagoEditManual = false;
   /** Disponible efectivo (Saldo → esperado). */
   saldoDisponible: number | null = null;
 
-  error = '';
-  ok = '';
+  get error(): string {
+    return this._errorFb.valor;
+  }
+  set error(v: string) {
+    this._errorFb.valor = v;
+  }
+  get ok(): string {
+    return this._okFb.valor;
+  }
+  set ok(v: string) {
+    this._okFb.valor = v;
+  }
   esMovil = false;
   altaAbierta = false;
-  mostrarInactivas = false;
 
   nombreNuevo = '';
   editId: number | null = null;
@@ -242,6 +265,11 @@ export class CompartidoComponent implements OnInit, OnDestroy {
     return this.personas.filter((p) => p.activa !== false);
   }
 
+  /** Lista Personas: solo inactivas (sección aparte). */
+  get personasInactivas(): PersonaCompartida[] {
+    return this.personas.filter((p) => p.activa === false);
+  }
+
   get puedeCrearPersona(): boolean {
     return !!(this.nombreNuevo || '').trim();
   }
@@ -375,7 +403,7 @@ export class CompartidoComponent implements OnInit, OnDestroy {
     try {
       await this.loading.run(async () => {
         const [personas, resumen, gastos, movs, fijos, cuentas, saldo] = await Promise.all([
-          firstValueFrom(this.api.personasCompartidas(this.mostrarInactivas)),
+          firstValueFrom(this.api.personasCompartidas(true)),
           firstValueFrom(this.api.resumenCompartido()),
           firstValueFrom(this.api.gastosCompartidos()),
           firstValueFrom(this.api.movimientosCompartidos()),
@@ -388,17 +416,9 @@ export class CompartidoComponent implements OnInit, OnDestroy {
         this.gastos = gastos;
         this.movimientos = movs;
         this.serviciosFijos = fijos;
-        this.cuentasTdc = (cuentas || []).filter(
-          (c) => (c.tipo || '').toUpperCase() === 'TDC' && !c.archivada && !c.bloqueada
-        );
+        this.aplicarCuentasTdc(cuentas || []);
         this.saldoDisponible =
           saldo?.esperado == null || saldo.esperado === undefined ? null : Number(saldo.esperado);
-        if (!this.gastoForm.cuentaId && this.cuentasTdc.length) {
-          this.gastoForm.cuentaId = this.cuentasTdc[0].id ?? null;
-        }
-        if (!this.cobroForm.cuentaId && this.cuentasTdc.length) {
-          this.cobroForm.cuentaId = this.cuentasTdc[0].id ?? null;
-        }
         this.avisarCobrosSiHay();
         this.avisosCobro.aplicarResumen(this.resumen);
       }, 'Cargando compartido…');
@@ -499,6 +519,86 @@ export class CompartidoComponent implements OnInit, OnDestroy {
 
   onMontoGasto(): void {
     this.gastoForm.monto = formatDineroInput(this.gastoForm.monto);
+    this.refrescarRecsGasto(true);
+  }
+
+  onMontoGastoLive(v: string): void {
+    this.gastoForm.monto = formatDineroInput(v);
+    this.refrescarRecsGasto(true);
+  }
+
+  setGastoFormaPago(forma: 'EFECTIVO' | 'TARJETA'): void {
+    this.gastoForm.formaPago = forma;
+    if (forma !== 'TARJETA') {
+      this.gastoForm.aMeses = false;
+      this.gastoForm.meses = '';
+      return;
+    }
+    this.tdcGastoManual = false;
+    this.refrescarRecsGasto(true);
+  }
+
+  usarTdcGasto(id: number | null | undefined): void {
+    if (id == null) return;
+    this.tdcGastoManual = true;
+    this.gastoForm.cuentaId = id;
+  }
+
+  get sinTdcGastoParaMonto(): boolean {
+    if (this.gastoForm.formaPago !== 'TARJETA') return false;
+    const monto = this.redondearEntero(parseDinero(this.gastoForm.monto));
+    if (!(monto > 0) || !this.cuentasTdc.length) return false;
+    return this.recomendacionesGastoTdc.every((r) => !r.cubreMonto);
+  }
+
+  setCobroFormaPago(forma: 'EFECTIVO' | 'TARJETA', montoServicio: number): void {
+    this.cobroForm.formaPago = forma;
+    if (forma !== 'TARJETA') {
+      this.cobroForm.aMeses = false;
+      this.cobroForm.meses = '';
+      return;
+    }
+    this.tdcCobroManual = false;
+    this.refrescarRecsCobro(montoServicio, true);
+  }
+
+  usarTdcCobro(id: number | null | undefined): void {
+    if (id == null) return;
+    this.tdcCobroManual = true;
+    this.cobroForm.cuentaId = id;
+  }
+
+  get sinTdcCobroParaMonto(): boolean {
+    if (this.cobroForm.formaPago !== 'TARJETA' || this.cobrandoId == null) return false;
+    const s = this.serviciosFijos.find((x) => x.id === this.cobrandoId);
+    const monto = this.redondearEntero(Number(s?.monto) || 0);
+    if (!(monto > 0) || !this.cuentasTdc.length) return false;
+    return this.recomendacionesCobroTdc.every((r) => !r.cubreMonto);
+  }
+
+  setPagoEditFormaPago(forma: 'EFECTIVO' | 'TARJETA', montoGasto: number): void {
+    this.pagoEditForm.formaPago = forma;
+    if (forma !== 'TARJETA') {
+      this.pagoEditForm.aMeses = false;
+      this.pagoEditForm.meses = '';
+      return;
+    }
+    this.tdcPagoEditManual = false;
+    this.refrescarRecsPagoEdit(montoGasto, true);
+  }
+
+  usarTdcPagoEdit(id: number | null | undefined): void {
+    if (id == null) return;
+    this.tdcPagoEditManual = true;
+    this.pagoEditForm.cuentaId = id;
+  }
+
+  get sinTdcPagoEditParaMonto(): boolean {
+    if (this.pagoEditForm.formaPago !== 'TARJETA' || this.editandoPagoId == null) return false;
+    const g = this.gastos.find((x) => x.id === this.editandoPagoId);
+    const monto = this.redondearEntero(Number(g?.montoTotal) || 0);
+    if (!(monto > 0) || !this.cuentasTdc.length) return false;
+    return this.recomendacionesPagoEditTdc.every((r) => !r.cubreMonto);
   }
 
   async crearPersona(): Promise<void> {
@@ -548,11 +648,49 @@ export class CompartidoComponent implements OnInit, OnDestroy {
     }
   }
 
+  /** Resumen de saldos (debe / a favor / guardado) para una persona. */
+  resumenPersona(p: PersonaCompartida | { id?: number }): PersonaResumenCompartido | null {
+    const id = p.id;
+    if (id == null) return null;
+    return this.resumen?.personas?.find((x) => x.id === id) ?? null;
+  }
+
+  /**
+   * Solo se puede quitar si deuda, a favor y guardado están en $0.
+   */
+  puedeQuitarPersona(p: PersonaCompartida): boolean {
+    if (!p.id || !p.activa) return false;
+    const r = this.resumenPersona(p);
+    const debe = Number(r?.debe) || 0;
+    const aFavor = Number(r?.aFavor) || 0;
+    const guardado = Number(r?.efectivoGuardado ?? p.efectivoGuardado) || 0;
+    return Math.abs(debe) < 0.005 && Math.abs(aFavor) < 0.005 && Math.abs(guardado) < 0.005;
+  }
+
+  motivoNoQuitarPersona(p: PersonaCompartida): string {
+    const r = this.resumenPersona(p);
+    const partes: string[] = [];
+    const debe = Number(r?.debe) || 0;
+    const aFavor = Number(r?.aFavor) || 0;
+    const guardado = Number(r?.efectivoGuardado ?? p.efectivoGuardado) || 0;
+    if (Math.abs(debe) >= 0.005) partes.push('aún te debe');
+    if (Math.abs(aFavor) >= 0.005) partes.push('tiene saldo a favor');
+    if (Math.abs(guardado) >= 0.005) partes.push('tiene dinero guardado');
+    if (!partes.length) {
+      return 'Solo puedes quitarla si deuda, a favor y guardado están en $0';
+    }
+    return `No se puede quitar: ${partes.join(', ')}`;
+  }
+
   async desactivar(p: PersonaCompartida): Promise<void> {
     if (!p.id) return;
+    if (!this.puedeQuitarPersona(p)) {
+      this.error = this.motivoNoQuitarPersona(p);
+      return;
+    }
     const ok = await this.confirmDlg.ask(
       `¿Quitar a ${p.nombre} de la lista activa? También se saca de las plantillas de fijos.`,
-      { titulo: 'Desactivar persona', confirmarTexto: 'Desactivar', cancelarTexto: 'Cancelar' }
+      { titulo: 'Quitar persona', confirmarTexto: 'Quitar', cancelarTexto: 'Cancelar' }
     );
     if (!ok) return;
     this.error = '';
@@ -563,9 +701,9 @@ export class CompartidoComponent implements OnInit, OnDestroy {
         this.personasSeleccionadas.delete(p.id!);
         await this.refreshListas();
       }, 'Actualizando…');
-      this.ok = 'Persona desactivada (y quitada de fijos)';
+      this.ok = 'Persona quitada (y sacada de fijos)';
     } catch (e: unknown) {
-      this.error = this.msg(e, 'No se pudo desactivar');
+      this.error = this.msg(e, 'No se pudo quitar');
     }
   }
 
@@ -582,11 +720,6 @@ export class CompartidoComponent implements OnInit, OnDestroy {
     } catch (e: unknown) {
       this.error = this.msg(e, 'No se pudo reactivar');
     }
-  }
-
-  async toggleInactivas(): Promise<void> {
-    this.mostrarInactivas = !this.mostrarInactivas;
-    await this.cargarTodo();
   }
 
   async registrarGasto(): Promise<void> {
@@ -869,6 +1002,7 @@ export class CompartidoComponent implements OnInit, OnDestroy {
     const ultimo = this.ultimoCobroDe(s.id);
     const periodo = siguientePeriodo(ultimo?.periodo) || periodoActual();
     this.cobrandoId = s.id ?? null;
+    this.tdcCobroManual = false;
     this.cobroForm = {
       fecha: fechaCobroEnPeriodo(periodo, s.diaCobro ?? 1),
       periodo,
@@ -877,6 +1011,7 @@ export class CompartidoComponent implements OnInit, OnDestroy {
       aMeses: false,
       meses: '',
     };
+    this.refrescarRecsCobro(Number(s.monto) || 0, false);
     this.error = '';
     this.ok = '';
   }
@@ -892,6 +1027,15 @@ export class CompartidoComponent implements OnInit, OnDestroy {
 
   onPeriodoCobroChange(s: ServicioFijoCompartido): void {
     this.cobroForm.fecha = fechaCobroEnPeriodo(this.cobroForm.periodo, s.diaCobro ?? 1);
+    if (this.cobroForm.formaPago === 'TARJETA') {
+      this.refrescarRecsCobro(Number(s.monto) || 0, true);
+    }
+  }
+
+  onFechaCobroChange(s: ServicioFijoCompartido): void {
+    if (this.cobroForm.formaPago === 'TARJETA') {
+      this.refrescarRecsCobro(Number(s.monto) || 0, true);
+    }
   }
 
   cancelarCobro(): void {
@@ -902,6 +1046,7 @@ export class CompartidoComponent implements OnInit, OnDestroy {
     this.editandoPagoId = g.id ?? null;
     this.recalculandoId = null;
     this.cobrandoId = null;
+    this.tdcPagoEditManual = !!(g.cuentaId);
     const forma = ((g.formaPago || 'EFECTIVO').toUpperCase() === 'TARJETA' ? 'TARJETA' : 'EFECTIVO') as
       | 'EFECTIVO'
       | 'TARJETA';
@@ -912,10 +1057,17 @@ export class CompartidoComponent implements OnInit, OnDestroy {
       aMeses: !!(g.meses && g.meses > 1),
       meses: g.meses && g.meses > 1 ? String(g.meses) : '',
     };
+    this.refrescarRecsPagoEdit(Number(g.montoTotal) || 0, forma === 'TARJETA' && !g.cuentaId);
     this.error = '';
     this.ok = '';
     this.cdr.markForCheck();
     this.scrollA('#form-editar-pago');
+  }
+
+  onFechaPagoEditChange(montoGasto: number): void {
+    if (this.pagoEditForm.formaPago === 'TARJETA') {
+      this.refrescarRecsPagoEdit(montoGasto, true);
+    }
   }
 
   etiquetaFormaPago(g: GastoCompartido): string {
@@ -1619,7 +1771,7 @@ export class CompartidoComponent implements OnInit, OnDestroy {
 
   private async refreshListas(): Promise<void> {
     const [personas, resumen, gastos, movs, fijos, cuentas, saldo] = await Promise.all([
-      firstValueFrom(this.api.personasCompartidas(this.mostrarInactivas)),
+      firstValueFrom(this.api.personasCompartidas(true)),
       firstValueFrom(this.api.resumenCompartido()),
       firstValueFrom(this.api.gastosCompartidos()),
       firstValueFrom(this.api.movimientosCompartidos()),
@@ -1632,12 +1784,90 @@ export class CompartidoComponent implements OnInit, OnDestroy {
     this.gastos = gastos;
     this.movimientos = movs;
     this.serviciosFijos = fijos;
-    this.cuentasTdc = (cuentas || []).filter(
-      (c) => (c.tipo || '').toUpperCase() === 'TDC' && !c.archivada && !c.bloqueada
-    );
+    this.aplicarCuentasTdc(cuentas || []);
     this.saldoDisponible =
       saldo?.esperado == null || saldo.esperado === undefined ? null : Number(saldo.esperado);
     this.avisosCobro.aplicarResumen(resumen);
+  }
+
+  private aplicarCuentasTdc(cuentas: Cuenta[]): void {
+    this.cuentasTdc = (cuentas || []).filter(
+      (c) => (c.tipo || '').toUpperCase() === 'TDC' && !c.archivada && !c.bloqueada,
+    );
+    this.refrescarRecsGasto(true);
+    if (this.cobrandoId != null) {
+      const s = this.serviciosFijos.find((x) => x.id === this.cobrandoId);
+      this.refrescarRecsCobro(Number(s?.monto) || 0, true);
+    }
+    if (this.editandoPagoId != null) {
+      const g = this.gastos.find((x) => x.id === this.editandoPagoId);
+      this.refrescarRecsPagoEdit(Number(g?.montoTotal) || 0, true);
+    }
+  }
+
+  private recomendarTdcLista(fecha: string, monto: number): RecomendacionTdc[] {
+    return recomendarTdcs(
+      this.cuentasTdc,
+      fecha || fechaHoyLocal(),
+      Number.isFinite(monto) && monto > 0 ? monto : 0,
+    );
+  }
+
+  refrescarRecsGasto(autoSeleccionar: boolean): void {
+    const monto = this.redondearEntero(parseDinero(this.gastoForm.monto));
+    this.recomendacionesGastoTdc = this.recomendarTdcLista(this.gastoForm.fecha, monto);
+    if (
+      this.gastoForm.cuentaId != null &&
+      !this.recomendacionesGastoTdc.some((r) => r.cuenta.id === this.gastoForm.cuentaId)
+    ) {
+      this.gastoForm.cuentaId = null;
+      this.tdcGastoManual = false;
+    }
+    if (
+      this.gastoForm.formaPago === 'TARJETA' &&
+      autoSeleccionar &&
+      (!this.tdcGastoManual || this.gastoForm.cuentaId == null)
+    ) {
+      this.gastoForm.cuentaId = this.recomendacionesGastoTdc[0]?.cuenta.id ?? null;
+    }
+  }
+
+  private refrescarRecsCobro(montoServicio: number, autoSeleccionar: boolean): void {
+    const monto = this.redondearEntero(montoServicio);
+    this.recomendacionesCobroTdc = this.recomendarTdcLista(this.cobroForm.fecha, monto);
+    if (
+      this.cobroForm.cuentaId != null &&
+      !this.recomendacionesCobroTdc.some((r) => r.cuenta.id === this.cobroForm.cuentaId)
+    ) {
+      this.cobroForm.cuentaId = null;
+      this.tdcCobroManual = false;
+    }
+    if (
+      this.cobroForm.formaPago === 'TARJETA' &&
+      autoSeleccionar &&
+      (!this.tdcCobroManual || this.cobroForm.cuentaId == null)
+    ) {
+      this.cobroForm.cuentaId = this.recomendacionesCobroTdc[0]?.cuenta.id ?? null;
+    }
+  }
+
+  private refrescarRecsPagoEdit(montoGasto: number, autoSeleccionar: boolean): void {
+    const monto = this.redondearEntero(montoGasto);
+    this.recomendacionesPagoEditTdc = this.recomendarTdcLista(this.pagoEditForm.fecha, monto);
+    if (
+      this.pagoEditForm.cuentaId != null &&
+      !this.recomendacionesPagoEditTdc.some((r) => r.cuenta.id === this.pagoEditForm.cuentaId)
+    ) {
+      this.pagoEditForm.cuentaId = null;
+      this.tdcPagoEditManual = false;
+    }
+    if (
+      this.pagoEditForm.formaPago === 'TARJETA' &&
+      autoSeleccionar &&
+      (!this.tdcPagoEditManual || this.pagoEditForm.cuentaId == null)
+    ) {
+      this.pagoEditForm.cuentaId = this.recomendacionesPagoEditTdc[0]?.cuenta.id ?? null;
+    }
   }
 
 
