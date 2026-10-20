@@ -10,6 +10,9 @@ import java.util.Optional;
 public interface CuentaRepository extends JpaRepository<Cuenta, Long> {
     Optional<Cuenta> findByPropietarioAndNombreIgnoreCase(String propietario, String nombre);
 
+    /** Si hay homónimas (mismo nombre), toma la primera en vez de fallar al arrancar. */
+    Optional<Cuenta> findFirstByPropietarioAndNombreIgnoreCaseOrderByIdAsc(String propietario, String nombre);
+
     List<Cuenta> findByPropietarioOrderByNombreAsc(String propietario);
 
     @Query("""

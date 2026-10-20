@@ -22,7 +22,13 @@ if /i not "%BRANCH%"=="nube" (
   )
 )
 
-echo Desplegando desde rama nube...
+echo Actualizando rama nube desde origin...
+git pull --ff-only origin nube
+if errorlevel 1 (
+  echo AVISO: no se pudo hacer pull de origin/nube; se despliega el working tree actual.
+)
+
+echo Desplegando codigo actual ^(working tree / rama nube^)...
 echo.
 powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0scripts\deploy-nube.ps1"
 if errorlevel 1 goto :fail

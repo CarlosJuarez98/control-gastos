@@ -54,11 +54,12 @@ public class SeedDataLoader implements ApplicationRunner {
 
     private Optional<Cuenta> buscarCuentaAdmin(String nombre) {
         for (String dueño : new String[] { "Carlos", "admin" }) {
-            Optional<Cuenta> c = cuentaRepository.findByPropietarioAndNombreIgnoreCase(dueño, nombre);
+            Optional<Cuenta> c = cuentaRepository
+                    .findFirstByPropietarioAndNombreIgnoreCaseOrderByIdAsc(dueño, nombre);
             if (c.isPresent()) {
                 return c;
             }
         }
-        return cuentaRepository.findByPropietarioAndNombreIgnoreCase(null, nombre);
+        return cuentaRepository.findFirstByPropietarioAndNombreIgnoreCaseOrderByIdAsc(null, nombre);
     }
 }

@@ -48,11 +48,15 @@ for i in 1 2 3 4 5 6 7 8 9 10 12 15; do
   sleep 5
 done
 echo HEALTH_TIMEOUT_CONTAINER
+echo '--- docker logs (ultimas 80 lineas) ---'
+docker logs --tail 80 control-gastos-api 2>&1 || true
 exit 1
 "@
 $remote = ($remote -replace "`r`n", "`n" -replace "`r", "`n")
 $remote | ssh @SshOpts $VmHost "bash -s"
-if ($LASTEXITCODE -ne 0) { throw "Health check en contenedor fallo" }
+if ($LASTEXITCODE -ne 0) {
+  throw "Health check en contenedor fallo (la API no arranco o reinicia; revisa el log de arriba)"
+}
 
 Write-Host "Comprobando $PublicHealthUrl ..." -ForegroundColor Cyan
 for ($i = 1; $i -le 8; $i++) {
