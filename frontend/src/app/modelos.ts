@@ -71,6 +71,13 @@ export interface Cuenta {
   nombre: string;
   tipo: string;
   saldoActual: number;
+  /**
+   * Solo alta PRESTAMO: efectivo que te dan (disponible).
+   * saldoActual = total a pagar (puede incluir interés).
+   */
+  montoRecibido?: number | null;
+  /** Solo alta PRESTAMO: plazo 2–48 para plan en Mensuales. */
+  meses?: number | null;
   /** Día del mes de corte (1–31); TDC / tienda / préstamo / terreno. */
   diaCorte?: number | null;
   /** Día del mes límite de pago (1–31); TDC / tienda / préstamo / terreno. */

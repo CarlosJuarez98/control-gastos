@@ -40,31 +40,90 @@
         @for (t of tipos; track t) { <option [value]="t">{{ etiquetaTipo(t) }}</option> }
       </select>
     </label>
-    <label class="campo-saldo">
-      <span class="campo-titulo">
-        Saldo
-        @if ((nueva.tipo || '').toUpperCase() === 'PRESTAMO_OTORGADO' && saldoDisponible != null) {
-          <span class="pill-disponible">Disponible para prestar {{ saldoDisponible | currency:'MXN':'symbol-narrow':'1.2-2' }}</span>
-        }
-      </span>
-      <div class="monto-wrap">
-        <span class="simbolo">$</span>
+    @if (nuevaEsPrestamo) {
+      <label class="campo-saldo">
+        <span class="campo-titulo">Me dan (recibido)</span>
+        <div class="monto-wrap">
+          <span class="simbolo">$</span>
+          <input
+            type="text"
+            inputmode="decimal"
+            autocomplete="off"
+            [(ngModel)]="recibidoNueva"
+            name="recibido"
+            placeholder="20000"
+            (ngModelChange)="alEscribirRecibidoNueva($event)"
+            (keydown)="soloMonto($event)"
+          />
+        </div>
+      </label>
+      <label class="campo-saldo">
+        <span class="campo-titulo">Total a pagar</span>
+        <div class="monto-wrap">
+          <span class="simbolo">$</span>
+          <input
+            type="text"
+            inputmode="decimal"
+            autocomplete="off"
+            [(ngModel)]="saldoNueva"
+            name="saldo"
+            placeholder="23000"
+            (ngModelChange)="alEscribirSaldoNueva($event)"
+            (keydown)="soloMonto($event)"
+          />
+        </div>
+      </label>
+      <label class="campo-meses">Meses
         <input
           type="text"
-          inputmode="decimal"
+          inputmode="numeric"
+          pattern="[0-9]*"
+          [(ngModel)]="mesesNueva"
+          (ngModelChange)="refrescarFormNuevaOk()"
+          name="mesesNueva"
+          placeholder="opcional"
           autocomplete="off"
-          [(ngModel)]="saldoNueva"
-          name="saldo"
-          placeholder="0.00"
-          (ngModelChange)="alEscribirSaldoNueva($event)"
-          (keydown)="soloMonto($event)"
         />
-      </div>
-    </label>
-    @if ((nueva.tipo || '').toUpperCase() === 'PRESTAMO') {
-      <p class="hint-alta">Saldo inicial = te prestaron ese dinero: sube tu deuda y tu disponible.</p>
-    } @else if ((nueva.tipo || '').toUpperCase() === 'PRESTAMO_OTORGADO') {
-      <p class="hint-alta">Saldo inicial = tú prestas: sube «te deben» y baja tu disponible.</p>
+      </label>
+      <p class="hint-alta">
+        Disponible sube con lo recibido
+        @if (disponiblePrestamoPreview > 0) {
+          (<strong class="mono pos">{{ disponiblePrestamoPreview | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>)
+        }
+        · deuda = total a pagar
+        @if (interesPrestamoPreview > 0.005) {
+          · interés/costo
+          <strong class="mono aviso">{{ interesPrestamoPreview | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
+        }
+        @if (mesesNueva) {
+          · cuota en Mensuales
+        }
+      </p>
+    } @else {
+      <label class="campo-saldo">
+        <span class="campo-titulo">
+          Saldo
+          @if ((nueva.tipo || '').toUpperCase() === 'PRESTAMO_OTORGADO' && saldoDisponible != null) {
+            <span class="pill-disponible">Disponible para prestar {{ saldoDisponible | currency:'MXN':'symbol-narrow':'1.2-2' }}</span>
+          }
+        </span>
+        <div class="monto-wrap">
+          <span class="simbolo">$</span>
+          <input
+            type="text"
+            inputmode="decimal"
+            autocomplete="off"
+            [(ngModel)]="saldoNueva"
+            name="saldo"
+            placeholder="0.00"
+            (ngModelChange)="alEscribirSaldoNueva($event)"
+            (keydown)="soloMonto($event)"
+          />
+        </div>
+      </label>
+      @if ((nueva.tipo || '').toUpperCase() === 'PRESTAMO_OTORGADO') {
+        <p class="hint-alta">Saldo inicial = tú prestas: sube «te deben» y baja tu disponible.</p>
+      }
     }
     @if (nuevaConCalendario) {
       <label class="campo-corte">Corte
@@ -73,21 +132,23 @@
       <label class="campo-pago-dia">Pago
         <input type="text" inputmode="numeric" pattern="[0-9]*" [(ngModel)]="nuevaDiaLimite" (ngModelChange)="refrescarFormNuevaOk()" name="nuevaDiaLimite" placeholder="5" autocomplete="off" />
       </label>
-      <label class="campo-limite">Límite crédito
-        <div class="monto-wrap">
-          <span class="simbolo">$</span>
-          <input
-            type="text"
-            inputmode="decimal"
-            autocomplete="off"
-            [(ngModel)]="nuevaLimite"
-            name="nuevaLimite"
-            placeholder="opcional"
-            (ngModelChange)="alEscribirLimiteNuevo($event)"
-            (keydown)="soloMonto($event)"
-          />
-        </div>
-      </label>
+      @if (nuevaEsTdcOTienda) {
+        <label class="campo-limite">Límite crédito
+          <div class="monto-wrap">
+            <span class="simbolo">$</span>
+            <input
+              type="text"
+              inputmode="decimal"
+              autocomplete="off"
+              [(ngModel)]="nuevaLimite"
+              name="nuevaLimite"
+              placeholder="opcional"
+              (ngModelChange)="alEscribirLimiteNuevo($event)"
+              (keydown)="soloMonto($event)"
+            />
+          </div>
+        </label>
+      }
     }
     <button type="submit" [disabled]="!formNuevaOk">Nueva cuenta</button>
   </form>

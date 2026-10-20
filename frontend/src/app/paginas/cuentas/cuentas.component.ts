@@ -26,6 +26,10 @@ export class CuentasComponent implements OnInit, OnDestroy {
   readonly pagMovs = new EstadoPaginacion();
   nueva: Cuenta = { nombre: '', tipo: 'TDC', saldoActual: 0 };
   saldoNueva = '';
+  /** Alta PRESTAMO: lo que te dan (si vacío = igual al total a pagar). */
+  recibidoNueva = '';
+  /** Alta PRESTAMO: plazo opcional (2–48). */
+  mesesNueva = '';
   /** Metadatos de corte / pago al crear (TDC o tienda). */
   nuevaDiaCorte = '';
   nuevaDiaLimite = '';
@@ -240,6 +244,30 @@ export class CuentasComponent implements OnInit, OnDestroy {
 
   get nuevaConCalendario(): boolean {
     return this.esConCalendario(this.nueva);
+  }
+
+  get nuevaEsPrestamo(): boolean {
+    return (this.nueva.tipo || '').toUpperCase() === 'PRESTAMO';
+  }
+
+  get nuevaEsTdcOTienda(): boolean {
+    const t = (this.nueva.tipo || '').toUpperCase();
+    return t === 'TDC' || t === 'TIENDA';
+  }
+
+  get interesPrestamoPreview(): number {
+    if (!this.nuevaEsPrestamo) return 0;
+    const total = parseDinero(this.saldoNueva) || 0;
+    const recRaw = (this.recibidoNueva || '').trim();
+    const recibido = recRaw ? (parseDinero(this.recibidoNueva) || 0) : total;
+    return Math.max(0, Math.round((total - recibido) * 100) / 100);
+  }
+
+  get cuotaPrestamoPreview(): number {
+    if (!this.nuevaEsPrestamo) return 0;
+    const total = parseDinero(this.saldoNueva) || 0;
+    const recRaw = (this.recibidoNueva || '').trim();
+    return recRaw ? (parseDinero(this.recibidoNueva) || 0) : total;
   }
 
   /** En TDC no se crean cargos manuales (van por Gastos); al editar un CARGO existente sí se muestra.
@@ -1018,6 +1046,12 @@ export class CuentasComponent implements OnInit, OnDestroy {
         this.parseDiaMes(this.nuevaDiaLimite) != null;
       return;
     }
+    if (this.nuevaEsPrestamo) {
+      const total = parseDinero(this.saldoNueva) || 0;
+      const recibido = this.disponiblePrestamoPreview;
+      this.formNuevaOk = total > 0 && recibido >= 0 && recibido <= total + 1e-9;
+      return;
+    }
     this.formNuevaOk = true;
   }
 
@@ -1070,13 +1104,33 @@ export class CuentasComponent implements OnInit, OnDestroy {
         return;
       }
     }
+    let montoRecibido: number | null = null;
+    let meses: number | null = null;
+    if (this.nuevaEsPrestamo) {
+      const recRaw = (this.recibidoNueva || '').trim();
+      montoRecibido = recRaw ? parseDinero(this.recibidoNueva) : saldo;
+      if (montoRecibido != null && saldo != null && montoRecibido > saldo + 1e-9) {
+        this.error = 'Lo recibido no puede ser mayor al total a pagar';
+        return;
+      }
+      const mRaw = (this.mesesNueva || '').replace(/\D/g, '');
+      if (mRaw) {
+        meses = Number(mRaw);
+        if (!Number.isFinite(meses) || meses < 2 || meses > 48) {
+          this.error = 'El plazo a meses debe ser entre 2 y 48';
+          return;
+        }
+      }
+    }
     const conCal = this.esConCalendario(this.nueva);
     const body: Cuenta = {
       ...this.nueva,
       saldoActual: saldo,
+      montoRecibido: this.nuevaEsPrestamo ? montoRecibido : null,
+      meses: this.nuevaEsPrestamo ? meses : null,
       diaCorte: conCal ? this.parseDiaMes(this.nuevaDiaCorte) : null,
       diaLimitePago: conCal ? this.parseDiaMes(this.nuevaDiaLimite) : null,
-      limiteCredito: conCal && this.nuevaLimite.trim()
+      limiteCredito: this.nuevaEsTdcOTienda && this.nuevaLimite.trim()
         ? parseDinero(this.nuevaLimite)
         : null,
     };
@@ -1084,6 +1138,8 @@ export class CuentasComponent implements OnInit, OnDestroy {
       next: () => {
         this.nueva = { nombre: '', tipo: 'TDC', saldoActual: 0 };
         this.saldoNueva = '';
+        this.recibidoNueva = '';
+        this.mesesNueva = '';
         this.nuevaDiaCorte = '';
         this.nuevaDiaLimite = '';
         this.nuevaLimite = '';
@@ -1094,6 +1150,11 @@ export class CuentasComponent implements OnInit, OnDestroy {
       },
       error: (e) => (this.error = e?.error?.error || 'No se pudo crear la cuenta'),
     });
+  }
+
+  alEscribirRecibidoNueva(v: string): void {
+    this.recibidoNueva = formatDineroInput(v);
+    this.refrescarFormNuevaOk();
   }
 
   alEscribirLimiteNuevo(v: string): void {

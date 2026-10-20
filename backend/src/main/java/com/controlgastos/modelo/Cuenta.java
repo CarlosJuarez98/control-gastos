@@ -60,6 +60,17 @@ public class Cuenta {
     @Transient
     private BigDecimal saldoDespuesCorte;
 
+    /**
+     * Solo alta de PRESTAMO: efectivo que te dan (suma a disponible).
+     * {@code saldoActual} = total a pagar (puede ser mayor por interés).
+     */
+    @Transient
+    private BigDecimal montoRecibido;
+
+    /** Solo alta de PRESTAMO: plazo del plan (2–48). Null/1 = sin plan en Mensuales. */
+    @Transient
+    private Integer meses;
+
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
     public String getNombre() { return nombre; }
@@ -98,6 +109,11 @@ public class Cuenta {
     public void setSaldoAlCorte(BigDecimal saldoAlCorte) { this.saldoAlCorte = saldoAlCorte; }
     public BigDecimal getSaldoDespuesCorte() { return saldoDespuesCorte; }
     public void setSaldoDespuesCorte(BigDecimal saldoDespuesCorte) { this.saldoDespuesCorte = saldoDespuesCorte; }
+
+    public BigDecimal getMontoRecibido() { return montoRecibido; }
+    public void setMontoRecibido(BigDecimal montoRecibido) { this.montoRecibido = montoRecibido; }
+    public Integer getMeses() { return meses; }
+    public void setMeses(Integer meses) { this.meses = meses; }
 
     /** Crédito disponible = límite − deuda (saldo). Null si no hay límite. */
     @Transient

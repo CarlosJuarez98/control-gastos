@@ -103,6 +103,7 @@
 .alta .campo-nombre,
 .alta .campo-tipo,
 .alta .campo-saldo,
+.alta .campo-meses,
 .alta .campo-corte,
 .alta .campo-pago-dia,
 .alta .campo-limite {
@@ -1307,6 +1308,7 @@ tr.editando td {
   .alta .campo-nombre,
   .alta .campo-tipo,
   .alta .campo-saldo,
+  .alta .campo-meses,
   .alta .campo-corte,
   .alta .campo-pago-dia,
   .alta .campo-limite {
