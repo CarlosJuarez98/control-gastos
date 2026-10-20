@@ -74,6 +74,27 @@ public interface MovimientoCuentaRepository extends JpaRepository<MovimientoCuen
             """)
     BigDecimal sumaAbonosDespuesDeId(String propietario, Long id);
 
+    /**
+     * Dinero recibido al pedir un préstamo (CARGO en cuentas tipo PRESTAMO).
+     * Suma a disponible; el interés no (solo sube deuda).
+     */
+    @Query("""
+            select coalesce(sum(m.monto), 0) from MovimientoCuenta m
+            where m.propietario = ?1
+              and upper(m.tipo) = 'CARGO'
+              and upper(m.cuenta.tipo) = 'PRESTAMO'
+            """)
+    BigDecimal sumaCargosPrestamoRecibidoTotal(String propietario);
+
+    @Query("""
+            select coalesce(sum(m.monto), 0) from MovimientoCuenta m
+            where m.propietario = ?1
+              and upper(m.tipo) = 'CARGO'
+              and upper(m.cuenta.tipo) = 'PRESTAMO'
+              and m.id > ?2
+            """)
+    BigDecimal sumaCargosPrestamoRecibidoDespuesDeId(String propietario, Long id);
+
     /** Dinero prestado (CARGO en cuentas prestamista). */
     @Query("""
             select coalesce(sum(m.monto), 0) from MovimientoCuenta m

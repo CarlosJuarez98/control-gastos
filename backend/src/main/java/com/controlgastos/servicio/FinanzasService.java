@@ -858,23 +858,37 @@ public class FinanzasService {
         } else {
             cuenta.setArchivada(false);
         }
-        BigDecimal inicialPrestamo = BigDecimal.ZERO;
+        BigDecimal inicialPrestamoOtorgado = BigDecimal.ZERO;
+        BigDecimal inicialPrestamoRecibido = BigDecimal.ZERO;
         if (nueva && esPrestamoOtorgado(cuenta.getTipo())) {
-            inicialPrestamo = nullSafe(cuenta.getSaldoActual());
-            if (inicialPrestamo.compareTo(BigDecimal.ZERO) > 0) {
-                exigirSaldoDisponible(u, inicialPrestamo);
+            inicialPrestamoOtorgado = nullSafe(cuenta.getSaldoActual());
+            if (inicialPrestamoOtorgado.compareTo(BigDecimal.ZERO) > 0) {
+                exigirSaldoDisponible(u, inicialPrestamoOtorgado);
             }
+        } else if (nueva && esPrestamoRecibido(cuenta.getTipo())) {
+            inicialPrestamoRecibido = nullSafe(cuenta.getSaldoActual());
         }
         cuenta.setPropietario(u);
         normalizarDatosTdc(cuenta, nueva);
         Cuenta saved = cuentaRepository.save(cuenta);
-        if (nueva && inicialPrestamo.compareTo(BigDecimal.ZERO) > 0) {
-            // Registra el desembolso para que reste del saldo disponible.
+        if (nueva && inicialPrestamoOtorgado.compareTo(BigDecimal.ZERO) > 0) {
+            // Tú prestas: CARGO resta del disponible.
             MovimientoCuenta mov = new MovimientoCuenta();
             mov.setCuenta(saved);
             mov.setFecha(LocalDate.now());
             mov.setTipo("CARGO");
-            mov.setMonto(inicialPrestamo);
+            mov.setMonto(inicialPrestamoOtorgado);
+            mov.setConcepto("Desembolso");
+            mov.setPropietario(u);
+            movimientoRepository.save(mov);
+        } else if (nueva && inicialPrestamoRecibido.compareTo(BigDecimal.ZERO) > 0) {
+            // Te prestaron: CARGO sube deuda y el disponible (recibiste efectivo).
+            MovimientoCuenta mov = new MovimientoCuenta();
+            mov.setCuenta(saved);
+            mov.setFecha(LocalDate.now());
+            mov.setTipo("CARGO");
+            mov.setMonto(inicialPrestamoRecibido);
+            mov.setConcepto("Préstamo recibido");
             mov.setPropietario(u);
             movimientoRepository.save(mov);
         }
@@ -1199,6 +1213,10 @@ public class FinanzasService {
         return tipo != null && "PRESTAMO_OTORGADO".equalsIgnoreCase(tipo.trim());
     }
 
+    private static boolean esPrestamoRecibido(String tipo) {
+        return tipo != null && "PRESTAMO".equalsIgnoreCase(tipo.trim());
+    }
+
     private static boolean esCuentaTdc(Cuenta cuenta) {
         return cuenta != null && cuenta.getTipo() != null
                 && "TDC".equalsIgnoreCase(cuenta.getTipo().trim());
@@ -1249,12 +1267,13 @@ public class FinanzasService {
     /**
      * Disponible / “Debería tener” =
      *   dinero contado en el último corte (efectivo + apps)
-     *   + ingresos + disposiciones TDC − gastos líquidos − abonos − préstamos + cobros
+     *   + ingresos + disposiciones TDC + cargos de préstamo recibido
+     *   − gastos líquidos − abonos − préstamos otorgados + cobros
      *     posteriores a ese corte.
      * <p>
      * Así, al guardar un corte no se pone en 0: partes del efectivo que
      * acabas de contar y luego sumas/restas lo nuevo. Los gastos TDC no entran;
-     * las disposiciones sí suman (recibiste efectivo / liquidez).
+     * las disposiciones y el desembolso de un préstamo (tipo PRESTAMO) sí suman.
      */
     @Transactional
     public BigDecimal calcularEsperadoActual() {
@@ -1320,6 +1339,9 @@ public class FinanzasService {
         BigDecimal cobros = movId <= 0
                 ? nullSafe(movimientoRepository.sumaCobrosPrestamoOtorgadoTotal(u))
                 : nullSafe(movimientoRepository.sumaCobrosPrestamoOtorgadoDespuesDeId(u, movId));
+        BigDecimal prestamosRecibidos = movId <= 0
+                ? nullSafe(movimientoRepository.sumaCargosPrestamoRecibidoTotal(u))
+                : nullSafe(movimientoRepository.sumaCargosPrestamoRecibidoDespuesDeId(u, movId));
 
         // Pago a la TDC: solo la parte que cubre cargos Compartido aún no cubiertos.
         // Ej. TDC $500 = $300 Netflix compartido + $200 tuyos → del pago, máx. $300 a compartidos.
@@ -1347,6 +1369,7 @@ public class FinanzasService {
         BigDecimal propios = base
                 .add(ingAll.subtract(ingComp))
                 .add(disposiciones)
+                .add(prestamosRecibidos)
                 .subtract(gasAll.subtract(gasComp))
                 .subtract(abonosDesdePropios)
                 .subtract(prestamos)
@@ -1401,7 +1424,11 @@ public class FinanzasService {
         BigDecimal cobros = despuesMovId <= 0
                 ? nullSafe(movimientoRepository.sumaCobrosPrestamoOtorgadoTotal(u))
                 : nullSafe(movimientoRepository.sumaCobrosPrestamoOtorgadoDespuesDeId(u, despuesMovId));
-        return ingresos.add(disposiciones).subtract(gastos).subtract(abonos).subtract(prestamos).add(cobros);
+        BigDecimal prestamosRecibidos = despuesMovId <= 0
+                ? nullSafe(movimientoRepository.sumaCargosPrestamoRecibidoTotal(u))
+                : nullSafe(movimientoRepository.sumaCargosPrestamoRecibidoDespuesDeId(u, despuesMovId));
+        return ingresos.add(disposiciones).add(prestamosRecibidos)
+                .subtract(gastos).subtract(abonos).subtract(prestamos).add(cobros);
     }
 
     /** Cada guardado es un corte nuevo (historial); no sobrescribe el anterior. */
