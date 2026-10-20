@@ -77,15 +77,17 @@ public class PrestamoRecibidoCargoMigrator implements ApplicationRunner {
             MovimientoCuenta mov = new MovimientoCuenta();
             mov.setCuenta(c);
             mov.setPropietario(u);
-            mov.setFecha(fechaMasAntigua != null ? fechaMasAntigua : LocalDate.now());
+            // Histórico: cuadra el ledger de la deuda; no debe sumar a disponible.
+            LocalDate fecha = fechaMasAntigua != null ? fechaMasAntigua : LocalDate.of(2020, 1, 1);
+            mov.setFecha(fecha);
             mov.setTipo("CARGO");
             mov.setMonto(faltante);
-            mov.setConcepto("Préstamo recibido");
+            mov.setConcepto("Saldo histórico");
             movimientoRepository.save(mov);
             creados++;
         }
         if (creados > 0) {
-            log.info("Préstamo: {} CARGO(s) de desembolso restaurados (suben disponible)", creados);
+            log.info("Préstamo: {} CARGO(s) Saldo histórico restaurados (no afectan disponible)", creados);
         }
     }
 }

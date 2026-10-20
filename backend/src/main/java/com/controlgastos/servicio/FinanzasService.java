@@ -4,6 +4,7 @@ import com.controlgastos.dto.ResumenResponse;
 import com.controlgastos.modelo.*;
 import com.controlgastos.repositorio.*;
 import com.controlgastos.seguridad.Sesion;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,6 +27,8 @@ public class FinanzasService {
     private final DenominacionEfectivoRepository denominacionRepository;
     private final HistorialAnualRepository historialAnualRepository;
     private final PersonaCompartidaRepository personaCompartidaRepository;
+    /** Solo CARGOs PRESTAMO con fecha ≥ esta fecha suman a disponible. */
+    private final LocalDate prestamoDisponibleDesde;
 
     public FinanzasService(
             IngresoRepository ingresoRepository,
@@ -36,7 +39,8 @@ public class FinanzasService {
             SaldoSnapshotRepository saldoRepository,
             DenominacionEfectivoRepository denominacionRepository,
             HistorialAnualRepository historialAnualRepository,
-            PersonaCompartidaRepository personaCompartidaRepository) {
+            PersonaCompartidaRepository personaCompartidaRepository,
+            @Value("${app.prestamo.disponible-desde:2026-10-20}") String prestamoDisponibleDesde) {
         this.ingresoRepository = ingresoRepository;
         this.gastoRepository = gastoRepository;
         this.gastoMensualRepository = gastoMensualRepository;
@@ -46,6 +50,7 @@ public class FinanzasService {
         this.denominacionRepository = denominacionRepository;
         this.historialAnualRepository = historialAnualRepository;
         this.personaCompartidaRepository = personaCompartidaRepository;
+        this.prestamoDisponibleDesde = LocalDate.parse(prestamoDisponibleDesde.trim());
     }
 
     @Transactional(readOnly = true)
@@ -1510,8 +1515,9 @@ public class FinanzasService {
                 ? nullSafe(movimientoRepository.sumaCobrosPrestamoOtorgadoTotal(u))
                 : nullSafe(movimientoRepository.sumaCobrosPrestamoOtorgadoDespuesDeId(u, movId));
         BigDecimal prestamosRecibidos = movId <= 0
-                ? nullSafe(movimientoRepository.sumaCargosPrestamoRecibidoTotal(u))
-                : nullSafe(movimientoRepository.sumaCargosPrestamoRecibidoDespuesDeId(u, movId));
+                ? nullSafe(movimientoRepository.sumaCargosPrestamoRecibidoTotal(u, prestamoDisponibleDesde))
+                : nullSafe(movimientoRepository.sumaCargosPrestamoRecibidoDespuesDeId(
+                        u, prestamoDisponibleDesde, movId));
 
         // Pago a la TDC: solo la parte que cubre cargos Compartido aún no cubiertos.
         // Ej. TDC $500 = $300 Netflix compartido + $200 tuyos → del pago, máx. $300 a compartidos.
@@ -1595,8 +1601,9 @@ public class FinanzasService {
                 ? nullSafe(movimientoRepository.sumaCobrosPrestamoOtorgadoTotal(u))
                 : nullSafe(movimientoRepository.sumaCobrosPrestamoOtorgadoDespuesDeId(u, despuesMovId));
         BigDecimal prestamosRecibidos = despuesMovId <= 0
-                ? nullSafe(movimientoRepository.sumaCargosPrestamoRecibidoTotal(u))
-                : nullSafe(movimientoRepository.sumaCargosPrestamoRecibidoDespuesDeId(u, despuesMovId));
+                ? nullSafe(movimientoRepository.sumaCargosPrestamoRecibidoTotal(u, prestamoDisponibleDesde))
+                : nullSafe(movimientoRepository.sumaCargosPrestamoRecibidoDespuesDeId(
+                        u, prestamoDisponibleDesde, despuesMovId));
         return ingresos.add(disposiciones).add(prestamosRecibidos)
                 .subtract(gastos).subtract(abonos).subtract(prestamos).add(cobros);
     }
