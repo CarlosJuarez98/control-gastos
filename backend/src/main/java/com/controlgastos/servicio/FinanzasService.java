@@ -1125,6 +1125,10 @@ public class FinanzasService {
         if (esPrestamoOtorgado(cuenta.getTipo()) && esCargoPrestamo(mov.getTipo())) {
             exigirSaldoDisponible(u, mov.getMonto());
         }
+        if (!esPrestamoOtorgado(cuenta.getTipo())
+                && ("ABONO".equals(mov.getTipo()) || "REEMBOLSO".equals(mov.getTipo()))) {
+            exigirSaldoDisponible(u, mov.getMonto());
+        }
         mov.setId(null);
         mov.setCuenta(cuenta);
         mov.setPropietario(u);
@@ -1199,6 +1203,18 @@ public class FinanzasService {
         if (esPrestamoOtorgado(cuenta.getTipo()) && esCargoPrestamo(cambios.getTipo())) {
             BigDecimal disponible = nullSafe(calcularEsperadoActual(u))
                     .subtract(efectoLiquidezPrestamo(existing.getTipo(), existing.getMonto()));
+            if (disponible.compareTo(cambios.getMonto()) < 0) {
+                throw new IllegalArgumentException("Saldo insuficiente");
+            }
+        }
+        String tipoNuevo = cambios.getTipo().trim().toUpperCase(Locale.ROOT);
+        if (!esPrestamoOtorgado(cuenta.getTipo())
+                && ("ABONO".equals(tipoNuevo) || "REEMBOLSO".equals(tipoNuevo))) {
+            BigDecimal disponible = nullSafe(calcularEsperadoActual(u));
+            String tipoPrev = existing.getTipo() == null ? "" : existing.getTipo().trim().toUpperCase(Locale.ROOT);
+            if ("ABONO".equals(tipoPrev) || "REEMBOLSO".equals(tipoPrev)) {
+                disponible = disponible.add(nullSafe(existing.getMonto()));
+            }
             if (disponible.compareTo(cambios.getMonto()) < 0) {
                 throw new IllegalArgumentException("Saldo insuficiente");
             }
@@ -1337,7 +1353,7 @@ public class FinanzasService {
     private void exigirSaldoDisponible(String u, BigDecimal monto) {
         BigDecimal disponible = nullSafe(calcularEsperadoActual(u));
         if (disponible.compareTo(monto) < 0) {
-            throw new IllegalArgumentException("Saldo insuficiente");
+            throw new IllegalArgumentException("No te alcanza el disponible");
         }
     }
 
@@ -1427,6 +1443,9 @@ public class FinanzasService {
         }
         if (pago.compareTo(saldo) > 0) {
             throw new IllegalArgumentException("El monto a pagar no puede ser mayor al saldo");
+        }
+        if (pago.compareTo(new BigDecimal("0.005")) > 0) {
+            exigirSaldoDisponible(u, pago);
         }
         BigDecimal condona = saldo.subtract(pago);
         MovimientoCuenta abonoMov = null;

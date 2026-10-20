@@ -1,10 +1,12 @@
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnInit } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnInit, inject } from '@angular/core';
 import { CurrencyPipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { ApiService } from '../../api.service';
 import { ConfirmDialogService } from '../../confirm-dialog.service';
+import { AlertDialogService } from '../../alert-dialog.service';
+import { AlertFeedback } from '../../alert-feedback';
 import { Cuenta, Gasto } from '../../modelos';
 import { formatDineroInput, formatDineroInputFlexible, formatDineroNumero, parseDineroSuma, soloMontoKey, cursorAlFinalTrasUpdate, cursorAlFinal } from '../../dinero.util';
 import { formatFechaCorta, fechaHoyLocal } from '../../fecha.util';
@@ -82,7 +84,14 @@ export class GastosComponent implements OnInit, OnDestroy {
   filtro = '';
   /** total = todas las quincenas; quincena = solo la actual. */
   vista: 'total' | 'quincena' = 'quincena';
-  error = '';
+  private readonly alerts = inject(AlertDialogService);
+  private readonly _errorFb = new AlertFeedback(this.alerts, 'error');
+  get error(): string {
+    return this._errorFb.valor;
+  }
+  set error(v: string) {
+    this._errorFb.valor = v;
+  }
   editandoId: number | null = null;
   guardando = false;
   hoy = fechaHoyLocal();

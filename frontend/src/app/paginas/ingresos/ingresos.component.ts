@@ -1,8 +1,10 @@
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnInit } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnInit, inject } from '@angular/core';
 import { CurrencyPipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ApiService } from '../../api.service';
 import { ConfirmDialogService } from '../../confirm-dialog.service';
+import { AlertDialogService } from '../../alert-dialog.service';
+import { AlertFeedback } from '../../alert-feedback';
 import { Ingreso } from '../../modelos';
 import { formatDineroInput, formatDineroInputFlexible, formatDineroNumero, parseDineroSuma, soloMontoKey, cursorAlFinalTrasUpdate, cursorAlFinal } from '../../dinero.util';
 import { formatFechaCorta, fechaHoyLocal } from '../../fecha.util';
@@ -54,7 +56,14 @@ export class IngresosComponent implements OnInit, OnDestroy {
   };
   filtro = '';
   vista: 'total' | 'quincena' = 'quincena';
-  error = '';
+  private readonly alerts = inject(AlertDialogService);
+  private readonly _errorFb = new AlertFeedback(this.alerts, 'error');
+  get error(): string {
+    return this._errorFb.valor;
+  }
+  set error(v: string) {
+    this._errorFb.valor = v;
+  }
   editandoId: number | null = null;
   guardando = false;
   esMovil = false;

@@ -10,8 +10,6 @@
   </div>
 </section>
 
-@if (error) { <p class="error">{{ error }}</p> }
-
 @if (esMovil) {
   <button
     type="button"
@@ -514,10 +512,6 @@
 
     @if (liquidando && seleccionada) {
       <form class="alta alta-mov panel-liquidar" enterAvance (ngSubmit)="confirmarLiquidar()">
-        <p class="hint-alta hint-corregir">
-          Como Coppel: pagas lo que te piden para liquidar; el resto se condona y
-          <strong>no sale de tu disponible</strong>.
-        </p>
         <div class="liquidar-resumen">
           <span>Saldo actual
             <strong class="mono">{{ seleccionada.saldoActual | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
@@ -527,12 +521,12 @@
           </span>
           @if (saldoDisponible != null) {
             <span>Tu disponible
-              <strong class="mono" [class.pill-aviso]="montoLiquidarNum > saldoDisponible + 1e-9">{{ saldoDisponible | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
+              <strong class="mono" [class.pill-aviso]="liquidarSuperaDisponible">{{ saldoDisponible | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
             </span>
           }
         </div>
         <label class="campo-saldo">
-          <span class="campo-titulo">Monto a pagar (sale de disponible)</span>
+          <span class="campo-titulo">Monto a pagar</span>
           <div class="monto-wrap">
             <span class="simbolo">$</span>
             <input
@@ -548,10 +542,13 @@
             />
           </div>
         </label>
+        @if (liquidarSuperaDisponible) {
+          <p class="hint-disponible-aviso">No te alcanza el disponible; no se puede liquidar con ese monto.</p>
+        }
         <label>Fecha
           <input type="date" [(ngModel)]="fechaLiquidar" name="fechaLiquidar" [max]="hoy" required />
         </label>
-        <button type="submit">Liquidar deuda</button>
+        <button type="submit" [disabled]="liquidarSuperaDisponible">Liquidar deuda</button>
         <button type="button" class="secundario" (click)="cancelarLiquidar()">Cancelar</button>
       </form>
     }
@@ -610,11 +607,6 @@
               <input type="date" [(ngModel)]="mov.fecha" name="mfecha" [max]="hoy" required />
             </label>
           </div>
-          @if (abonoSuperaDisponible) {
-            <p class="hint-disponible-aviso">
-              Este abono es mayor a tu disponible. Se restará igual; revisa Saldo si el corte no está al día.
-            </p>
-          }
         } @else {
           <label>Fecha
             <input type="date" [(ngModel)]="mov.fecha" name="mfecha" [max]="hoy" required />
@@ -647,6 +639,10 @@
                 {{ ajustandoRedito ? 'Rédito que debe quedar' : (cobrandoRedito ? 'Rédito a cargar' : (seleccionPrestamista && mov.tipo === 'ABONO' ? 'Cobro' : 'Monto')) }}
                 @if (seleccionPrestamista && saldoDisponible != null && mov.tipo === 'CARGO') {
                   <span class="pill-disponible">Disponible para prestar {{ saldoDisponible | currency:'MXN':'symbol-narrow':'1.2-2' }}</span>
+                } @else if (esPagoConDisponible && saldoDisponible != null) {
+                  <span class="pill-disponible" [class.pill-aviso]="abonoSuperaDisponible">
+                    Tu disponible {{ saldoDisponible | currency:'MXN':'symbol-narrow':'1.2-2' }}
+                  </span>
                 }
               </span>
               <div class="monto-wrap">
@@ -666,6 +662,11 @@
             </label>
           }
         }
+        @if (abonoSuperaDisponible) {
+          <p class="hint-disponible-aviso">
+            No te alcanza el disponible; no se puede registrar este abono.
+          </p>
+        }
         @if (editandoDesembolsoPrestamo) {
           <p class="hint-alta hint-corregir">
             @if (seleccionPrestamoRecibido) {
@@ -675,7 +676,7 @@
             }
           </p>
         }
-        <button type="submit" [disabled]="!formMovOk">
+        <button type="submit" [disabled]="!formMovOk || abonoSuperaDisponible">
           {{ editMovId ? 'Guardar cambios' : (ajustandoRedito ? 'Guardar rédito' : (cobrandoRedito ? 'Cargar rédito' : (seleccionPrestamista && mov.tipo === 'ABONO' ? 'Registrar cobro' : 'Registrar movimiento'))) }}
         </button>
         @if (editMovId || ajustandoRedito || cobrandoRedito) {
