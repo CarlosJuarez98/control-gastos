@@ -860,6 +860,8 @@ public class FinanzasService {
                 throw new IllegalArgumentException("Cuenta no encontrada");
             }
             cuenta.setArchivada(false);
+            // El saldo solo lo mueven los movimientos; no confiar en el body del cliente.
+            cuenta.setSaldoActual(existing.getSaldoActual());
         } else {
             cuenta.setArchivada(false);
         }
@@ -1137,6 +1139,7 @@ public class FinanzasService {
         }
         MovimientoCuenta saved = movimientoRepository.save(mov);
         aplicarSaldo(cuenta, mov.getTipo(), mov.getMonto());
+        sincronizarSaldoPrestamoOtorgado(cuenta);
         cuentaRepository.save(cuenta);
         if ("ABONO".equals(saved.getTipo())) {
             autoMarcarCuotasTrasPrimerAbonoDelMes(cuenta, saved.getFecha());
@@ -1231,6 +1234,7 @@ public class FinanzasService {
         }
         MovimientoCuenta saved = movimientoRepository.save(existing);
         aplicarSaldo(cuenta, saved.getTipo(), saved.getMonto());
+        sincronizarSaldoPrestamoOtorgado(cuenta);
         cuentaRepository.save(cuenta);
         sincronizarGastoDesdeMovimiento(saved);
         return saved;
@@ -1259,6 +1263,7 @@ public class FinanzasService {
         });
         revertirSaldo(cuenta, existing.getTipo(), existing.getMonto());
         movimientoRepository.delete(existing);
+        sincronizarSaldoPrestamoOtorgado(cuenta);
         cuentaRepository.save(cuenta);
     }
 
@@ -1404,6 +1409,32 @@ public class FinanzasService {
             case "CARGO", "INTERES" -> cuenta.setSaldoActual(cuenta.getSaldoActual().add(monto));
             default -> { }
         }
+    }
+
+    /**
+     * Prestamista: el saldo debe cuadrar con el ledger (misma cifra que «Te deben»).
+     * Reconstruye desde movimientos por si hubo desfase histórico.
+     */
+    private void sincronizarSaldoPrestamoOtorgado(Cuenta cuenta) {
+        if (cuenta == null || cuenta.getId() == null || !esPrestamoOtorgado(cuenta.getTipo())) {
+            return;
+        }
+        String u = cuenta.getPropietario();
+        if (u == null || u.isBlank()) {
+            return;
+        }
+        BigDecimal saldo = BigDecimal.ZERO;
+        for (MovimientoCuenta m : movimientoRepository
+                .findByPropietarioAndCuentaIdOrderByFechaDescIdDesc(u, cuenta.getId())) {
+            if (m.getMonto() == null || m.getTipo() == null) continue;
+            String tipo = m.getTipo().trim().toUpperCase(Locale.ROOT);
+            switch (tipo) {
+                case "CARGO", "INTERES" -> saldo = saldo.add(m.getMonto());
+                case "ABONO", "REEMBOLSO", "CONDONACION" -> saldo = saldo.subtract(m.getMonto());
+                default -> { }
+            }
+        }
+        cuenta.setSaldoActual(saldo.setScale(2, RoundingMode.HALF_UP));
     }
 
     private void revertirSaldo(Cuenta cuenta, String tipo, BigDecimal monto) {

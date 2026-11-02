@@ -315,7 +315,7 @@
           </div>
           <p class="saldo-linea">
             Saldo actual:
-            <strong class="mono">{{ seleccionada.saldoActual | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
+            <strong class="mono">{{ saldoMostrado | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
             @if (seleccionPrestamista && saldoDisponible != null) {
               <span class="pill-disponible">Disponible para prestar {{ saldoDisponible | currency:'MXN':'symbol-narrow':'1.2-2' }}</span>
             }

@@ -1,60 +1,58 @@
 <section class="cab">
-  <div>
+  <div class="cab-tit">
     <h1>Ingresos</h1>
-    <div class="totales" role="group" aria-label="Vista de ingresos">
-      <button
-        type="button"
-        class="total-btn"
-        [class.activo]="vista === 'total'"
-        (click)="seleccionarVista('total')"
-      >
-        <span>Total</span>
-        <strong class="mono pos">{{ total | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
-        @if (totalCompartido > 0.005) {
-          <small>Tu dinero {{ totalPropios | currency:'MXN':'symbol-narrow':'1.2-2' }} · Compartidos {{ totalCompartido | currency:'MXN':'symbol-narrow':'1.2-2' }}</small>
-        }
-      </button>
-      <button
-        type="button"
-        class="total-btn actual"
-        [class.activo]="vista === 'quincena'"
-        (click)="seleccionarVista('quincena')"
-      >
-        <span>Esta quincena</span>
-        <strong class="mono pos">{{ totalQuincenaActual | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
-        <small>{{ etiquetaQuincenaActual }}</small>
-        @if (totalQuincenaCompartido > 0.005) {
-          <small>Tu dinero {{ totalQuincenaPropios | currency:'MXN':'symbol-narrow':'1.2-2' }} · Compartidos {{ totalQuincenaCompartido | currency:'MXN':'symbol-narrow':'1.2-2' }}</small>
-        }
-      </button>
-    </div>
-    <div class="desglose-cards" role="group" aria-label="Desglose tu dinero y compartidos">
-      <article>
-        <span>Tu dinero</span>
-        <strong class="mono pos">{{ (vista === 'total' ? totalPropios : totalQuincenaPropios) | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
-        <small class="mini">Sin compartidos</small>
-      </article>
-      <article>
-        <span>De compartidos</span>
-        <strong class="mono pos">{{ (vista === 'total' ? totalCompartido : totalQuincenaCompartido) | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
-        <small class="mini">Solo abonos compartidos</small>
-      </article>
-      <article class="total-suma">
-        <span>Suma</span>
-        <strong class="mono pos">{{ (vista === 'total' ? total : totalQuincenaActual) | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
-      </article>
-    </div>
+    <form class="buscar-wrap" enterAvance data-enter-last="search" (ngSubmit)="$event.preventDefault()">
+      <input
+        class="buscar"
+        [ngModel]="filtro"
+        (ngModelChange)="alFiltrar($event)"
+        name="filtroIngresos"
+        placeholder="Filtrar por concepto…"
+      />
+    </form>
   </div>
-  <form class="buscar-wrap" enterAvance data-enter-last="search" (ngSubmit)="$event.preventDefault()">
-    <input
-      class="buscar"
-      [ngModel]="filtro"
-      (ngModelChange)="alFiltrar($event)"
-      name="filtroIngresos"
-      placeholder="Filtrar por concepto…"
-    />
-  </form>
 </section>
+
+<div class="metricas" role="group" aria-label="Vista de ingresos">
+  <button
+    type="button"
+    class="card-btn"
+    [class.activo]="vista === 'total'"
+    (click)="seleccionarVista('total')"
+  >
+    <span>Total</span>
+    <strong class="mono pos">{{ total | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
+    <small class="mini">Todos los ingresos</small>
+  </button>
+  <button
+    type="button"
+    class="card-btn"
+    [class.activo]="vista === 'quincena'"
+    (click)="seleccionarVista('quincena')"
+  >
+    <span>Esta quincena</span>
+    <strong class="mono pos">{{ totalQuincenaActual | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
+    <small class="mini">{{ etiquetaQuincenaActual }}</small>
+  </button>
+</div>
+
+<div class="desglose-disp" role="group" aria-label="Desglose tu dinero y compartidos">
+  <article>
+    <span>Tu dinero</span>
+    <strong class="mono pos">{{ (vista === 'total' ? totalPropios : totalQuincenaPropios) | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
+    <small class="mini">Sin compartidos</small>
+  </article>
+  <article>
+    <span>De compartidos</span>
+    <strong class="mono pos">{{ (vista === 'total' ? totalCompartido : totalQuincenaCompartido) | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
+    <small class="mini">Solo abonos compartidos</small>
+  </article>
+  <article class="total-suma">
+    <span>Suma</span>
+    <strong class="mono pos">{{ (vista === 'total' ? total : totalQuincenaActual) | currency:'MXN':'symbol-narrow':'1.2-2' }}</strong>
+    <small class="mini">Tu dinero + compartidos</small>
+  </article>
+</div>
 
 @if (esMovil) {
   <button

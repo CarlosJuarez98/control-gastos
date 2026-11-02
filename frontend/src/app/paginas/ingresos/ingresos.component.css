@@ -7,126 +7,97 @@
 
 .cab {
   flex: 0 0 auto;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.45rem 0.75rem;
-  align-items: flex-end;
-  justify-content: space-between;
   margin-bottom: 0.55rem;
 }
 
+.cab-tit {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem 0.75rem;
+  align-items: center;
+  justify-content: space-between;
+}
+
 .cab h1 {
-  margin-bottom: 0.3rem;
+  margin: 0;
   font-size: clamp(1.25rem, 2.4vw, 1.55rem);
 }
 
-.totales {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.4rem;
-}
-
-.desglose-cards {
+/* Misma idea que Resumen: cards alineadas y del mismo tamaño */
+.metricas,
+.desglose-disp {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0.4rem;
-  margin-top: 0.45rem;
+  grid-template-columns: repeat(auto-fit, minmax(8.5rem, 1fr));
+  gap: 0.55rem;
+  margin-bottom: 0.55rem;
+  align-items: stretch;
 }
 
-.desglose-cards article {
-  padding: 0.45rem 0.6rem;
-  border-radius: 0.75rem;
-  border: 1px solid var(--linea);
-  background: color-mix(in srgb, var(--superficie-2) 80%, transparent);
-}
-
-.desglose-cards article.total-suma {
-  border-color: color-mix(in srgb, var(--acento) 40%, var(--linea));
-  background: color-mix(in srgb, var(--acento) 10%, var(--superficie));
-}
-
-.desglose-cards span {
-  display: block;
-  font-size: 0.65rem;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--texto-suave);
-  font-weight: 600;
-  margin-bottom: 0.1rem;
-}
-
-.desglose-cards strong {
-  font-family: var(--fuente-display);
-  font-size: 0.95rem;
-  font-weight: 800;
-  line-height: 1.15;
-}
-
-.desglose-cards .mini {
-  display: block;
-  margin-top: 0.15rem;
-  font-size: 0.65rem;
-  color: var(--texto-suave);
-  text-transform: none;
-  letter-spacing: 0;
-  font-weight: 500;
-}
-
-button.total-btn {
-  display: block;
-  min-width: 0;
-  flex: 1 1 7rem;
-  padding: 0.45rem 0.75rem;
-  border: 1px solid var(--linea);
-  border-radius: 0.85rem;
+.metricas .card-btn,
+.desglose-disp article {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-start;
+  min-height: 5.1rem;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0.7rem 0.8rem;
+  border-radius: 1rem;
+  border: 1px solid var(--borde-card);
   background:
-    linear-gradient(160deg, color-mix(in srgb, #fff 3%, transparent), transparent 50%),
-    var(--superficie);
+    linear-gradient(160deg, color-mix(in srgb, #fff 3.5%, transparent), transparent 45%),
+    linear-gradient(160deg, var(--superficie) 0%, var(--superficie-2) 100%);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.14);
   color: inherit;
   text-align: left;
-  font-weight: inherit;
-  transform: none;
+  font: inherit;
+  cursor: default;
+  transition: transform 0.2s var(--ease-out), border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.metricas .card-btn {
   cursor: pointer;
-  overflow: hidden;
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
-  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.18s var(--ease-out);
+  transform: none;
 }
 
-button.total-btn:hover {
+.metricas .card-btn:hover,
+.desglose-disp article:hover {
   filter: none;
-  transform: translateY(-1px);
-  border-color: color-mix(in srgb, var(--acento) 40%, var(--linea));
-  box-shadow: 0 12px 26px rgba(0, 0, 0, 0.18);
+  transform: translateY(-2px);
+  border-color: color-mix(in srgb, var(--acento) 65%, var(--borde-card));
 }
 
-button.total-btn.actual {
-  border-color: color-mix(in srgb, var(--acento) 35%, var(--linea));
-}
-
-button.total-btn.activo {
+.metricas .card-btn.activo {
   border-color: var(--acento);
   box-shadow:
     0 10px 24px color-mix(in srgb, var(--acento) 22%, transparent),
     0 0 0 1px color-mix(in srgb, var(--acento) 40%, transparent);
   background:
     linear-gradient(145deg, color-mix(in srgb, var(--acento) 16%, transparent), transparent 55%),
-    color-mix(in srgb, var(--acento) 8%, var(--superficie));
+    linear-gradient(160deg, var(--superficie) 0%, var(--superficie-2) 100%);
 }
 
-.totales span {
+.desglose-disp article.total-suma {
+  border-color: color-mix(in srgb, var(--pos, #3d9a6a) 40%, var(--borde-card));
+}
+
+.metricas span,
+.desglose-disp span {
   display: block;
-  font-size: 0.65rem;
+  color: var(--texto-suave);
+  font-size: 0.72rem;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  color: var(--texto-suave);
-  margin-bottom: 0.08rem;
   font-weight: 600;
+  margin-bottom: 0.25rem;
 }
 
-.totales strong {
+.metricas strong,
+.desglose-disp strong {
   font-family: var(--fuente-display);
-  font-size: 0.98rem;
-  font-weight: 800;
+  font-size: 1rem;
+  font-weight: 700;
   line-height: 1.15;
   display: block;
   min-width: 0;
@@ -134,14 +105,17 @@ button.total-btn.activo {
   word-break: break-word;
 }
 
-.totales small {
+.metricas .mini,
+.desglose-disp .mini {
   display: block;
-  margin-top: 0.12rem;
-  font-size: 0.68rem;
+  margin-top: auto;
+  padding-top: 0.2rem;
+  font-size: 0.65rem;
   color: var(--texto-suave);
-  text-transform: capitalize;
+  text-transform: none;
+  letter-spacing: 0;
   font-weight: 500;
-  line-height: 1.2;
+  line-height: 1.25;
 }
 
 .buscar-wrap { max-width: 260px; width: 100%; min-width: 0; }
@@ -476,25 +450,23 @@ button:disabled { opacity: 0.65; cursor: not-allowed; transform: none; filter: n
   .items-lista > li:nth-child(2) { animation-delay: 0.04s; }
   .items-lista > li:nth-child(3) { animation-delay: 0.08s; }
 
-  .cab { align-items: stretch; }
-  .totales {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 0.5rem;
-    width: 100%;
+  .cab-tit { align-items: stretch; }
+  .metricas,
+  .desglose-disp {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
-  .totales .total-btn {
-    width: 100%;
-    min-width: 0;
-    padding: 0.5rem 0.6rem;
+  .metricas .card-btn,
+  .desglose-disp article {
+    min-height: 4.6rem;
+    padding: 0.55rem 0.65rem;
   }
-  .totales strong {
-    font-size: clamp(0.78rem, 3.5vw, 0.98rem);
-    letter-spacing: -0.03em;
+  .metricas strong,
+  .desglose-disp strong {
+    font-size: clamp(0.82rem, 3.6vw, 0.98rem);
+    letter-spacing: -0.02em;
   }
-  .totales small { font-size: 0.68rem; }
-  .desglose-cards {
-    grid-template-columns: 1fr;
+  .desglose-disp article.total-suma {
+    grid-column: 1 / -1;
   }
   .alta {
     display: grid;
@@ -582,8 +554,13 @@ button:disabled { opacity: 0.65; cursor: not-allowed; transform: none; filter: n
   .alta label { min-width: 0; width: 100%; }
   .alta-acciones { width: 100%; }
   .alta-acciones button { width: 100%; }
-  .totales .total-btn { padding: 0.4rem 0.65rem; }
-  .totales strong {
+  .metricas .card-btn,
+  .desglose-disp article {
+    padding: 0.45rem 0.6rem;
+    min-height: 4.2rem;
+  }
+  .metricas strong,
+  .desglose-disp strong {
     font-size: clamp(0.75rem, 2.8vw, 0.95rem);
   }
 }

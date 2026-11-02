@@ -525,7 +525,7 @@ export class CuentasComponent implements OnInit, OnDestroy {
 
   /**
    * Desglose prestamista: cobros primero liquidan rédito, luego capital.
-   * Total ≈ saldoActual.
+   * Total = saldo que debe mostrarse (fuente: movimientos).
    */
   get resumenPrestamo(): { capital: number; redito: number; total: number } | null {
     if (!this.seleccionPrestamista || !this.seleccionada) return null;
@@ -555,6 +555,12 @@ export class CuentasComponent implements OnInit, OnDestroy {
     const capital = Math.round(Math.max(0, prestado - aCapital) * 100) / 100;
     const total = Math.round((capital + Math.max(0, redito)) * 100) / 100;
     return { capital, redito: Math.max(0, redito), total };
+  }
+
+  /** Prestamista: Saldo actual = Te deben (ledger). Resto: saldoActual de BD. */
+  get saldoMostrado(): number {
+    if (this.resumenPrestamo) return this.resumenPrestamo.total;
+    return Number(this.seleccionada?.saldoActual) || 0;
   }
 
   /** Atajo: deja listo el formulario para cargar más rédito. */
