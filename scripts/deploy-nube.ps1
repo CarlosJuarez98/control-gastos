@@ -41,18 +41,14 @@ rm -f ~/cg-deploy.tar
 docker compose -f docker-compose.cloud-atp.yml --env-file .env.cloud up -d --build
 docker network connect control-gastos_default productos-limpieza-caddy 2>/dev/null || true
 # Spring+ATP suele tardar 50–70s; el build deja el contenedor "Up" antes de que /health responda.
-ok=0
-for i in $(seq 1 36); do
+# Here-string expandable: no usar $(...) de bash (PowerShell lo ejecuta). Usar {1..36}.
+for i in {1..36}; do
   if docker exec control-gastos-api wget -qO- http://127.0.0.1:8081/api/health 2>/dev/null | grep -q UP; then
     echo HEALTH_OK_CONTAINER
-    ok=1
-    break
+    exit 0
   fi
   sleep 5
 done
-if [ "$ok" = 1 ]; then
-  exit 0
-fi
 echo HEALTH_TIMEOUT_CONTAINER
 echo '--- docker logs (ultimas 80 lineas) ---'
 docker logs --tail 80 control-gastos-api 2>&1 || true
