@@ -1,7 +1,7 @@
 /**
  * Mantiene el campo activo a la vista al registrar (teclado + dock móvil).
  * Con interactive-widget=overlays-content el layout no se encoge: hay que
- * reservar la tapa del teclado y bajar el scroll para que el campo quede arriba.
+ * reservar la tapa del teclado y scrollear para centrar el campo en la zona útil.
  */
 
 function leerTecladoInset(): number {
@@ -13,7 +13,7 @@ function leerTecladoInset(): number {
 /** Estimación cuando el teclado aún no reportó inset (overlays-content). */
 function tecladoEstimado(): number {
   const h = window.visualViewport?.height ?? window.innerHeight;
-  return Math.min(380, Math.max(220, Math.round(h * 0.42)));
+  return Math.min(360, Math.max(240, Math.round(h * 0.4)));
 }
 
 function tecladoAbiertoMarcado(): boolean {
@@ -32,9 +32,11 @@ function bandaVisible(opts?: { anticiparTeclado?: boolean }): { top: number; bot
     inset = Math.max(inset, tecladoEstimado());
   }
   const dock = document.querySelector('.nav-dock') as HTMLElement | null;
-  const dockH = dock && getComputedStyle(dock).visibility !== 'hidden' ? 84 : 16;
-  const coverBottom = Math.max(inset, 0) + dockH + 12;
-  const top = (vv?.offsetTop ?? 0) + 8;
+  const dockVisible = !!(dock && getComputedStyle(dock).visibility !== 'hidden');
+  // Con teclado el dock se oculta; no restar su alto dos veces.
+  const dockH = dockVisible && inset < 80 ? 84 : 8;
+  const coverBottom = Math.max(inset, 0) + dockH + 8;
+  const top = (vv?.offsetTop ?? 0) + 10;
   const bottomVv = (vv ? vv.offsetTop + vv.height : window.innerHeight) - coverBottom;
   const bottomLayout = window.innerHeight - coverBottom;
   return {
@@ -60,8 +62,8 @@ function contenedorScroll(el: HTMLElement): HTMLElement | null {
 }
 
 /**
- * Desplaza el scroll para que `el` quede en la zona visible (tercio superior
- * de la banda útil, encima del teclado).
+ * Desplaza el scroll para que `el` quede centrado en la banda útil
+ * (entre header y teclado), no pegado arriba.
  */
 export function scrollCampoEnVista(
   el: HTMLElement | null | undefined,
@@ -74,25 +76,23 @@ export function scrollCampoEnVista(
 
   const aplicar = () => {
     const { top, bottom } = bandaVisible({ anticiparTeclado: anticipar });
-    if (bottom - top < 80) return;
+    const altoBanda = bottom - top;
+    if (altoBanda < 80) return;
 
     const rect = el.getBoundingClientRect();
-    // Objetivo: campo en el tercio superior de la banda (se ve etiqueta + valor).
-    const destinoY = top + (bottom - top) * 0.28;
+    // Centro exacto de la zona libre (entre header y teclado).
+    const destinoY = top + altoBanda * 0.5;
     const centroCampo = (rect.top + rect.bottom) / 2;
-    const fuera = rect.bottom > bottom - 8 || rect.top < top + 4;
-    const lejosDelObjetivo = Math.abs(centroCampo - destinoY) > 36;
+    const fuera = rect.bottom > bottom - 10 || rect.top < top + 6;
+    const lejosDelObjetivo = Math.abs(centroCampo - destinoY) > 28;
 
-    if (!forzar && !fuera && !lejosDelObjetivo) {
-      return;
-    }
-    // Sin forzar: solo mover si está tapado o casi.
-    if (!forzar && !fuera) {
-      return;
-    }
+    if (!forzar && !fuera) return;
+    if (!forzar && !lejosDelObjetivo) return;
+    // Con forzar: solo mover si está fuera o lejos del centro.
+    if (forzar && !fuera && !lejosDelObjetivo) return;
 
     const delta = centroCampo - destinoY;
-    if (Math.abs(delta) < 4) return;
+    if (Math.abs(delta) < 6) return;
 
     const cont = contenedorScroll(el);
     if (cont) {
@@ -104,11 +104,11 @@ export function scrollCampoEnVista(
       root.scrollBy({ top: delta, behavior });
     }
 
-    // Respaldo si el contenedor no pudo bajar lo suficiente
+    // Respaldo: recentrar si sigue tapado (center = misma idea que el destino).
     requestAnimationFrame(() => {
       const r2 = el.getBoundingClientRect();
       const b = bandaVisible({ anticiparTeclado: anticipar });
-      if (r2.bottom > b.bottom - 4 || r2.top < b.top + 2) {
+      if (r2.bottom > b.bottom - 6 || r2.top < b.top + 4) {
         el.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'auto' });
       }
     });

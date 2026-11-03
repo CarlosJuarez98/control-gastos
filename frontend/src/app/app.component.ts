@@ -247,14 +247,14 @@ export class AppComponent implements AfterViewInit, AfterViewChecked, OnDestroy 
     if (this.focusScrollTimer != null) clearTimeout(this.focusScrollTimer);
     const forzar = !sinTeclado;
     scrollCampoEnVista(campo, { behavior: 'auto', forzar, anticiparTeclado: forzar });
-    // Reintentos mientras el teclado anima; el scroll anticipa la tapa sin mover el dock.
-    const reintentos = sinTeclado ? [120] : [80, 200, 380, 560];
+    // Pocos reintentos: el teclado anima ~250–400 ms; demasiados dejaban el campo muy arriba.
+    const reintentos = sinTeclado ? [120] : [120, 320];
     for (const ms of reintentos) {
       window.setTimeout(() => {
         if (document.activeElement !== campo) return;
         this.actualizarInsetTeclado(false);
         scrollCampoEnVista(campo, {
-          behavior: ms < 200 ? 'auto' : 'smooth',
+          behavior: 'smooth',
           forzar: !sinTeclado,
           anticiparTeclado: !sinTeclado,
         });

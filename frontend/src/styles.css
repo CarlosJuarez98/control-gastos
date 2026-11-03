@@ -760,7 +760,7 @@ th {
 }
 
 @media (max-width: 720px), (pointer: coarse) {
-  /* Al registrar: deja el campo arriba del teclado (scroll baja el contenido) */
+  /* Respaldo scrollIntoView: márgenes simétricos para no empujar el campo arriba */
   form.alta input,
   form.alta select,
   form.alta textarea,
@@ -772,8 +772,8 @@ th {
   form.alta-mov input,
   form.dialog-form input,
   .monto-wrap input {
-    scroll-margin-top: 12vh;
-    scroll-margin-bottom: 42vh;
+    scroll-margin-top: 22vh;
+    scroll-margin-bottom: 22vh;
   }
 
   * {
