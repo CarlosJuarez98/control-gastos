@@ -237,23 +237,29 @@ export class AppComponent implements AfterViewInit, AfterViewChecked, OnDestroy 
       this.altoAppCongelado = true;
       this.fijarAltoApp(true);
     }
-    this.marcarTeclado(true);
-    this.actualizarInsetTeclado(false);
-    this.sondearInsetTeclado();
-    if (this.focusScrollTimer != null) clearTimeout(this.focusScrollTimer);
-    // Select/fecha no abren teclado: no recentrar si ya se ven (evita bajar el scroll en Cuentas).
+    // Select/fecha no abren teclado: no recentrar de más.
     const sinTeclado =
       campo.tagName === 'SELECT' ||
       (campo instanceof HTMLInputElement && (campo.type || '').toLowerCase() === 'date');
+    // No marcar teclado ni tocar el dock hasta tener inset real (evita iconos/padding raros).
+    this.actualizarInsetTeclado(false);
+    if (!sinTeclado) this.sondearInsetTeclado();
+    if (this.focusScrollTimer != null) clearTimeout(this.focusScrollTimer);
     const forzar = !sinTeclado;
-    scrollCampoEnVista(campo, { behavior: 'auto', forzar });
-    this.focusScrollTimer = setTimeout(() => {
-      // Solo medir; NO forzar fallback aquí (si el teclado no abrió, no levantar el dock)
-      this.actualizarInsetTeclado(false);
-      if (!sinTeclado) {
-        scrollCampoEnVista(campo, { behavior: 'smooth', forzar: true });
-      }
-    }, 320);
+    scrollCampoEnVista(campo, { behavior: 'auto', forzar, anticiparTeclado: forzar });
+    // Reintentos mientras el teclado anima; el scroll anticipa la tapa sin mover el dock.
+    const reintentos = sinTeclado ? [120] : [80, 200, 380, 560];
+    for (const ms of reintentos) {
+      window.setTimeout(() => {
+        if (document.activeElement !== campo) return;
+        this.actualizarInsetTeclado(false);
+        scrollCampoEnVista(campo, {
+          behavior: ms < 200 ? 'auto' : 'smooth',
+          forzar: !sinTeclado,
+          anticiparTeclado: !sinTeclado,
+        });
+      }, ms);
+    }
   }
 
   @HostListener('focusout')
@@ -308,7 +314,7 @@ export class AppComponent implements AfterViewInit, AfterViewChecked, OnDestroy 
     this.marcarTeclado(false);
     this.altoAppCongelado = false;
     document.documentElement.style.setProperty('--teclado-inset', '0px');
-    this.aplicarDockSobreTeclado(0);
+    this.aplicarDockSobreTeclado(0); // limpia visibility del dock
     // Doble tick: en Android el innerHeight a veces tarda un frame en volver
     this.fijarAltoApp(true);
     requestAnimationFrame(() => {
@@ -333,36 +339,34 @@ export class AppComponent implements AfterViewInit, AfterViewChecked, OnDestroy 
     return Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop));
   }
 
-  /** Altura del teclado ≈ layout − visual viewport (Chrome/Android; iOS similar). */
-  private actualizarInsetTeclado(permitirFallback = false): void {
-    let inset = this.insetRealTeclado();
-    // Fallback solo mientras el teclado “debería” estar abriéndose y aún no hay inset real
-    if (
-      permitirFallback &&
-      inset < 80 &&
-      this.tecladoAbierto &&
-      window.matchMedia('(max-width: 720px)').matches
-    ) {
-      inset = Math.min(340, Math.round(window.innerHeight * 0.4));
-    }
-    document.documentElement.style.setProperty('--teclado-inset', `${inset}px`);
-    this.aplicarDockSobreTeclado(inset);
+  /**
+   * Inset real del teclado (visualViewport). Sin estimaciones en el dock/padding.
+   * El scroll del campo anticipa el teclado en scroll-campo.util.
+   */
+  private actualizarInsetTeclado(_permitirFallback = false): void {
+    const real = this.insetRealTeclado();
+    document.documentElement.style.setProperty('--teclado-inset', `${real}px`);
+    const abierto = real > 80;
+    this.marcarTeclado(abierto);
+    this.aplicarDockSobreTeclado(real);
   }
 
-  /** Sube el dock por encima del teclado (inline: más fiable que solo CSS var). */
-  private aplicarDockSobreTeclado(inset: number): void {
+  /** Con teclado real: oculta el dock (no lo sube; eso hacía “saltar” los iconos). */
+  private aplicarDockSobreTeclado(insetReal: number): void {
     const dock = document.querySelector('.nav-dock') as HTMLElement | null;
     const panel = document.querySelector('.menu-nav-panel') as HTMLElement | null;
-    if (inset > 80) {
-      const bottom = `${inset + 6}px`;
-      dock?.style.setProperty('bottom', bottom, 'important');
-      if (panel) {
-        // panel encima del dock (~4.35rem ≈ 70px)
-        panel.style.setProperty('bottom', `${inset + 76}px`, 'important');
-      }
+    dock?.style.removeProperty('bottom');
+    panel?.style.removeProperty('bottom');
+    if (insetReal > 80) {
+      dock?.style.setProperty('visibility', 'hidden');
+      dock?.style.setProperty('pointer-events', 'none');
+      panel?.style.setProperty('visibility', 'hidden');
+      panel?.style.setProperty('pointer-events', 'none');
     } else {
-      dock?.style.removeProperty('bottom');
-      panel?.style.removeProperty('bottom');
+      dock?.style.removeProperty('visibility');
+      dock?.style.removeProperty('pointer-events');
+      panel?.style.removeProperty('visibility');
+      panel?.style.removeProperty('pointer-events');
     }
   }
 
@@ -388,26 +392,31 @@ export class AppComponent implements AfterViewInit, AfterViewChecked, OnDestroy 
     return !!dock?.style.getPropertyValue('bottom');
   }
 
-  /** El teclado tarda en abrir: relee el inset varias veces para subir el dock a tiempo. */
+  /** El teclado tarda en abrir: relee el inset y baja el scroll con el campo a la vista. */
   private sondearInsetTeclado(): void {
     if (this.insetPollTimer != null) clearTimeout(this.insetPollTimer);
     let n = 0;
+    let ultimoInset = -1;
     const tick = () => {
-      if (!this.tecladoAbierto) return;
+      const activo = document.activeElement as HTMLElement | null;
+      const sigueEditando = this.esCampoEditable(activo);
       const real = this.insetRealTeclado();
-      // Si ya bajó el teclado durante el sondeo, restaurar y salir
-      if (real < 40 && n >= 4) {
+      this.actualizarInsetTeclado(false);
+      // Si el teclado bajó y ya no hay foco editable, restaurar
+      if (real < 40 && n >= 8 && !sigueEditando) {
         this.restaurarLayoutSinTeclado();
         return;
       }
-      // Fallback solo si tras ~300ms sigue sin inset real (teclado abierto sin VV)
-      this.actualizarInsetTeclado(n >= 6 && real < 80);
-      const activo = document.activeElement as HTMLElement | null;
-      if (this.esCampoEditable(activo) && n === 6 && real > 80) {
-        scrollCampoEnVista(activo, { behavior: 'smooth', forzar: true });
+      if (sigueEditando && (n === 2 || n === 6 || n === 10 || Math.abs(real - ultimoInset) > 8)) {
+        scrollCampoEnVista(activo, {
+          behavior: n < 4 ? 'auto' : 'smooth',
+          forzar: true,
+          anticiparTeclado: true,
+        });
       }
+      ultimoInset = real;
       n += 1;
-      if (n < 14 && this.tecladoAbierto) {
+      if (n < 18 && sigueEditando) {
         this.insetPollTimer = setTimeout(tick, 50);
       }
     };

@@ -760,7 +760,7 @@ th {
 }
 
 @media (max-width: 720px), (pointer: coarse) {
-  /* Al registrar: scrollIntoView deja el campo en zona usable (teclado + dock) */
+  /* Al registrar: deja el campo arriba del teclado (scroll baja el contenido) */
   form.alta input,
   form.alta select,
   form.alta textarea,
@@ -768,8 +768,12 @@ th {
   form.gasto-form select,
   form.panel-inline input,
   form.panel-inline select,
-  form.perfil-form input {
-    scroll-margin-block: 28vh;
+  form.perfil-form input,
+  form.alta-mov input,
+  form.dialog-form input,
+  .monto-wrap input {
+    scroll-margin-top: 12vh;
+    scroll-margin-bottom: 42vh;
   }
 
   * {
@@ -790,18 +794,12 @@ th {
   }
 
   /*
-   * Teclado móvil: el dock NO se esconde; sube encima del teclado.
-   * El bottom concreto lo aplica también JS (--teclado-inset + estilo inline)
-   * porque algunos WebViews no resuelven bien max()+var en bottom.
+   * Teclado móvil: el dock se oculta (JS) para no “subir” los iconos.
+   * El scroll del campo usa --teclado-inset / estimación en scroll-campo.util.
    */
-  body.teclado-abierto .nav-dock {
-    z-index: 70 !important;
-    transition: bottom 0.18s ease;
-  }
-
+  body.teclado-abierto .nav-dock,
   body.teclado-abierto .menu-nav-panel {
-    z-index: 71 !important;
-    transition: bottom 0.18s ease;
+    transition: opacity 0.15s ease, visibility 0.15s ease;
   }
 }
 

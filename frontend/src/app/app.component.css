@@ -594,24 +594,9 @@ main > *:not(router-outlet) {
     padding-bottom: calc(4.6rem + env(safe-area-inset-bottom));
   }
 
-  /* Teclado abierto: dock visible (el bottom lo fija JS con el inset real) */
-  .shell.teclado-abierto .nav-dock {
-    z-index: 70;
-    transition: bottom 0.18s ease;
-    box-shadow:
-      0 12px 36px rgba(0, 0, 0, 0.5),
-      0 0 0 1px color-mix(in srgb, var(--acento) 12%, transparent),
-      inset 0 1px 0 rgba(255, 255, 255, 0.06);
-  }
-
-  .shell.teclado-abierto .menu-nav-panel {
-    transition: bottom 0.18s ease;
-    z-index: 71;
-  }
-
+  /* Teclado real: espacio del inset; el dock se oculta (no se eleva). */
   .shell.teclado-abierto.con-dock main {
-    /* Espacio extra: dock (~4.6rem) queda sobre el teclado */
-    padding-bottom: calc(4.6rem + var(--teclado-inset, 0px) + env(safe-area-inset-bottom));
+    padding-bottom: calc(var(--teclado-inset, 0px) + 1rem + env(safe-area-inset-bottom));
   }
 
   .top {

@@ -13,6 +13,7 @@ import { EnterAvanceDirective } from '../../enter-avance.directive';
 import { PaginadorComponent } from '../../compartido/paginador/paginador.component';
 import { EstadoPaginacion } from '../../compartido/paginar.util';
 import { formatoFechaCortaEs, desgloseSaldoTdc, etiquetaCortesPlanMeses } from '../../tdc-calendario.util';
+import { scrollCampoEnVista } from '../../scroll-campo.util';
 
 @Component({
   selector: 'app-cuentas',
@@ -614,17 +615,23 @@ export class CuentasComponent implements OnInit, OnDestroy {
       const input = hostEl.querySelector(
         'form.alta-mov input[name="mmonto"]',
       ) as HTMLInputElement | null;
-      // Anclar con la deuda visible (no centrar solo el form y tapar “Deuda total” / “Te deben”).
-      const ancla =
-        (hostEl.querySelector('.card-prestamo') as HTMLElement | null) ||
-        (hostEl.querySelector('.card-tdc-corte') as HTMLElement | null) ||
-        form;
-      if (ancla) {
-        this.scrollAElemento(ancla);
+      // En PC: anclar card/form. En móvil: el teclado manda — bajar scroll al monto.
+      if (!this.esMovil) {
+        const ancla =
+          (hostEl.querySelector('.card-prestamo') as HTMLElement | null) ||
+          (hostEl.querySelector('.card-tdc-corte') as HTMLElement | null) ||
+          form;
+        if (ancla) this.scrollAElemento(ancla);
       }
       if (input) {
         input.focus({ preventScroll: true });
         cursorAlFinalTrasUpdate(input);
+        if (this.esMovil) {
+          scrollCampoEnVista(input, { behavior: 'auto', forzar: true, anticiparTeclado: true });
+          window.setTimeout(() => {
+            scrollCampoEnVista(input, { behavior: 'smooth', forzar: true, anticiparTeclado: true });
+          }, 280);
+        }
       }
     };
     // Doble rAF: el layout de la card/form ya está estable (sobre todo en PC).

@@ -210,9 +210,9 @@ export class EnterAvanceDirective implements AfterViewInit {
   /** Mantiene el campo activo dentro del viewport (teclado / scroll). */
   private scrollCampoVisible(el: HTMLElement): void {
     if (this.scrollCampoTimer != null) clearTimeout(this.scrollCampoTimer);
-    scrollCampoEnVista(el, { behavior: 'auto', forzar: true });
+    scrollCampoEnVista(el, { behavior: 'auto', forzar: true, anticiparTeclado: true });
     this.scrollCampoTimer = setTimeout(() => {
-      scrollCampoEnVista(el, { behavior: 'smooth', forzar: true });
+      scrollCampoEnVista(el, { behavior: 'smooth', forzar: true, anticiparTeclado: true });
     }, 280);
   }
 
