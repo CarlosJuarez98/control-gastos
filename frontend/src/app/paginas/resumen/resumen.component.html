@@ -109,6 +109,29 @@
     </div>
   }
 
+  @if (mejorTdc; as tdc) {
+    <a class="card-mejor-tdc" routerLink="/gastos" [class.opaco]="cargando">
+      <div class="mejor-tdc-txt">
+        <span class="mejor-tdc-lbl">Mejor TDC · score (usar + pagar a tiempo)</span>
+        <strong class="mejor-tdc-nombre">{{ tdc.cuenta.nombre }}</strong>
+        <small class="mini">
+          @if (tdc.utilizacionPct != null) {
+            Uso {{ tdc.utilizacionPct }}%{{ tdc.sobreMetaUso ? ' (alto)' : '' }}
+          } @else {
+            Sin límite capturado
+          }
+          @if (tdc.diasHastaPago >= 0) {
+            · {{ tdc.diasHastaPago }}d a pago
+          }
+          @if (tdc.creditoDisponible != null) {
+            · libre {{ tdc.creditoDisponible | currency:'MXN':'symbol-narrow':'1.0-0' }}
+          }
+        </small>
+      </div>
+      <span class="mejor-tdc-ir">Ver guía →</span>
+    </a>
+  }
+
   <div class="charts" [class.opaco]="cargando">
     <section class="panel">
       <h2>Flujo · {{ etiquetaMes }}</h2>

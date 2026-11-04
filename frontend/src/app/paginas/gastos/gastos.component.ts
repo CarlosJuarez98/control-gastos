@@ -13,7 +13,12 @@ import { formatFechaCorta, fechaHoyLocal } from '../../fecha.util';
 import { EnterAvanceDirective } from '../../enter-avance.directive';
 import { PaginadorComponent } from '../../compartido/paginador/paginador.component';
 import { PaginasPorClave } from '../../compartido/paginar.util';
-import { calendarioCompraTdc, recomendarTdcs, RecomendacionTdc, CalendarioTdc } from '../../tdc-calendario.util';
+import {
+  calendarioCompraTdc,
+  recomendarTdcs,
+  RecomendacionTdc,
+  CalendarioTdc,
+} from '../../tdc-calendario.util';
 
 export interface GastoFila {
   id?: number;
@@ -53,6 +58,13 @@ export class GastosComponent implements OnInit, OnDestroy {
   /** Cache de recomendaciones (evitar recalcular en cada CD). */
   recomendacionesTdc: RecomendacionTdc[] = [];
   private tdcCtxTimer: ReturnType<typeof setTimeout> | null = null;
+  /** Guía «con cuál compro» (sin registrar gasto). */
+  guiaTdcAbierta = true;
+  guiaFecha = fechaHoyLocal();
+  guiaMonto = '';
+  recomendacionesGuia: RecomendacionTdc[] = [];
+  private guiaTimer: ReturnType<typeof setTimeout> | null = null;
+  private guiaInitMedia = false;
   grupos: GrupoQuincena[] = [];
   total = 0;
   totalQuincenaActual = 0;
@@ -128,12 +140,18 @@ export class GastosComponent implements OnInit, OnDestroy {
     this.media = window.matchMedia('(max-width: 720px)');
     this.onMedia = () => {
       this.esMovil = !!this.media?.matches;
+      // Primera vez: móvil cerrada, PC abierta.
+      if (!this.guiaInitMedia) {
+        this.guiaTdcAbierta = !this.esMovil;
+        this.guiaInitMedia = true;
+      }
       this.cdr.markForCheck();
     };
     this.onMedia();
     this.media.addEventListener('change', this.onMedia);
 
     this.hoy = fechaHoyLocal();
+    this.guiaFecha = this.hoy;
     this.form.fecha = this.hoy;
     this.claveHoy = this.claveQuincena(this.hoy);
     this.etiquetaQuincenaActual = this.etiquetaDeClave(this.claveHoy);
@@ -154,11 +172,47 @@ export class GastosComponent implements OnInit, OnDestroy {
     }
     if (this.filtroTimer) clearTimeout(this.filtroTimer);
     if (this.tdcCtxTimer) clearTimeout(this.tdcCtxTimer);
+    if (this.guiaTimer) clearTimeout(this.guiaTimer);
     this.routeSub?.unsubscribe();
   }
 
   toggleAlta(): void {
     this.altaAbierta = !this.altaAbierta;
+  }
+
+  toggleGuiaTdc(): void {
+    this.guiaTdcAbierta = !this.guiaTdcAbierta;
+    if (this.guiaTdcAbierta) this.actualizarGuiaTdc();
+  }
+
+  /** Mejor TDC usable (libre > 0) según fecha/monto/modo de la guía. */
+  get mejorTdcGuia(): RecomendacionTdc | null {
+    return this.recomendacionesGuia.find((r) => r.usable) ?? null;
+  }
+
+  alCambiarGuiaFecha(): void {
+    this.actualizarGuiaTdc();
+  }
+
+  alEscribirGuiaMonto(v: string): void {
+    this.guiaMonto = formatDineroInputFlexible(v);
+    if (this.guiaTimer) clearTimeout(this.guiaTimer);
+    this.guiaTimer = setTimeout(() => this.actualizarGuiaTdc(), 120);
+  }
+
+  soloMontoGuia(ev: KeyboardEvent): void {
+    soloMontoKey(ev);
+  }
+
+  private actualizarGuiaTdc(): void {
+    const fecha = (this.guiaFecha || this.hoy || fechaHoyLocal()).slice(0, 10);
+    const monto = parseDineroSuma(this.guiaMonto).total;
+    this.recomendacionesGuia = recomendarTdcs(
+      this.cuentas.filter((c) => (c.tipo || '').toUpperCase() === 'TDC'),
+      fecha,
+      monto,
+    );
+    this.cdr.markForCheck();
   }
 
   /** Misma lista que Deudas → cuentas tipo TDC (activas), orden por conveniencia. */
@@ -167,11 +221,13 @@ export class GastosComponent implements OnInit, OnDestroy {
       next: (r) => {
         this.cuentas = r;
         this.ordenarYSincronizarTdcs(autoSeleccionar);
+        this.actualizarGuiaTdc();
         this.cdr.markForCheck();
       },
       error: () => {
         this.cuentas = [];
         this.cuentasTdc = [];
+        this.recomendacionesGuia = [];
         this.cdr.markForCheck();
       },
     });
@@ -206,8 +262,14 @@ export class GastosComponent implements OnInit, OnDestroy {
     }
   }
 
-  private optsRecomendacionTdc(): { permitirSobregiro?: boolean } | undefined {
-    return this.esDisposicion ? { permitirSobregiro: true } : undefined;
+  private optsRecomendacionTdc(): {
+    permitirSobregiro?: boolean;
+    modo: 'score';
+  } {
+    return {
+      modo: 'score',
+      ...(this.esDisposicion ? { permitirSobregiro: true } : {}),
+    };
   }
 
   /** Compra o disposición: usan TDC. */

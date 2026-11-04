@@ -7,6 +7,8 @@ import { PagosQuincenaService } from '../../pagos-quincena.service';
 import { Resumen } from '../../modelos';
 import { AlertDialogService } from '../../alert-dialog.service';
 import { AlertFeedback } from '../../alert-feedback';
+import { recomendarTdcs, RecomendacionTdc } from '../../tdc-calendario.util';
+import { fechaHoyLocal } from '../../fecha.util';
 
 @Component({
   selector: 'app-resumen',
@@ -28,6 +30,8 @@ export class ResumenComponent implements OnInit {
   cargando = false;
   /** A pagar en la quincena actual (fijos, cuotas, TDC de contado / deudas). */
   pagoEstaQuincena = 0;
+  /** Mejor TDC para comprar hoy (sin registrar gasto). */
+  mejorTdc: RecomendacionTdc | null = null;
 
   /** yyyy-MM */
   mesSeleccionado = '';
@@ -62,6 +66,7 @@ export class ResumenComponent implements OnInit {
     this.mesSeleccionado = this.mesActual();
     this.cargar();
     this.cargarPagoQuincena();
+    this.cargarMejorTdc();
   }
 
   get etiquetaMes(): string {
@@ -118,6 +123,16 @@ export class ResumenComponent implements OnInit {
     this.pagosQuincena.cargarTotales().subscribe({
       next: (t) => (this.pagoEstaQuincena = t.esta),
       error: () => (this.pagoEstaQuincena = 0),
+    });
+  }
+
+  private cargarMejorTdc(): void {
+    this.api.cuentas().subscribe({
+      next: (cuentas) => {
+        this.mejorTdc =
+          recomendarTdcs(cuentas, fechaHoyLocal()).find((r) => r.usable) ?? null;
+      },
+      error: () => (this.mejorTdc = null),
     });
   }
 

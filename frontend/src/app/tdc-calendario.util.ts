@@ -577,15 +577,56 @@ export function creditoDisponibleDe(cuenta: Cuenta): number | null {
   return Math.round((Number(cuenta.limiteCredito) - Number(cuenta.saldoActual || 0)) * 100) / 100;
 }
 
+/**
+ * % de uso = deuda / límite (0–100). Null si no hay límite.
+ * Bajo uso ⇒ conviene rotar gasto ahí (score + pedir alza de límite).
+ */
+export function utilizacionPctDe(cuenta: Cuenta): number | null {
+  const lim = Number(cuenta.limiteCredito);
+  if (!Number.isFinite(lim) || lim <= 0) return null;
+  const saldo = Math.max(0, Number(cuenta.saldoActual) || 0);
+  return Math.round((saldo / lim) * 1000) / 10;
+}
+
+/** Meta habitual de burós/bancos: mantener uso por debajo de este %. */
+export const UTILIZACION_RECOMENDADA_MAX = 30;
+
+export type ModoRecomendacionTdc = 'flujo' | 'score';
+
 export interface RecomendacionTdc extends CalendarioTdc {
   creditoDisponible: number | null;
   cubreMonto: boolean;
+  /** false si el libre es ≤ 0 (saldo/disponible negativo o agotado): no se puede usar. */
+  usable: boolean;
+  /** % de uso del límite; null si no hay límite. */
+  utilizacionPct: number | null;
+  /** true si el uso supera la meta recomendada (30%). */
+  sobreMetaUso: boolean;
 }
 
 /**
- * Todas las TDC activas (no bloqueadas), ordenadas por conveniencia:
- * - Con monto > 0 (y sin sobregiro): primero las que cubren con crédito libre.
- * - Dentro de cada grupo: más días hasta el pago, luego más crédito libre.
+ * Score: poder pagar a tiempo + usar la tarjeta (mayor = mejor).
+ * - Días a pago pesan más (margen para pagar a tiempo).
+ * - Uso bajo ayuda al score y deja espacio para rotar/usar.
+ * - Uso &gt; 30% se castiga fuerte.
+ */
+export function puntuacionMixtaTdc(r: RecomendacionTdc): number {
+  const dias = Math.max(0, r.diasHastaPago);
+  if (r.utilizacionPct == null) {
+    return dias * 1.4 - 6;
+  }
+  const util = r.utilizacionPct;
+  const sobre = Math.max(0, util - UTILIZACION_RECOMENDADA_MAX);
+  // Días ×1.4; cada % de uso resta 0.45; exceso sobre 30% resta 2.
+  return dias * 1.4 - util * 0.45 - sobre * 2;
+}
+
+/**
+ * Todas las TDC activas (no bloqueadas), ordenadas por modo:
+ * - `flujo`: más días hasta el pago, luego más crédito libre.
+ * - `score` (default): pagar a tiempo + usar (días + uso &lt; 30%).
+ * - Con monto > 0 (y sin sobregiro): primero las que cubren.
+ * - Libre ≤ 0: al final; no son “mejores” para comprar.
  * - `permitirSobregiro`: no filtra ni prioriza por límite (disposiciones).
  * - Sin calendario de corte/pago van al final.
  */
@@ -594,21 +635,31 @@ export function recomendarTdcs(
   fechaCompra: Date | string,
   monto = 0,
   max = Number.POSITIVE_INFINITY,
-  opts?: { permitirSobregiro?: boolean },
+  opts?: { permitirSobregiro?: boolean; modo?: ModoRecomendacionTdc },
 ): RecomendacionTdc[] {
   const permitirSobregiro = !!opts?.permitirSobregiro;
+  // Un solo criterio por defecto: mezcla uso% + días (meta < 30%).
+  const modo: ModoRecomendacionTdc = opts?.modo === 'flujo' ? 'flujo' : 'score';
   const montoOk = !permitirSobregiro && Number.isFinite(monto) && monto > 0;
   const conCal: RecomendacionTdc[] = [];
   const sinCal: RecomendacionTdc[] = [];
   for (const c of cuentas) {
     if ((c.tipo || '').toUpperCase() !== 'TDC' || c.bloqueada) continue;
     const disponible = creditoDisponibleDe(c);
-    // Sin límite capturado o sobregiro permitido: no descartar.
+    const utilizacionPct = utilizacionPctDe(c);
+    const sobreMetaUso =
+      utilizacionPct != null && utilizacionPct > UTILIZACION_RECOMENDADA_MAX + 1e-9;
+    // Libre ≤ 0 ⇒ no hay con qué comprar (salvo disposición/sobregiro).
+    const usable =
+      permitirSobregiro || disponible == null || disponible > 0.005;
+    // Sin límite capturado o sobregiro permitido: no descartar por monto.
     const cubre =
-      permitirSobregiro ||
-      !montoOk ||
-      disponible == null ||
-      disponible + 1e-9 >= monto;
+      !usable
+        ? false
+        : permitirSobregiro ||
+          !montoOk ||
+          disponible == null ||
+          disponible + 1e-9 >= monto;
     const cal = calendarioCompraTdc(c, fechaCompra);
     if (!cal) {
       sinCal.push({
@@ -623,16 +674,43 @@ export function recomendarTdcs(
         etiquetaPagoCorta: '—',
         creditoDisponible: disponible,
         cubreMonto: cubre,
+        usable,
+        utilizacionPct,
+        sobreMetaUso,
       });
       continue;
     }
-    conCal.push({ ...cal, creditoDisponible: disponible, cubreMonto: cubre });
+    conCal.push({
+      ...cal,
+      creditoDisponible: disponible,
+      cubreMonto: cubre,
+      usable,
+      utilizacionPct,
+      sobreMetaUso,
+    });
   }
   const porConveniencia = (a: RecomendacionTdc, b: RecomendacionTdc) => {
+    // Primero las que sí se pueden usar (libre > 0).
+    const ua = a.usable ? 1 : 0;
+    const ub = b.usable ? 1 : 0;
+    if (ub !== ua) return ub - ua;
     if (montoOk) {
       const ca = a.cubreMonto ? 1 : 0;
       const cb = b.cubreMonto ? 1 : 0;
       if (cb !== ca) return cb - ca;
+    }
+    if (modo === 'score') {
+      // Bajo meta 30% primero; dentro, mezcla uso + días.
+      const sa = a.sobreMetaUso ? 0 : 1;
+      const sb = b.sobreMetaUso ? 0 : 1;
+      if (sb !== sa) return sb - sa;
+      const pa = puntuacionMixtaTdc(a);
+      const pb = puntuacionMixtaTdc(b);
+      if (pb !== pa) return pb - pa;
+      return (
+        (b.creditoDisponible ?? -Infinity) - (a.creditoDisponible ?? -Infinity) ||
+        (a.cuenta.nombre || '').localeCompare(b.cuenta.nombre || '', 'es')
+      );
     }
     return (
       b.diasHastaPago - a.diasHastaPago ||

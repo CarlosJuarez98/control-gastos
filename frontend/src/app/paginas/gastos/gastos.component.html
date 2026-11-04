@@ -34,6 +34,98 @@
   </form>
 </section>
 
+<section class="guia-tdc" [class.abierta]="guiaTdcAbierta" aria-label="Mejor tarjeta para comprar">
+  <button
+    type="button"
+    class="guia-tdc-toggle"
+    [class.abierto]="guiaTdcAbierta"
+    (click)="toggleGuiaTdc()"
+    [attr.aria-expanded]="guiaTdcAbierta"
+  >
+    <span class="guia-tdc-tit">
+      @if (mejorTdcGuia; as m) {
+        Mejor para score:
+        <strong>{{ m.cuenta.nombre }}</strong>
+        <span class="guia-tdc-meta">
+          @if (m.utilizacionPct != null) {
+            · uso {{ m.utilizacionPct }}%
+          }
+          @if (m.diasHastaPago >= 0) {
+            · {{ m.diasHastaPago }}d
+          }
+        </span>
+      } @else {
+        ¿Con cuál TDC compro?
+      }
+    </span>
+    <span class="chev" aria-hidden="true">{{ guiaTdcAbierta ? '▾' : '▸' }}</span>
+  </button>
+  @if (guiaTdcAbierta) {
+    <div class="guia-tdc-cuerpo">
+      <div class="guia-tdc-filtros">
+        <label>Fecha
+          <input type="date" [(ngModel)]="guiaFecha" name="guiaFecha" [max]="hoy" (ngModelChange)="alCambiarGuiaFecha()" />
+        </label>
+        <label class="campo-saldo">Monto (opcional)
+          <div class="monto-wrap">
+            <span class="simbolo">$</span>
+            <input
+              type="text"
+              inputmode="decimal"
+              autocomplete="off"
+              name="guiaMonto"
+              [ngModel]="guiaMonto"
+              (ngModelChange)="alEscribirGuiaMonto($event)"
+              (keydown)="soloMontoGuia($event)"
+              placeholder="Si sabes cuánto"
+            />
+          </div>
+        </label>
+      </div>
+      @if (recomendacionesGuia.length) {
+        <div class="hint-tdc-recs guia-recs" role="list" aria-label="Tarjetas recomendadas">
+          @for (rec of recomendacionesGuia; track rec.cuenta.id; let i = $index) {
+            <article
+              class="rec-card"
+              role="listitem"
+              [class.elegida]="i === 0 && rec.usable"
+              [class.sin-credito]="!rec.usable || (!!guiaMonto.trim() && !rec.cubreMonto)"
+            >
+              <span class="rec-rank">{{ i + 1 }}ª</span>
+              <span class="rec-nombre">{{ rec.cuenta.nombre }}</span>
+              <span class="rec-meta">
+                @if (!rec.usable) {
+                  sin libre · no usable
+                } @else {
+                  @if (rec.utilizacionPct != null) {
+                    uso {{ rec.utilizacionPct }}%{{ rec.sobreMetaUso ? ' (alto)' : '' }}
+                  } @else {
+                    sin límite
+                  }
+                  @if (rec.diasHastaPago >= 0) {
+                    · {{ rec.etiquetaPagoCorta }} · {{ rec.diasHastaPago }}d
+                  }
+                  @if (guiaMonto.trim() && !rec.cubreMonto) {
+                    · no cubre
+                  }
+                }
+              </span>
+              @if (rec.creditoDisponible != null) {
+                <span class="rec-libre">{{ rec.creditoDisponible | currency:'MXN':'symbol-narrow':'1.0-0' }}</span>
+              }
+              @if (i === 0 && rec.usable) {
+                <span class="rec-ok" aria-label="Mejor opción">✓</span>
+              }
+            </article>
+          }
+        </div>
+      } @else {
+        <p class="hint-tdc-rec hint-tdc-aviso">No hay TDC activas para recomendar</p>
+      }
+    </div>
+  }
+</section>
+
 @if (esMovil) {
   <button
     type="button"
@@ -115,18 +207,20 @@
               class="rec-card"
               role="listitem"
               [class.elegida]="form.cuentaId === rec.cuenta.id"
-              [class.sin-credito]="!esDisposicion && !rec.cubreMonto"
+              [class.sin-credito]="!esDisposicion && (!rec.usable || !rec.cubreMonto)"
               (click)="usarRecomendacionTdc(rec.cuenta.id)"
             >
               <span class="rec-rank">{{ i + 1 }}ª</span>
               <span class="rec-nombre">{{ rec.cuenta.nombre }}</span>
               <span class="rec-meta">
-                @if (rec.diasHastaPago >= 0) {
+                @if (!esDisposicion && !rec.usable) {
+                  sin libre
+                } @else if (rec.diasHastaPago >= 0) {
                   {{ rec.etiquetaPagoCorta }} · {{ rec.diasHastaPago }}d
                 } @else {
                   Sin corte
                 }
-                @if (!esDisposicion && !rec.cubreMonto) {
+                @if (!esDisposicion && rec.usable && !rec.cubreMonto) {
                   · no cubre
                 }
               </span>

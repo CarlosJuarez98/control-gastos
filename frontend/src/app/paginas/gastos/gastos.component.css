@@ -22,6 +22,82 @@
   font-size: clamp(1.25rem, 2.4vw, 1.55rem);
 }
 
+/* Guía TDC sin registrar gasto */
+.guia-tdc {
+  flex: 0 0 auto;
+  margin-bottom: 0.55rem;
+  border: 1px solid color-mix(in srgb, var(--acento) 28%, var(--linea));
+  border-radius: 1rem;
+  background:
+    linear-gradient(145deg, color-mix(in srgb, var(--acento) 10%, transparent), transparent 55%),
+    color-mix(in srgb, var(--superficie) 92%, transparent);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.12);
+  overflow: hidden;
+}
+
+.guia-tdc-toggle {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.55rem;
+  padding: 0.7rem 0.85rem;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.guia-tdc-tit {
+  min-width: 0;
+  font-size: 0.92rem;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.guia-tdc-tit strong {
+  color: var(--acento);
+  font-weight: 800;
+}
+
+.guia-tdc-meta {
+  color: var(--texto-suave);
+  font-weight: 500;
+  font-size: 0.82rem;
+}
+
+.guia-tdc-cuerpo {
+  padding: 0 0.85rem 0.85rem;
+  display: grid;
+  gap: 0.55rem;
+}
+
+.guia-tdc-filtros {
+  display: grid;
+  grid-template-columns: minmax(8rem, 11rem) minmax(0, 1fr);
+  gap: 0.45rem 0.65rem;
+  align-items: end;
+}
+
+.guia-tdc-filtros label {
+  display: grid;
+  gap: 0.22rem;
+  font-size: 0.78rem;
+  color: var(--texto-suave);
+  min-width: 0;
+}
+
+.guia-recs {
+  flex-wrap: wrap;
+}
+
+.guia-recs .rec-card {
+  flex: 1 1 11rem;
+  cursor: default;
+}
+
 .totales {
   display: flex;
   flex-wrap: wrap;
@@ -766,6 +842,13 @@ button:disabled { opacity: 0.65; cursor: not-allowed; transform: none; filter: n
   }
 
   .cab { align-items: stretch; }
+  .guia-tdc-filtros {
+    grid-template-columns: 1fr 1fr;
+  }
+  .guia-recs {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
   .totales {
     display: grid;
     grid-template-columns: 1fr 1fr;
