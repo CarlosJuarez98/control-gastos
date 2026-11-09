@@ -2,6 +2,9 @@
  * Mantiene el campo activo a la vista al registrar (teclado + dock móvil).
  * Con interactive-widget=overlays-content el layout no se encoge: hay que
  * reservar la tapa del teclado y scrollear para centrar el campo en la zona útil.
+ *
+ * Escritorio: solo mueve scroll si el campo está fuera del panel; lo centra
+ * en ese panel (no en toda la ventana), para no mandar el contenido “muy arriba”.
  */
 
 function leerTecladoInset(): number {
@@ -20,6 +23,21 @@ function tecladoAbiertoMarcado(): boolean {
   return document.body.classList.contains('teclado-abierto');
 }
 
+function esEscritorio(): boolean {
+  if (typeof window === 'undefined') return false;
+  return (
+    window.matchMedia('(hover: hover) and (pointer: fine)').matches &&
+    !window.matchMedia('(max-width: 720px)').matches
+  );
+}
+
+/** Alto aproximado del chrome de la app (brand + nav) en PC. */
+function altoHeaderApp(): number {
+  const top = document.querySelector('.shell > .top') as HTMLElement | null;
+  if (!top) return 120;
+  return Math.max(72, Math.round(top.getBoundingClientRect().bottom));
+}
+
 function bandaVisible(opts?: { anticiparTeclado?: boolean }): { top: number; bottom: number } {
   const vv = window.visualViewport;
   let inset = leerTecladoInset();
@@ -36,11 +54,11 @@ function bandaVisible(opts?: { anticiparTeclado?: boolean }): { top: number; bot
   // Con teclado el dock se oculta; no restar su alto dos veces.
   const dockH = dockVisible && inset < 80 ? 84 : 8;
   const coverBottom = Math.max(inset, 0) + dockH + 8;
-  const top = (vv?.offsetTop ?? 0) + 10;
+  const topMin = esEscritorio() ? altoHeaderApp() + 8 : (vv?.offsetTop ?? 0) + 10;
   const bottomVv = (vv ? vv.offsetTop + vv.height : window.innerHeight) - coverBottom;
   const bottomLayout = window.innerHeight - coverBottom;
   return {
-    top,
+    top: topMin,
     bottom: Math.min(bottomVv, bottomLayout),
   };
 }
@@ -75,18 +93,46 @@ export function scrollCampoEnVista(
   const behavior = opts?.behavior ?? 'smooth';
   const forzar = opts?.forzar ?? false;
   const anticipar = opts?.anticiparTeclado ?? forzar;
+  const escritorio = esEscritorio();
 
   const aplicar = () => {
-    const { top, bottom } = bandaVisible({ anticiparTeclado: anticipar });
+    const cont = contenedorScroll(el);
+    let top: number;
+    let bottom: number;
+
+    // PC: la banda es el panel con scroll (.detalle, .lista-scroll…), no toda la ventana.
+    if (escritorio && cont) {
+      const cr = cont.getBoundingClientRect();
+      const pad = 20;
+      top = cr.top + pad;
+      bottom = cr.bottom - pad;
+    } else {
+      const b = bandaVisible({ anticiparTeclado: anticipar });
+      top = b.top;
+      bottom = b.bottom;
+    }
+
     const altoBanda = bottom - top;
     if (altoBanda < 80) return;
 
     const rect = el.getBoundingClientRect();
-    // Centro exacto de la zona libre (entre header y teclado).
     const destinoY = top + altoBanda * 0.5;
     const centroCampo = (rect.top + rect.bottom) / 2;
-    const fuera = rect.bottom > bottom - 10 || rect.top < top + 6;
+    const fuera = rect.bottom > bottom - 8 || rect.top < top + 8;
     const lejosDelObjetivo = Math.abs(centroCampo - destinoY) > 28;
+
+    // Escritorio: solo si está fuera de la vista del panel (nunca recentrar “porque sí”).
+    if (escritorio) {
+      if (!fuera) return;
+      const delta = centroCampo - destinoY;
+      if (Math.abs(delta) < 6) return;
+      if (cont) {
+        const max = Math.max(0, cont.scrollHeight - cont.clientHeight);
+        const dest = Math.max(0, Math.min(max, cont.scrollTop + delta));
+        cont.scrollTo({ top: dest, behavior });
+      }
+      return;
+    }
 
     if (!forzar && !fuera) return;
     if (!forzar && !lejosDelObjetivo) return;
@@ -96,7 +142,6 @@ export function scrollCampoEnVista(
     const delta = centroCampo - destinoY;
     if (Math.abs(delta) < 6) return;
 
-    const cont = contenedorScroll(el);
     if (cont) {
       const max = Math.max(0, cont.scrollHeight - cont.clientHeight);
       const dest = Math.max(0, Math.min(max, cont.scrollTop + delta));
@@ -106,7 +151,7 @@ export function scrollCampoEnVista(
       root.scrollBy({ top: delta, behavior });
     }
 
-    // Respaldo: recentrar si sigue tapado (center = misma idea que el destino).
+    // Respaldo móvil: recentrar si sigue tapado (center = misma idea que el destino).
     requestAnimationFrame(() => {
       const r2 = el.getBoundingClientRect();
       const b = bandaVisible({ anticiparTeclado: anticipar });

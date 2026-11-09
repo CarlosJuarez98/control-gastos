@@ -93,6 +93,8 @@ export interface Cuenta {
   saldoAlCorte?: number | null;
   /** TDC: compras después del corte (aún no van en el estado de cuenta). */
   saldoDespuesCorte?: number | null;
+  /** TDC: abonos después del corte del ciclo a pagar (tip «faltan X de Y»). */
+  abonadoAlCorte?: number | null;
   /** TDC sin compras nuevas (sigue en Deudas). */
   bloqueada?: boolean;
   /** Cuenta saldada / fuera de lista. */

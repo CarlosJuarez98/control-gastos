@@ -234,23 +234,28 @@ export class AppComponent implements AfterViewInit, AfterViewChecked, OnDestroy 
       clearTimeout(this.focusOutTimer);
       this.focusOutTimer = null;
     }
+    // PC: sin teclado virtual; no congelar alto ni forzar recentrado (eso mandaba el scroll arriba).
+    const esPc =
+      window.matchMedia('(hover: hover) and (pointer: fine)').matches &&
+      !window.matchMedia('(max-width: 720px)').matches;
     // Congelar alto ANTES de que el viewport se encoja (fallback iOS / navegadores viejos)
-    if (!this.altoAppCongelado) {
+    if (!esPc && !this.altoAppCongelado) {
       this.altoAppCongelado = true;
       this.fijarAltoApp(true);
     }
-    // Select/fecha no abren teclado: no recentrar de más.
+    // Select/fecha / escritorio no abren teclado: no recentrar de más.
     const sinTeclado =
+      esPc ||
       campo.tagName === 'SELECT' ||
       (campo instanceof HTMLInputElement && (campo.type || '').toLowerCase() === 'date');
     // No marcar teclado ni tocar el dock hasta tener inset real (evita iconos/padding raros).
-    this.actualizarInsetTeclado(false);
+    if (!esPc) this.actualizarInsetTeclado(false);
     if (!sinTeclado) this.sondearInsetTeclado();
     if (this.focusScrollTimer != null) clearTimeout(this.focusScrollTimer);
     const forzar = !sinTeclado;
     scrollCampoEnVista(campo, { behavior: 'auto', forzar, anticiparTeclado: forzar });
     // Pocos reintentos: el teclado anima ~250–400 ms; demasiados dejaban el campo muy arriba.
-    const reintentos = sinTeclado ? [120] : [120, 320];
+    const reintentos = sinTeclado ? (esPc ? [] : [120]) : [120, 320];
     for (const ms of reintentos) {
       window.setTimeout(() => {
         if (document.activeElement !== campo) return;

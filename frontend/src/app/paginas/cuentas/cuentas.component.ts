@@ -332,13 +332,46 @@ export class CuentasComponent implements OnInit, OnDestroy {
     };
   }
 
-  /** En lista: tip del ciclo abierto si hay MSI / cargos en cortes siguientes. */
+  /**
+   * En lista: ciclo a pagar con tope, abonado y faltante.
+   * Ej. «noviembre · Pago 26 · faltan 2,000 de 3,000».
+   * Si el ciclo ya está en 0 y hay MSI/futuros → tip del mes siguiente.
+   */
   tipCorteTdc(c: Cuenta): string | null {
     if (!this.esTdc(c) || c.diaCorte == null) return null;
     const d = desgloseSaldoTdc(c);
-    if (!d.fechaCorte || d.despuesDelCorte < 0.005) return null;
+    if (!d.fechaCorte) return null;
+
+    const pagoDia =
+      c.diaLimitePago != null && Number.isFinite(Number(c.diaLimitePago))
+        ? Number(c.diaLimitePago)
+        : null;
+    const faltan = Math.round(d.alCorte * 100) / 100;
+    const abonado = Math.max(0, Math.round((Number(c.abonadoAlCorte) || 0) * 100) / 100);
+    const delCiclo = Math.round((faltan + abonado) * 100) / 100;
+
+    if (faltan < 0.005) {
+      const futuro = d.futuros.find((f) => f.monto > 0.005);
+      if (futuro) {
+        const etiq =
+          futuro.etiqueta && futuro.etiqueta !== 'Cortes siguientes'
+            ? futuro.etiqueta
+            : 'siguiente';
+        return `${etiq}: ${formatDineroNumero(futuro.monto)}`;
+      }
+      const pago = pagoDia != null ? `Pago ${pagoDia} · ` : '';
+      return `${pago}al corriente`;
+    }
+
     const mes = d.etiquetaCiclo || formatoFechaCortaEs(d.fechaCorte);
-    return `${mes}: ${formatDineroNumero(d.alCorte)}`;
+    const partes: string[] = [mes];
+    if (pagoDia != null) partes.push(`Pago ${pagoDia}`);
+    if (abonado > 0.005 && delCiclo > faltan + 0.005) {
+      partes.push(`faltan ${formatDineroNumero(faltan)} de ${formatDineroNumero(delCiclo)}`);
+    } else {
+      partes.push(`${formatDineroNumero(faltan)} a pagar`);
+    }
+    return partes.join(' · ');
   }
 
   /** Texto corto en lista: "Corte 9 · Pago 22" (solo el día, sin fecha repetida). */

@@ -61,6 +61,13 @@ public class Cuenta {
     private BigDecimal saldoDespuesCorte;
 
     /**
+     * Abonos registrados después del corte del ciclo a pagar (antes del límite).
+     * Sirve para tip: «faltan X de Y (abonaste Z)».
+     */
+    @Transient
+    private BigDecimal abonadoAlCorte;
+
+    /**
      * Solo alta de PRESTAMO: efectivo que te dan (suma a disponible).
      * {@code saldoActual} = total a pagar (puede ser mayor por interés).
      */
@@ -109,6 +116,8 @@ public class Cuenta {
     public void setSaldoAlCorte(BigDecimal saldoAlCorte) { this.saldoAlCorte = saldoAlCorte; }
     public BigDecimal getSaldoDespuesCorte() { return saldoDespuesCorte; }
     public void setSaldoDespuesCorte(BigDecimal saldoDespuesCorte) { this.saldoDespuesCorte = saldoDespuesCorte; }
+    public BigDecimal getAbonadoAlCorte() { return abonadoAlCorte; }
+    public void setAbonadoAlCorte(BigDecimal abonadoAlCorte) { this.abonadoAlCorte = abonadoAlCorte; }
 
     public BigDecimal getMontoRecibido() { return montoRecibido; }
     public void setMontoRecibido(BigDecimal montoRecibido) { this.montoRecibido = montoRecibido; }

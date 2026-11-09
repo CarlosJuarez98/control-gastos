@@ -722,6 +722,7 @@ public class FinanzasService {
         if (c == null || c.getId() == null || !esCuentaTdc(c) || c.getDiaCorte() == null) {
             c.setSaldoAlCorte(null);
             c.setSaldoDespuesCorte(null);
+            c.setAbonadoAlCorte(null);
             return;
         }
         LocalDate hoy = LocalDate.now();
@@ -731,6 +732,7 @@ public class FinanzasService {
         if (ciclo == null) {
             c.setSaldoAlCorte(null);
             c.setSaldoDespuesCorte(null);
+            c.setAbonadoAlCorte(null);
             return;
         }
         String u = c.getPropietario() != null ? c.getPropietario() : Sesion.usuario();
@@ -738,13 +740,27 @@ public class FinanzasService {
                 movimientoRepository.findByPropietarioAndCuentaIdOrderByFechaDescIdDesc(u, c.getId());
         enriquecerMovimientosConGasto(movs);
 
+        // Abonos desde el último corte cerrado (pagan el estado / ciclo a cubrir).
+        LocalDate desdeAbonos = ultimoCorteCerrado(c.getDiaCorte(), hoy);
+        if (desdeAbonos == null) {
+            desdeAbonos = ciclo;
+        }
+
         BigDecimal futuros = BigDecimal.ZERO;
+        BigDecimal abonado = BigDecimal.ZERO;
         for (MovimientoCuenta m : movs) {
-            if (m.getTipo() == null) continue;
+            if (m.getTipo() == null || m.getFecha() == null) continue;
             String tipo = m.getTipo().trim().toUpperCase(Locale.ROOT);
-            if (!"CARGO".equals(tipo) && !"INTERES".equals(tipo)) continue;
             BigDecimal monto = nullSafe(m.getMonto());
             if (monto.compareTo(BigDecimal.ZERO) <= 0) continue;
+
+            // Abono después del corte cerrado → baja lo “a pagar” (idealmente antes del límite).
+            if ("ABONO".equals(tipo) && m.getFecha().isAfter(desdeAbonos)) {
+                abonado = abonado.add(monto);
+                continue;
+            }
+
+            if (!"CARGO".equals(tipo) && !"INTERES".equals(tipo)) continue;
 
             Integer meses = m.getMeses();
             if (meses != null && meses > 1) {
@@ -779,6 +795,7 @@ public class FinanzasService {
         }
         c.setSaldoAlCorte(alCorte.setScale(2, RoundingMode.HALF_UP));
         c.setSaldoDespuesCorte(despues.setScale(2, RoundingMode.HALF_UP));
+        c.setAbonadoAlCorte(abonado.setScale(2, RoundingMode.HALF_UP));
     }
 
     /** Próximo corte del ciclo abierto (día de corte inclusive). */
