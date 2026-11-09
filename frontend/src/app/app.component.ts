@@ -227,6 +227,8 @@ export class AppComponent implements AfterViewInit, AfterViewChecked, OnDestroy 
   onFocusIn(ev: FocusEvent): void {
     const t = ev.target as HTMLElement | null;
     if (!t || !this.esCampoEditable(t)) return;
+    // Paginador: no recentrar ni congelar layout (si no, al cambiar N/pág. se va todo arriba).
+    if (t.closest('.paginador')) return;
     const campo = t;
     if (this.focusOutTimer != null) {
       clearTimeout(this.focusOutTimer);
@@ -280,6 +282,7 @@ export class AppComponent implements AfterViewInit, AfterViewChecked, OnDestroy 
       return;
     }
     if (!this.esCampoEditable(t)) return;
+    if (t.closest('.paginador')) return;
     this.actualizarInsetTeclado(false);
     if (this.focusScrollTimer != null) clearTimeout(this.focusScrollTimer);
     this.focusScrollTimer = setTimeout(() => {

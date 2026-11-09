@@ -70,6 +70,8 @@ export function scrollCampoEnVista(
   opts?: { behavior?: ScrollBehavior; forzar?: boolean; anticiparTeclado?: boolean },
 ): void {
   if (!el || typeof window === 'undefined') return;
+  // Controles de página: nunca mover el scroll del panel (rompe Deudas al cambiar N/pág.).
+  if (el.closest?.('.paginador')) return;
   const behavior = opts?.behavior ?? 'smooth';
   const forzar = opts?.forzar ?? false;
   const anticipar = opts?.anticiparTeclado ?? forzar;

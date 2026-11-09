@@ -1064,8 +1064,18 @@ export class CuentasComponent implements OnInit, OnDestroy {
   }
 
   alCambiarTamMovs(tam: number): void {
+    // Conservar scroll del panel: no recentrar ni mandar todo arriba.
+    const det =
+      (this.host.nativeElement.querySelector('.detalle-lateral') as HTMLElement | null) ||
+      (this.host.nativeElement.querySelector('.detalle') as HTMLElement | null);
+    const top = det?.scrollTop ?? 0;
     this.pagMovs.alCambiarTam(tam, this.movimientos.length);
     this.cdr.markForCheck();
+    requestAnimationFrame(() => {
+      if (!det) return;
+      const max = Math.max(0, det.scrollHeight - det.clientHeight);
+      det.scrollTop = Math.min(top, max);
+    });
   }
 
   get puedeCrearCuenta(): boolean {
